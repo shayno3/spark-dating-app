@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+hayno301<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -47,15 +47,16 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
-  overflow: hidden;
-  overscroll-behavior: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 #app {
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100); /* JS-corrected height — fixes iOS Chrome/Safari 100vh bug */
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100); /* JS-corrected height — fixes iOS Chrome/Safari 100vh bug */
   display: flex;
   flex-direction: column;
   max-width: 480px;
@@ -108,7 +109,7 @@ html, body {
 .btn-danger:hover { background: rgba(244, 67, 54, 0.15); border-color: #ef5350; color: #ef5350; }
 
 /* ---- SETUP WIZARD ---- */
-.setup-view { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.setup-view { min-height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
 .setup-header { padding: 1.25rem 1.5rem 0; background: var(--bg); position: sticky; top: 0; z-index: 10; }
 .setup-progress { display: flex; gap: 5px; margin-bottom: 1.25rem; }
 .progress-seg { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.35s; }
@@ -146,7 +147,7 @@ html, body {
 .chip-x { opacity: 0.6; font-size: 0.9rem; }
 
 /* ---- MAIN APP ---- */
-.main-view { height: 100%; display: flex; flex-direction: column; position: relative; }
+.main-view { min-height: 100vh; display: flex; flex-direction: column; position: relative; }
 
 /* ---- GEAR PRIVACY SHEET ---- */
 .privacy-sheet { position: absolute; inset: 0; z-index: 300; display: none; pointer-events: none; }
@@ -157,17 +158,17 @@ html, body {
 
 /* ---- PROFILE EDIT FAB ---- */
 .profile-edit-fab { position: absolute; top: 0.5rem; right: 0; width: 38px; height: 38px; border-radius: 50%; background: rgba(233,30,140,0.14); border: 1.5px solid rgba(233,30,140,0.4); color: var(--primary); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
-.app-header { padding: 0.9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.app-header { padding: 0.9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
 .app-logo-wrap { display: flex; align-items: center; gap: 0.5rem; }
 .app-logo { font-size: 1.3rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
 .header-icon-btn { background: transparent; border: none; cursor: pointer; font-size: 1.25rem; padding: 0.25rem; border-radius: 8px; }
-.content-area { flex: 1; overflow: hidden; position: relative; }
-.tab-content { display: none; height: 100%; flex-direction: column; overflow: hidden; }
+.content-area { flex: 1; overflow: visible; position: relative; }
+.tab-content { display: none; height: auto; flex-direction: column; overflow: visible; }
 .tab-content.active { display: flex; }
 
 /* ---- BOTTOM NAV ---- */
 /* padding-bottom accounts for iOS home-indicator (safe-area-inset-bottom) */
-.bottom-nav { display: flex; background: var(--bg-card); border-top: 1px solid var(--border); padding: 0.4rem 0.5rem; padding-bottom: calc(0.4rem + var(--sab)); flex-shrink: 0; }
+.bottom-nav { display: flex; background: var(--bg-card); border-top: 1px solid var(--border); padding: 0.4rem 0.5rem; padding-bottom: calc(0.4rem + var(--sab)); flex-shrink: 0; position: sticky; bottom: 0; z-index: 50; }
 .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0.4rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 10px; transition: color 0.2s; position: relative; touch-action: manipulation; }
 .nav-btn.active { color: var(--primary); }
 .nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -175,13 +176,13 @@ html, body {
 .nav-badge { position: absolute; top: 1px; right: 10px; background: var(--primary); color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center; }
 
 /* ---- DISCOVER ---- */
-.discover-wrap { display: flex; flex-direction: column; height: 100%; }
+.discover-wrap { display: flex; flex-direction: column; min-height: calc(100vh - 120px); }
 .filter-bar { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
 .filter-bar::-webkit-scrollbar { display: none; }
 .filter-chip { flex-shrink: 0; padding: 0.4rem 0.9rem; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-muted); font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; }
 .filter-chip.active { background: rgba(233,30,140,0.12); border-color: var(--primary); color: var(--primary); }
-.discover-inner { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 1rem; overflow: hidden; }
-.card-stack { width: 100%; flex: 1; position: relative; max-width: 400px; min-height: 0; }
+.discover-inner { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 1rem; overflow: visible; }
+.card-stack { width: 100%; position: relative; max-width: 400px; height: 480px; }
 
 /* ---- PROFILE CARDS ---- */
 .profile-card { position: absolute; inset: 0; border-radius: 22px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.55); }
