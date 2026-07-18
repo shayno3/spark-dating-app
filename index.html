@@ -1902,6 +1902,13 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
   // Wait briefly for runtime init above, then set up auth listener
   setTimeout(() => {
     if (!auth) return;
+    // Handle Google redirect result (mobile/glasses use signInWithRedirect)
+    auth.getRedirectResult().then(result => {
+      // onAuthStateChanged fires automatically if result.user is set — nothing extra needed
+    }).catch(e => {
+      if (e.code && e.code !== 'auth/no-current-user') toast(fbErrMsg(e));
+    });
+
     auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         // PIN quick-unlock gate (only shows if the user has set a PIN)
@@ -2346,8 +2353,16 @@ async function signInWithGoogle() {
   if (!auth) { toast('Firebase not configured yet'); return; }
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
-    // onAuthStateChanged takes over: new users → setup wizard, returning → main app
+    // Popups are blocked/unsupported on mobile browsers and glasses browsers.
+    // Use redirect flow there; keep popup on desktop for smoother UX.
+    const isMobileOrGlasses = /Android|iPhone|iPad|iPod|Mobile|RayBan|OculusBrowser/i.test(navigator.userAgent);
+    if (isMobileOrGlasses) {
+      await auth.signInWithRedirect(provider);
+      // Page navigates away — nothing runs after this line
+    } else {
+      await auth.signInWithPopup(provider);
+      // onAuthStateChanged takes over: new users → setup wizard, returning → main app
+    }
   } catch(e) {
     if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
       toast(fbErrMsg(e));
