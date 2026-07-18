@@ -1914,6 +1914,11 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         // PIN quick-unlock gate (only shows if the user has set a PIN)
         const unlocked = await pinGate(firebaseUser.uid);
         if (!unlocked) return; // user chose full login → signed out
+        // Email verification gate — Google users are pre-verified; email/pw users must verify
+        if (!firebaseUser.emailVerified) {
+          _showVerifyEmailOverlay(firebaseUser);
+          return;
+        }
         const snap = await db.collection('users').doc(firebaseUser.uid).get();
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
@@ -2264,6 +2269,56 @@ document.addEventListener('keydown', e => {
 /* ================================================================
    AUTH FUNCTIONS
 ================================================================ */
+/* ---- Email verification gate ---- */
+let _verificationEmailSent = false;
+async function _showVerifyEmailOverlay(firebaseUser) {
+  const overlay = document.getElementById('verifyEmailOverlay');
+  if (!overlay) return;
+  const addrEl = document.getElementById('verifyEmailAddr');
+  if (addrEl) addrEl.textContent = firebaseUser.email || '';
+  overlay.style.display = 'flex';
+  // Auto-send once per session so the user doesn't have to click Resend first
+  if (!_verificationEmailSent) {
+    _verificationEmailSent = true;
+    try {
+      await firebaseUser.sendEmailVerification({ url: 'https://spark-dating-d16.pages.dev/' });
+    } catch(e) { /* silent — user can tap Resend if needed */ }
+  }
+}
+function _hideVerifyEmailOverlay() {
+  const overlay = document.getElementById('verifyEmailOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+async function resendVerificationEmail() {
+  if (!auth?.currentUser) return;
+  const btn = document.getElementById('resendVerifyBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await auth.currentUser.sendEmailVerification({ url: 'https://spark-dating-d16.pages.dev/' });
+    toast('Verification email sent — check your inbox ✉️');
+  } catch(e) { toast(fbErrMsg(e)); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Resend email'; } }
+}
+async function checkEmailVerified() {
+  if (!auth?.currentUser) return;
+  const btn = document.getElementById('checkVerifiedBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  try {
+    await auth.currentUser.reload();
+    if (auth.currentUser.emailVerified) {
+      _hideVerifyEmailOverlay();
+      toast("Email verified! Welcome to Spark ✨");
+      window.location.reload();
+    } else {
+      toast("Not verified yet — click the link in your inbox first");
+      if (btn) { btn.disabled = false; btn.textContent = "I've verified ✓"; }
+    }
+  } catch(e) {
+    toast(fbErrMsg(e));
+    if (btn) { btn.disabled = false; btn.textContent = "I've verified ✓"; }
+  }
+}
+
 async function forgotPassword() {
   if (!auth) { toast('Firebase not configured yet'); return; }
   const email = document.getElementById('loginEmail').value.trim();
@@ -4696,6 +4751,32 @@ async function confirmDeleteAccount() {
 <input type="file" id="editPhotoInput"  accept="image/*" multiple style="display:none" onchange="handlePhotos(event,'edit')">
 
 <!-- ====== VIRTUAL KEYBOARD POPUP BACKGROUND ====== -->
+
+<!-- ====== EMAIL VERIFICATION OVERLAY ====== -->
+<div id="verifyEmailOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:var(--card-bg,#1e1e2e);border-radius:1.25rem;padding:2rem 1.5rem;width:min(380px,92vw);display:flex;flex-direction:column;gap:1rem;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    <div style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.25rem">✉️</div>
+      <h2 style="margin:0;font-size:1.25rem;color:var(--text,#fff)">Verify your email</h2>
+      <p style="margin:0.5rem 0 0;font-size:0.85rem;color:var(--text-muted,#888)">
+        We sent a verification link to<br>
+        <strong id="verifyEmailAddr" style="color:var(--text,#fff)"></strong>
+      </p>
+      <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--text-muted,#888)">Click the link in the email, then tap the button below.</p>
+    </div>
+    <button id="checkVerifiedBtn" onclick="checkEmailVerified()"
+      style="background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;border:none;border-radius:0.75rem;padding:0.9rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;">
+      I've verified ✓
+    </button>
+    <button id="resendVerifyBtn" onclick="resendVerificationEmail()"
+      style="background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.75rem;font-size:0.9rem;cursor:pointer;width:100%;">
+      Resend email
+    </button>
+    <p style="text-align:center;margin:0;font-size:0.78rem;color:var(--text-muted,#888)">
+      Wrong account? <button onclick="auth.signOut();_hideVerifyEmailOverlay()" style="background:none;border:none;color:var(--accent,#e91e8c);cursor:pointer;font-size:0.78rem;padding:0;text-decoration:underline">Sign out</button>
+    </p>
+  </div>
+</div>
 
 <!-- ====== RESET PASSWORD OVERLAY ====== -->
 <div id="resetPwOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
