@@ -1,4 +1,4 @@
-hayno301<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -67,7 +67,7 @@ html, body {
 }
 
 /* ---- AUTH ---- */
-.auth-view { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; background: linear-gradient(180deg, #0F0F1A 0%, #1a0a2e 100%); }
+.auth-view { min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 4rem 2rem 2rem; background: linear-gradient(180deg, #0F0F1A 0%, #1a0a2e 100%); overflow-y: auto; }
 .auth-logo { font-size: 3.5rem; margin-bottom: 0.25rem; }
 .auth-title { font-size: 2.5rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.2rem; letter-spacing: -1px; }
 .auth-tagline { color: var(--text-muted); margin-bottom: 2.5rem; font-size: 0.95rem; }
@@ -107,6 +107,12 @@ html, body {
 .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 .btn-danger { background: rgba(244, 67, 54, 0.08); border-color: rgba(244, 67, 54, 0.3); color: #ef5350; }
 .btn-danger:hover { background: rgba(244, 67, 54, 0.15); border-color: #ef5350; color: #ef5350; }
+.btn-google { display:flex; align-items:center; justify-content:center; gap:0.6rem; padding:0.85rem; background:#fff; border:1.5px solid #dadce0; border-radius:12px; color:#3c4043; font-size:0.95rem; font-weight:600; cursor:pointer; width:100%; transition:box-shadow 0.2s,background 0.2s; touch-action:manipulation; -webkit-appearance:none; }
+.btn-google:hover { background:#f8f9fa; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+.btn-google:active { background:#f1f3f4; }
+.auth-or { display:flex; align-items:center; gap:0.75rem; width:100%; margin:0.25rem 0; }
+.auth-or span { font-size:0.8rem; color:var(--text-muted); white-space:nowrap; }
+.auth-or::before,.auth-or::after { content:''; flex:1; height:1px; background:var(--border); }
 
 /* ---- SETUP WIZARD ---- */
 .setup-view { min-height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
@@ -202,7 +208,7 @@ html, body {
 .photo-dot.on { background: rgba(255,255,255,0.9); }
 
 /* ---- SWIPE STAMPS ---- */
-.stamp { position: absolute; padding: 0.4rem 0.9rem; border-radius: 8px; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0; transition: opacity 0.1s; border: 4px solid; z-index: 10; pointer-events: none; }
+.stamp { position: absolute; padding: 0.4rem 0.9rem; border-radius: 8px; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0; transition: opacity 0.1s; border: 4px solid; x-index: 10; pointer-events: none; }
 .stamp-like { top: 28px; left: 18px; color: #4CAF50; border-color: #4CAF50; transform: rotate(-15deg); }
 .stamp-nope { top: 28px; right: 18px; color: #F44336; border-color: #F44336; transform: rotate(15deg); }
 .stamp-super { top: 28px; left: 50%; transform: translateX(-50%); color: #6C63FF; border-color: #6C63FF; }
@@ -242,7 +248,7 @@ html, body {
 @keyframes popIn { 0%{transform:scale(0);opacity:0} 100%{transform:scale(1);opacity:1} }
 
 /* ---- MATCHES TAB ---- */
-.tab-scroll { flex: 1; overflow-y: auto; padding: 0.75rem 1rem 1rem; }
+.tab-scroll { overflow: visible; padding: 0.75rem 1rem 1rem; }
 .tab-title { font-size: 1.25rem; font-weight: 900; padding: 0.9rem 1rem 0; letter-spacing: -0.3px; flex-shrink: 0; }
 .tab-sub { font-size: 0.82rem; color: var(--text-muted); padding: 0.2rem 1rem 0.5rem; flex-shrink: 0; }
 .matches-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; }
@@ -258,7 +264,7 @@ html, body {
 .nearby-header { padding: 1rem 1rem 0.5rem; }
 .nearby-city-line { font-size: 1rem; font-weight: 800; color: var(--primary); }
 .nearby-count { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-.nearby-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; padding: 0.5rem 1rem 1rem; overflow-y: auto; }
+.nearby-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; padding: 0.5rem 1rem 1rem; }
 .nearby-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; position: relative; }
 .nearby-card:hover { transform: translateY(-3px); }
 .nearby-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
@@ -275,7 +281,7 @@ html, body {
 .nearby-loading { grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted); }
 
 /* ---- MESSAGES TAB ---- */
-.conv-list { flex: 1; overflow-y: auto; }
+.conv-list { overflow: visible; }
 .conv-item { display: flex; gap: 0.875rem; padding: 0.875rem 1rem; border-radius: 12px; cursor: pointer; align-items: center; transition: background 0.15s; margin: 0 0.5rem; }
 .conv-item:hover { background: var(--bg-card); }
 .conv-av { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--border); }
@@ -308,7 +314,7 @@ html, body {
 .send-btn:active { transform: scale(0.9); }
 
 /* ---- PROFILE TAB ---- */
-.profile-scroll { flex: 1; overflow-y: auto; padding: 0.5rem 1rem 1.5rem; }
+.profile-scroll { overflow: visible; padding: 0.5rem 1rem 1.5rem; }
 .my-header { display: flex; flex-direction: column; align-items: center; padding: 1.25rem 0 1rem; }
 .photo-ring { border-radius: 50%; background: var(--gradient-btn); padding: 3px; width: 108px; height: 108px; margin-bottom: 0.9rem; flex-shrink: 0; }
 .photo-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; background: var(--bg-card); }
@@ -330,13 +336,13 @@ html, body {
 .edit-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 10; flex-shrink: 0; }
 .edit-header h2 { flex: 1; font-size: 1.1rem; font-weight: 800; }
 .save-btn { background: var(--gradient-btn); border: none; color: white; padding: 0.5rem 1.1rem; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 0.9rem; }
-.edit-body { padding: 1rem 1.25rem 2.5rem; overflow-y: auto; flex: 1; }
+.edit-body { padding: 1rem 1.25rem 2.5rem; overflow: visible; }
 
 /* ---- PROFILE DETAIL PANEL ---- */
 .detail-photos { position: relative; height: 58vh; min-height: 300px; flex-shrink: 0; }
 .detail-photo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .detail-back { position: absolute; top: 0.9rem; left: 0.9rem; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; backdrop-filter: blur(4px); }
-.detail-info { padding: 1.25rem; overflow-y: auto; flex: 1; }
+.detail-info { padding: 1.25rem; overflow: visible; }
 .detail-name-line { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
 .detail-loc-line { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 0.9rem; }
 .detail-bio-text { font-size: 0.9rem; line-height: 1.6; color: rgba(255,255,255,0.82); margin-bottom: 1.25rem; }
@@ -531,8 +537,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* ---- MOMENTUM SCROLLING (iOS) ---- */
-.tab-scroll, .chat-messages, .profile-scroll, .conv-list,
-.setup-step, .edit-body, .auth-view, .help-body, .fb-setup-scroll {
+html, body, .chat-messages, .setup-step, .auth-view, .help-body, .fb-setup-scroll {
   -webkit-overflow-scrolling: touch;
 }
 
@@ -945,7 +950,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 }
 .mic-wave:nth-child(1) { height: 8px;  animation-delay: 0s; }
 .mic-wave:nth-child(2) { height: 14px; animation-delay: 0.15s; }
-.mic-wave:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+.mic-wave:nth-child(3) { height: 10px; animation-delay: 0.3s;
+}
 .mic-wave:nth-child(4) { height: 16px; animation-delay: 0.1s; }
 .mic-wave:nth-child(5) { height: 8px;  animation-delay: 0.25s; }
 @keyframes wave {
@@ -1280,6 +1286,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <button class="btn-outline" onclick="resetSMSFlow()" style="margin-top:0.5rem;font-size:0.82rem">← Change number</button>
     </div>
     <div id="recaptcha-container" style="margin-top:0.5rem;display:flex;justify-content:center"></div>
+  </div>
+
+  <!-- Google Sign-In — always visible below the tab forms -->
+  <div style="width:100%;margin-top:0.5rem;display:flex;flex-direction:column;gap:0.75rem">
+    <div class="auth-or"><span>or</span></div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      Continue with Google
+    </button>
   </div>
 </div>
 
@@ -2279,6 +2294,19 @@ async function register() {
   } catch(e) { toast(fbErrMsg(e)); }
 }
 
+async function signInWithGoogle() {
+  if (!auth) { toast('Firebase not configured yet'); return; }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+    // onAuthStateChanged takes over: new users → setup wizard, returning → main app
+  } catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      toast(fbErrMsg(e));
+    }
+  }
+}
+
 async function logout() {
   Object.values(S.listeners).forEach(fn => typeof fn === 'function' && fn());
   S.listeners = {};
@@ -2331,7 +2359,9 @@ function fbErrMsg(e) {
     'auth/user-not-found':       'No account found — try signing up',
     'auth/wrong-password':       'Incorrect password',
     'auth/too-many-requests':    'Too many attempts — try again later',
-    'auth/invalid-credential':   'Incorrect email or password'
+    'auth/invalid-credential':   'Incorrect email or password',
+    'auth/account-exists-with-different-credential': 'An account already exists with this email — try a different sign-in method',
+    'auth/popup-blocked':        'Pop-up was blocked — please allow pop-ups for this site'
   };
   return map[e.code] || e.message;
 }
