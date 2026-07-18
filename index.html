@@ -3037,57 +3037,75 @@ async function createMatch(uid1, uid2) {
   }
 }
 /* ---- Report & Block ---- */
-function showReportBlockMenu(uid, name) {
-  const existing = document.getElementById('reportBlockModal');
-  if (existing) existing.remove();
-  const modal = document.createElement('div');
+function _makeModal() {
+  var modal = document.createElement('div');
   modal.id = 'reportBlockModal';
   modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;';
-  modal.innerHTML = `
-    <div style="background:var(--card-bg,#1e1e2e);border-radius:1.25rem 1.25rem 0 0;padding:1.5rem;width:100%;max-width:480px;display:flex;flex-direction:column;gap:0.75rem;">
-      <div style="text-align:center;font-weight:700;font-size:1rem;color:var(--text,#fff);margin-bottom:0.25rem">${name}</div>
-      <button onclick="blockUser('${uid}','${name.replace(/'/g,\"\\\\'\")}');document.getElementById('reportBlockModal').remove()"
-        style="background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.85rem;font-size:0.95rem;cursor:pointer;">
-        🚫 Block ${name}
-      </button>
-      <button onclick="showReportReasons('${uid}','${name.replace(/'/g,\"\\\\'\")}');document.getElementById('reportBlockModal').remove()"
-        style="background:var(--input-bg,#2a2a3e);color:#ff6b6b;border:1.5px solid rgba(255,107,107,0.3);border-radius:0.75rem;padding:0.85rem;font-size:0.95rem;cursor:pointer;">
-        🚩 Report ${name}
-      </button>
-      <button onclick="document.getElementById('reportBlockModal').remove()"
-        style="background:none;border:none;color:var(--text-muted,#888);padding:0.5rem;font-size:0.9rem;cursor:pointer;">
-        Cancel
-      </button>
-    </div>`;
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  return modal;
+}
+function _makeSheet() {
+  var sheet = document.createElement('div');
+  sheet.style.cssText = 'background:var(--card-bg,#1e1e2e);border-radius:1.25rem 1.25rem 0 0;padding:1.5rem;width:100%;max-width:480px;display:flex;flex-direction:column;gap:0.75rem;';
+  return sheet;
+}
+function _makeTitle(text) {
+  var d = document.createElement('div');
+  d.style.cssText = 'text-align:center;font-weight:700;font-size:1rem;color:var(--text,#fff);margin-bottom:0.25rem;';
+  d.textContent = text;
+  return d;
+}
+function _makeBtn(label, style, fn) {
+  var b = document.createElement('button');
+  b.textContent = label;
+  b.style.cssText = style;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function showReportBlockMenu(uid, name) {
+  var ex = document.getElementById('reportBlockModal');
+  if (ex) ex.remove();
+  var modal = _makeModal();
+  var sheet = _makeSheet();
+  sheet.appendChild(_makeTitle(name));
+  sheet.appendChild(_makeBtn('🚫 Block ' + name, 'background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.85rem;font-size:0.95rem;cursor:pointer;width:100%;text-align:left;', function() {
+    blockUser(uid, name);
+    modal.remove();
+  }));
+  sheet.appendChild(_makeBtn('🚩 Report ' + name, 'background:var(--input-bg,#2a2a3e);color:#ff6b6b;border:1.5px solid rgba(255,107,107,0.3);border-radius:0.75rem;padding:0.85rem;font-size:0.95rem;cursor:pointer;width:100%;', function() {
+    showReportReasons(uid, name);
+    modal.remove();
+  }));
+  sheet.appendChild(_makeBtn('Cancel', 'background:none;border:none;color:var(--text-muted,#888);padding:0.5rem;font-size:0.9rem;cursor:pointer;width:100%;', function() { modal.remove(); }));
+  modal.appendChild(sheet);
   document.body.appendChild(modal);
 }
 
 function showReportReasons(uid, name) {
-  const modal = document.createElement('div');
-  modal.id = 'reportBlockModal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;';
-  const reasons = ['Fake profile','Inappropriate photos','Harassment','Spam','Underage'];
-  modal.innerHTML = `
-    <div style="background:var(--card-bg,#1e1e2e);border-radius:1.25rem 1.25rem 0 0;padding:1.5rem;width:100%;max-width:480px;display:flex;flex-direction:column;gap:0.6rem;">
-      <div style="text-align:center;font-weight:700;font-size:1rem;color:var(--text,#fff);margin-bottom:0.25rem">Report ${name}</div>
-      <div style="font-size:0.82rem;color:var(--text-muted,#888);text-align:center;margin-bottom:0.25rem">Select a reason</div>
-      ${reasons.map(r => `
-        <button onclick="reportUser('${uid}','${r}');document.getElementById('reportBlockModal').remove()"
-          style="background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.75rem;font-size:0.9rem;cursor:pointer;text-align:left;padding-left:1rem;">
-          ${r}
-        </button>`).join('')}
-      <button onclick="document.getElementById('reportBlockModal').remove()"
-        style="background:none;border:none;color:var(--text-muted,#888);padding:0.5rem;font-size:0.9rem;cursor:pointer;">
-        Cancel
-      </button>
-    </div>`;
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  var ex = document.getElementById('reportBlockModal');
+  if (ex) ex.remove();
+  var modal = _makeModal();
+  var sheet = _makeSheet();
+  sheet.style.gap = '0.6rem';
+  sheet.appendChild(_makeTitle('Report ' + name));
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.82rem;color:var(--text-muted,#888);text-align:center;margin-bottom:0.25rem;';
+  sub.textContent = 'Select a reason';
+  sheet.appendChild(sub);
+  ['Fake profile','Inappropriate photos','Harassment','Spam','Underage'].forEach(function(r) {
+    sheet.appendChild(_makeBtn(r, 'background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.75rem;font-size:0.9rem;cursor:pointer;width:100%;text-align:left;padding-left:1rem;', function() {
+      reportUser(uid, r);
+      modal.remove();
+    }));
+  });
+  sheet.appendChild(_makeBtn('Cancel', 'background:none;border:none;color:var(--text-muted,#888);padding:0.5rem;font-size:0.9rem;cursor:pointer;width:100%;', function() { modal.remove(); }));
+  modal.appendChild(sheet);
   document.body.appendChild(modal);
 }
 
 async function blockUser(uid, name) {
-  const myUid = S.user?.id;
+  var myUid = S.user && S.user.id;
   if (!myUid || !db) return;
   try {
     await db.collection('users').doc(myUid).update({
@@ -3097,18 +3115,18 @@ async function blockUser(uid, name) {
     if (!S.user.blockedUsers.includes(uid)) S.user.blockedUsers.push(uid);
     S.seen.add(uid);
     renderDiscover();
-    toast(`${name || 'User'} blocked`);
+    toast((name || 'User') + ' blocked');
   } catch(e) { toast(fbErrMsg(e)); }
 }
 
 async function reportUser(uid, reason) {
-  const myUid = S.user?.id;
+  var myUid = S.user && S.user.id;
   if (!myUid || !db) return;
   try {
     await db.collection('reports').add({
       reporterId: myUid,
       reportedId: uid,
-      reason,
+      reason: reason,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
     await blockUser(uid, '');
