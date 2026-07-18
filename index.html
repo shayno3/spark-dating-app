@@ -14,6 +14,7 @@
 <title>Spark ✨ — Dating App</title>
 <!-- Firebase SDK loaded in <head> so it's available before any inline script -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <style>
@@ -1819,6 +1820,10 @@ let auth, db;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
+  firebase.appCheck().activate(
+    new firebase.appCheck.ReCaptchaV3Provider('6LcDcFotAAAAAGpbDvMC5n1-hM7FQsEsqaCZ05cx'),
+    true // auto-refresh tokens
+  );
   auth    = firebase.auth();
   db      = firebase.firestore();
 } else {
@@ -1855,6 +1860,10 @@ function applyPastedConfig() {
       const cfg = JSON.parse(atob(h.slice(7)));
       if (cfg.apiKey && cfg.apiKey !== 'YOUR_API_KEY') {
         firebase.initializeApp(cfg);
+        firebase.appCheck().activate(
+          new firebase.appCheck.ReCaptchaV3Provider('6LcDcFotAAAAAGpbDvMC5n1-hM7FQsEsqaCZ05cx'),
+          true
+        );
         auth    = firebase.auth();
         db      = firebase.firestore();
         document.getElementById('app').style.display = '';
