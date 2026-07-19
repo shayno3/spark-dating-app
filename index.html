@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -1817,7 +1818,7 @@ const FIREBASE_CONFIG = {
    INIT
 ================================================================ */
 const FB_READY = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-let auth, db;
+let auth, db, messaging;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -1827,6 +1828,7 @@ if (FB_READY) {
   );
   auth    = firebase.auth();
   db      = firebase.firestore();
+  messaging = firebase.messaging();
 } else {
   // Show the setup guide; hide the app shell
   document.getElementById('app').style.display = 'none';
@@ -1867,6 +1869,7 @@ function applyPastedConfig() {
         );
         auth    = firebase.auth();
         db      = firebase.firestore();
+        messaging = firebase.messaging();
         document.getElementById('app').style.display = '';
         document.getElementById('fbSetupOverlay').style.display = 'none';
       }
@@ -2802,6 +2805,8 @@ async function enterMainApp() {
   subscribeToMatches();
   updateBadges();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
+  // Non-blocking — asks for push permission (or silently refreshes token if already granted).
+  initPushNotifications().catch(() => {});
 }
 
 /* ================================================================
@@ -4856,6 +4861,90 @@ async function confirmDeleteAccount() {
     if (btn) { btn.textContent = '🗑️ Yes, Delete My Account'; btn.disabled = false; }
   }
 }
+
+
+/* ================================================================
+   WEB PUSH NOTIFICATIONS (FCM)
+================================================================ */
+const FCM_VAPID_KEY = 'BNEqzxlZIaOv2PObsu2aBdAKRCIUa_xMkrT8KBz5Er7xBalxf4uhqj0rr0PneA7eny4ta03Boj6aVYXu_Zg5M9A';
+const PUSH_SNOOZE_KEY = 'spark_push_snooze_until';
+const PUSH_DENIED_KEY = 'spark_push_denied';
+
+// Register the service worker and save the FCM token to Firestore.
+async function registerFCMToken() {
+  if (!messaging || !('serviceWorker' in navigator) || !('Notification' in window)) return;
+  if (Notification.permission === 'denied') { localStorage.setItem(PUSH_DENIED_KEY, '1'); return; }
+  try {
+    const sw    = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: sw });
+    if (token && S.user?.id) {
+      await db.collection('users').doc(S.user.id).update({
+        fcmTokens: firebase.firestore.FieldValue.arrayUnion(token)
+      });
+    }
+    // Handle messages when app is in the foreground — show as in-app toast.
+    messaging.onMessage((payload) => {
+      const n = payload.notification || {};
+      const body = [n.title, n.body].filter(Boolean).join(' — ');
+      if (body) toast('🔔 ' + body);
+    });
+  } catch (err) {
+    console.warn('[FCM] init error:', err);
+  }
+}
+
+// Called by the "Enable 🔔" button in the banner.
+async function enablePushNotifications() {
+  hidePushBanner();
+  if (!('Notification' in window)) { toast('Push notifications are not supported in this browser.'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    await registerFCMToken();
+    toast('🔔 Notifications enabled!');
+  } else {
+    localStorage.setItem(PUSH_DENIED_KEY, '1');
+  }
+}
+
+// "Maybe later" — snooze the banner for 7 days.
+function dismissPushBanner() {
+  hidePushBanner();
+  const snoozeUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  localStorage.setItem(PUSH_SNOOZE_KEY, String(snoozeUntil));
+}
+
+function hidePushBanner() {
+  const b = document.getElementById('pushBanner');
+  if (b) b.style.display = 'none';
+}
+
+// Shown after entering the main app — decides whether to silently register
+// (permission already granted) or show the soft prompt banner.
+async function initPushNotifications() {
+  if (!messaging || !('Notification' in window)) return;
+  if (localStorage.getItem(PUSH_DENIED_KEY)) return; // user previously denied at OS level
+
+  if (Notification.permission === 'granted') {
+    // Already allowed — silently register / refresh the token.
+    await registerFCMToken();
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    localStorage.setItem(PUSH_DENIED_KEY, '1');
+    return;
+  }
+
+  // 'default' — check snooze.
+  const snoozeUntil = parseInt(localStorage.getItem(PUSH_SNOOZE_KEY) || '0', 10);
+  if (Date.now() < snoozeUntil) return; // still snoozed
+
+  // Show the banner after a short delay so it doesn't interrupt the welcome toast.
+  setTimeout(() => {
+    const b = document.getElementById('pushBanner');
+    if (b) b.style.display = 'flex';
+  }, 4000);
+}
 </script>
 
 <input type="file" id="setupPhotoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(event,'setup')">
@@ -4989,6 +5078,23 @@ async function confirmDeleteAccount() {
     </div>
   </div>
 </div>
+<!-- ====== PUSH NOTIFICATION PERMISSION BANNER ====== -->
+<div id="pushBanner" style="display:none;position:fixed;bottom:calc(5rem + var(--sab,0px));left:50%;transform:translateX(-50%);width:min(420px,calc(100vw - 2rem));background:#1e1e35;border:1.5px solid rgba(233,30,140,0.4);border-radius:16px;padding:1rem 1.1rem;display:none;flex-direction:column;gap:0.6rem;box-shadow:0 8px 30px rgba(0,0,0,0.5);z-index:500;animation:slideUp 0.35s ease">
+  <div style="display:flex;align-items:center;gap:0.6rem">
+    <span style="font-size:1.4rem">🔔</span>
+    <div>
+      <div style="font-weight:700;font-size:0.92rem;color:#fff">Stay in the loop</div>
+      <div style="font-size:0.78rem;color:#9ba3af;margin-top:1px">Get notified instantly when you match or receive a message</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:0.5rem">
+    <button onclick="enablePushNotifications()" style="flex:1;background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;border:none;border-radius:10px;padding:0.6rem 0.8rem;font-size:0.85rem;font-weight:700;cursor:pointer">Enable 🔔</button>
+    <button onclick="dismissPushBanner()" style="flex:1;background:rgba(255,255,255,0.07);color:#9ba3af;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:0.6rem 0.8rem;font-size:0.85rem;cursor:pointer">Maybe later</button>
+  </div>
+</div>
+<style>
+@keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(16px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+</style>
 
 <!-- ====== DELETE ACCOUNT MODAL ====== -->
 <div id="deleteAccountModal">
