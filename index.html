@@ -22,6 +22,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -1794,7 +1796,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 </div>
 
-<!-- Firebase SDK loaded in <head> above; Storage not required (photos stored as base64 in Firestore) -->
+<!-- Firebase SDK loaded in <head> above; Storage + Analytics included -->
 
 <script>
 /* ================================================================
@@ -1822,7 +1824,7 @@ const FIREBASE_CONFIG = {
    INIT
 ================================================================ */
 const FB_READY = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-let auth, db, messaging;
+let auth, db, messaging, analytics, storage;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -1833,10 +1835,17 @@ if (FB_READY) {
   auth    = firebase.auth();
   db      = firebase.firestore();
   messaging = firebase.messaging();
+  analytics = firebase.analytics();
+  storage   = firebase.storage();
 } else {
   // Show the setup guide; hide the app shell
   document.getElementById('app').style.display = 'none';
   document.getElementById('fbSetupOverlay').style.display = 'block';
+}
+
+// Analytics helper — safe to call even if analytics is not ready
+function logEv(name, params) {
+  try { if (analytics) analytics.logEvent(name, params || {}); } catch(e) {}
 }
 
 // Allow pasting config at runtime (setup guide button)
@@ -2401,6 +2410,7 @@ async function login() {
   if (!email || !pw) { toast('Please fill in email and password'); return; }
   try {
     await auth.signInWithEmailAndPassword(email, pw);
+    logEv('login', { method: 'email' });
     S._pw = pw; S._authEmail = email; // held in memory only, for glasses-PIN setup
   } catch(e) { toast(fbErrMsg(e)); }
 }
@@ -2416,6 +2426,7 @@ async function register() {
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     await cred.user.updateProfile({ displayName: name });
+    logEv('sign_up', { method: 'email' });
     S._pw = pw; S._authEmail = email; // held in memory only, for glasses-PIN setup
     // onAuthStateChanged fires → detects no Firestore profile → shows setup
   } catch(e) { toast(fbErrMsg(e)); }
@@ -2433,6 +2444,7 @@ async function signInWithGoogle() {
       // Page navigates away — nothing runs after this line
     } else {
       await auth.signInWithPopup(provider);
+      logEv('login', { method: 'google' });
       // onAuthStateChanged takes over: new users → setup wizard, returning → main app
     }
   } catch(e) {
@@ -2555,8 +2567,11 @@ async function handlePhotos(event, mode) {
 }
 
 async function uploadPhoto(blob, uid, index) {
-  // Store photos as compressed base64 in Firestore (no paid Storage plan needed)
-  return blobToDataUrl(blob);
+  if (!storage) return blobToDataUrl(blob); // fallback if Storage not ready
+  const path = `photos/${uid}/${index}_${Date.now()}.jpg`;
+  const ref  = storage.ref(path);
+  await ref.put(blob, { contentType: 'image/jpeg' });
+  return ref.getDownloadURL(); // permanent HTTPS URL stored in Firestore
 }
 
 async function resolvePhotos(photoArr, uid) {
@@ -2768,6 +2783,7 @@ async function finishSetup() {
   };
 
   await db.collection('users').doc(uid).set(profile);
+  logEv('profile_complete', { photo_count: photoUrls.length, has_bio: bio.length > 0 });
   S.user = { id: uid, ...profile };
   enterMainApp();
   // New phone signup → offer a glasses-unlock PIN (password still in memory)
@@ -3002,6 +3018,8 @@ async function swipe(action) {
   const card = document.querySelector('.profile-card.current');
   if (!card) return;
 
+  logEv('swipe', { direction: action }); // 'like' | 'super' | 'pass'
+
   if (action === 'like' || action === 'super') {
     document.getElementById(action==='super' ? `ss_${uid}` : `sl_${uid}`)?.classList.add('show');
     card.classList.add(action==='super' ? 'fly-up' : 'fly-right');
@@ -3043,6 +3061,7 @@ async function createMatch(uid1, uid2) {
       uids: [uid1, uid2],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    logEv('match', {});
   }
 }
 /* ---- Report & Block ---- */
@@ -3830,6 +3849,7 @@ async function saveProfile() {
   };
 
   await db.collection('users').doc(uid).update(updates);
+  logEv('profile_edit', { photo_count: photoUrls.length });
   Object.assign(S.user, updates);
   closeEditProfile();
   renderMyProfile();
