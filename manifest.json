@@ -1,0 +1,10 @@
+{
+  "name": "Spark",
+  "short_name": "Spark",
+  "description": "Dating app for Meta Ray-Ban glasses and your phone",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F1A",
+  "theme_color": "#E91E8C",
+  "orientation": "portrait"
+}
