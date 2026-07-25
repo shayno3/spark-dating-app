@@ -261,6 +261,16 @@ html, body {
 .tab-title { font-size: 1.25rem; font-weight: 900; padding: 0.9rem 1rem 0; letter-spacing: -0.3px; flex-shrink: 0; }
 .tab-sub { font-size: 0.82rem; color: var(--text-muted); padding: 0.2rem 1rem 0.5rem; flex-shrink: 0; }
 .matches-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; }
+.liked-me-section { padding: 0 1rem 0.5rem; }
+.liked-me-title { font-size: 0.85rem; font-weight: 800; color: var(--primary); margin-bottom: 0.6rem; letter-spacing: 0.02em; }
+.liked-me-row { display: flex; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.5rem; scrollbar-width: none; }
+.liked-me-row::-webkit-scrollbar { display: none; }
+.liked-me-card { flex-shrink: 0; width: 100px; background: var(--bg-card); border-radius: 14px; overflow: hidden; cursor: pointer; border: 1.5px solid rgba(233,30,140,0.3); position: relative; }
+.liked-me-card img { width: 100%; height: 120px; object-fit: cover; display: block; }
+.liked-me-card-name { font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.4rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.liked-me-card-age { font-size: 0.68rem; color: var(--text-muted); padding: 0 0.4rem 0.2rem; }
+.liked-me-like-btn { width: 100%; padding: 0.3rem; border: none; background: var(--gradient); color: white; font-size: 0.7rem; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
+.liked-me-super-badge { position: absolute; top: 4px; right: 4px; background: #6C63FF; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; }
 .match-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; }
 .match-card:hover { transform: translateY(-3px); }
 .match-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
@@ -1501,6 +1511,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <div class="tab-content" id="tab-matches">
       <div class="tab-title">Matches 💕</div>
       <div class="tab-sub">People who liked you back</div>
+      <div id="likedMeSection" class="liked-me-section" style="display:none">
+        <div class="liked-me-title">❤️ <span id="likedMeCount">0</span> people liked you</div>
+        <div class="liked-me-row" id="likedMeRow"></div>
+      </div>
       <div class="tab-scroll">
         <div class="matches-grid" id="matchesGrid"></div>
       </div>
@@ -1935,6 +1949,7 @@ const S = {
   radius:       50,         // km — user-adjustable radius for Nearby filter
   minAge:       18,         // age range filter — lower bound
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
+  likedMe:      [],         // profiles of people who liked the current user (not yet matched)
   listeners:    {}          // Firestore unsubscribe fns
 };
 
@@ -3019,7 +3034,7 @@ function showTab(tab) {
   requestAnimationFrame(() => {
     if (S._activeTab !== tab) return; // user tapped another tab while frame was pending
     if (tab === 'discover')  renderDiscover();
-    if (tab === 'matches')   { renderMatches(); S.newMatches.clear(); updateBadges(); }
+    if (tab === 'matches')   { renderMatches(); loadLikedMe(); S.newMatches.clear(); updateBadges(); }
     if (tab === 'messages')  { renderConversations(); clearUnread(); updateBadges(); }
     if (tab === 'profile')   renderMyProfile();
     if (tab === 'nearby')    renderNearby();
@@ -3220,8 +3235,13 @@ async function recordLike(targetUid, action) {
   const myUid = S.user?.id;
   if (!myUid || !db) return;
   try {
-    // Write my like
+    // Write my like (sent index)
     await db.collection('likes').doc(myUid).collection('sent').doc(targetUid).set({
+      action,
+      ts: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Write received index on their side so they can query who liked them
+    await db.collection('likes').doc(targetUid).collection('received').doc(myUid).set({
       action,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -3485,6 +3505,73 @@ function renderMatches() {
     card.onclick = () => openMatchProfile(m.uid);
     grid.appendChild(card);
   });
+}
+
+/* ================================================================
+   WHO LIKED YOU
+================================================================ */
+async function loadLikedMe() {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+  try {
+    const snap = await db.collection('likes').doc(myUid).collection('received').get();
+    const likerUids = snap.docs
+      .map(d => ({ uid: d.id, action: d.data().action }))
+      .filter(l => !S.matchIds.has(l.uid)); // exclude already matched
+
+    if (likerUids.length === 0) { S.likedMe = []; renderLikedMe(); return; }
+
+    // Fetch their profiles
+    const profiles = await Promise.all(likerUids.map(async l => {
+      const doc = await db.collection('users').doc(l.uid).get();
+      return doc.exists ? { uid: l.uid, action: l.action, ...doc.data() } : null;
+    }));
+    S.likedMe = profiles.filter(Boolean);
+    renderLikedMe();
+  } catch(e) {
+    console.warn('loadLikedMe error:', e);
+  }
+}
+
+function renderLikedMe() {
+  const section = document.getElementById('likedMeSection');
+  const row     = document.getElementById('likedMeRow');
+  const countEl = document.getElementById('likedMeCount');
+  if (!section || !row) return;
+
+  const visible = S.likedMe.filter(u => !S.matchIds.has(u.uid));
+  if (visible.length === 0) { section.style.display = 'none'; return; }
+
+  section.style.display = '';
+  if (countEl) countEl.textContent = visible.length;
+  row.innerHTML = '';
+
+  visible.forEach(u => {
+    const photo = u.photos?.[0] || avatar(u.name || '?');
+    const card  = document.createElement('div');
+    card.className = 'liked-me-card';
+    card.innerHTML = `
+      ${u.action === 'super' ? '<div class="liked-me-super-badge">⭐</div>' : ''}
+      <img src="${photo}" alt="${u.name}" onerror="this.src='${avatar(u.name||'?')}'">
+      <div class="liked-me-card-name">${u.name || '?'}</div>
+      <div class="liked-me-card-age">${u.age ? u.age + ' yrs' : ''}</div>
+      <button class="liked-me-like-btn" onclick="likeBack('${u.uid}',this)">Like Back ♥</button>`;
+    card.querySelector('img').addEventListener('click', () => openDetail(u.uid));
+    row.appendChild(card);
+  });
+}
+
+async function likeBack(uid, btn) {
+  btn.disabled = true;
+  btn.textContent = '✓ Matched!';
+  btn.style.background = 'var(--success)';
+  await recordLike(uid, 'like');
+  // Remove from likedMe list and re-render after a moment
+  setTimeout(() => {
+    S.likedMe = S.likedMe.filter(u => u.uid !== uid);
+    renderLikedMe();
+    renderMatches();
+  }, 800);
 }
 
 /* ================================================================
