@@ -4042,11 +4042,11 @@ function openEditProfile() {
     <div class="photo-grid" id="editPhotoGrid" style="margin-bottom:1.25rem"></div>
 
     <label class="form-label">Name</label>
-    <input type="text" class="form-input" id="editNameIn" value="${escAttr(u.name||'')}">
+    <input type="text" class="form-input vk-input" id="editNameIn" value="${escAttr(u.name||'')}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
     <label class="form-label">Age</label>
-    <input type="number" class="form-input" id="editAgeIn" value="${u.age||''}" min="18" max="99">
+    <input type="text" inputmode="numeric" class="form-input vk-input" id="editAgeIn" value="${u.age||''}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
     <label class="form-label">Gender</label>
-    <input type="text" class="form-input" id="editGenderIn" value="${escAttr(u.gender||'')}">
+    <input type="text" class="form-input vk-input" id="editGenderIn" value="${escAttr(u.gender||'')}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
     <label class="form-label">Seeking</label>
     <select class="form-select" id="editSeekingIn">
       <option value="Men"      ${u.seeking==='Men'?'selected':''}>Men</option>
@@ -4054,7 +4054,7 @@ function openEditProfile() {
       <option value="Everyone" ${u.seeking==='Everyone'?'selected':''}>Everyone</option>
     </select>
     <label class="form-label">City</label>
-    <input type="text" class="form-input" id="editCityIn" value="${escAttr(u.city||'')}">
+    <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
     <label class="form-label">State</label>
     <select class="form-select" id="editStateDropdown"></select>
     <label class="form-label">Bio</label>
