@@ -2377,6 +2377,12 @@ function pinAlt() {
 ================================================================ */
 const NAV = { on: true };
 
+/* Clear stale highlight and re-land focus in the current nav context */
+function _navRefresh() {
+  document.querySelectorAll('.kbd-focus').forEach(x => x.classList.remove('kbd-focus'));
+  setTimeout(_navFocus, 60); // brief delay so DOM/CSS transitions settle first
+}
+
 /* Which container the D-pad should navigate right now (most specific first) */
 function _navRoot() {
   const ov = document.getElementById('pinOverlay');
@@ -2384,6 +2390,15 @@ function _navRoot() {
   const vk = document.getElementById('vkPanel');
   if (vk && vk.classList.contains('vk-open'))                      // virtual keyboard
     return document.getElementById('vkOverlay') || vk;
+  // Scope nav to whichever panel/sheet is open so elements behind it don't get highlighted
+  const modeSheet = document.getElementById('modeSheetOverlay');
+  if (modeSheet && modeSheet.classList.contains('open')) return modeSheet;
+  const privacy = document.getElementById('privacySheet');
+  if (privacy && privacy.classList.contains('open')) return privacy.querySelector('.privacy-sheet-card') || privacy;
+  for (const id of ['chatPanel', 'editPanel', 'matchProfilePanel', 'detailPanel']) {
+    const p = document.getElementById(id);
+    if (p && p.classList.contains('open')) return p;
+  }
   return document.body;                                            // whole app
 }
 
@@ -3057,10 +3072,12 @@ function openPrivacyPanel() {
   if (gi) gi.checked = !!u.invisible;
   if (gb) gb.checked = !!u.browsePrivately;
   document.getElementById('privacySheet').classList.add('open');
+  _navRefresh();
 }
 function closePrivacyPanel() {
   const s = document.getElementById('privacySheet');
   if (s) s.classList.remove('open');
+  _navRefresh();
 }
 async function savePrivacySetting(field, value) {
   if (!S.user?.id || !db) return;
@@ -3470,9 +3487,11 @@ function openDetail(uid) {
   document.getElementById('detailTags').innerHTML  = (u.interests||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('');
   document.getElementById('detailBioText').textContent = u.bio || 'No bio yet.';
   document.getElementById('detailPanel').classList.add('open');
+  _navRefresh();
 }
 function closeDetail() {
   document.getElementById('detailPanel').classList.remove('open');
+  _navRefresh();
   S.activeDetailId = null;
 }
 function passFromDetail() { closeDetail(); swipe('pass'); }
@@ -3760,6 +3779,7 @@ async function openMatchProfile(uid) {
 
   if (S.newMatches.has(uid)) { S.newMatches.delete(uid); updateBadges(); }
   document.getElementById('matchProfilePanel').classList.add('open');
+  _navRefresh();
 
   // If photos are missing, fetch fresh profile data from Firestore and refresh the carousel
   if ((!match.photos || match.photos.length === 0) && db) {
@@ -3822,6 +3842,7 @@ function matchProfileNav(dir) {
 
 function closeMatchProfile() {
   document.getElementById('matchProfilePanel').classList.remove('open');
+  _navRefresh();
   _mpUid = null;
   _mpPhotos = [];
   _mpIndex = 0;
@@ -3880,11 +3901,13 @@ function openChat(uid) {
   document.getElementById('chatAv').onerror = function(){ this.src = avatar(match.name||'?'); };
   document.getElementById('chatHeadName').textContent = match.name || '';
   document.getElementById('chatPanel').classList.add('open');
+  _navRefresh();
   subscribeToMessages(match.matchId, uid);
 }
 
 function closeChat() {
   document.getElementById('chatPanel').classList.remove('open');
+  _navRefresh();
   if (S.listeners.messages) { S.listeners.messages(); S.listeners.messages = null; }
   S.activeChatId  = null;
   S.activeMatchId = null;
@@ -4102,6 +4125,7 @@ function openEditProfile() {
   renderChips('editChips', S.edit.interests, 'edit');
   renderEditPhotoGrid();
   document.getElementById('editPanel').classList.add('open');
+  _navRefresh();
 }
 
 function syncEditMainPhoto() {
@@ -4113,6 +4137,7 @@ function syncEditMainPhoto() {
 
 function closeEditProfile() {
   document.getElementById('editPanel').classList.remove('open');
+  _navRefresh();
 }
 
 async function saveProfile() {
@@ -4738,10 +4763,12 @@ function openModeSelector() {
   if (vt) vt.className = 'mode-toggle' + (VOICE.active ? ' on-voice' : '');
   if (vc) vc.className = 'mode-card'   + (VOICE.active ? ' active-voice' : '');
   updateNeuralUI();
+  _navRefresh();
 }
 function closeModeSelector(e) {
   if (e && e.target !== document.getElementById('modeSheetOverlay')) return;
   document.getElementById('modeSheetOverlay').classList.remove('open');
+  _navRefresh();
 }
 function updateModesBtn() {
   const btn = document.getElementById('modesSelectorBtn');
