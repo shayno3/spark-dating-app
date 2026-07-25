@@ -3105,6 +3105,10 @@ function getProspects() {
     if (u.invisible)                   return false; // hidden by user
     if (u.age < S.minAge)              return false; // age range filter
     if (S.maxAge < 80 && u.age > S.maxAge) return false;
+    // Gender preference filter — only show genders the current user is seeking
+    if (S.user.seeking && S.user.seeking !== 'Everyone') {
+      if (u.gender !== S.user.seeking) return false;
+    }
     if (S.filter === 'nearby') {
       const d = distanceTo(u);
       if (d !== null) return d <= S.radius; // GPS-based: within radius km
