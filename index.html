@@ -1950,7 +1950,8 @@ const S = {
   minAge:       18,         // age range filter — lower bound
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
-  listeners:    {}          // Firestore unsubscribe fns
+  listeners:    {},         // Firestore unsubscribe fns
+  _matchesInitialized: false // true after first matches snapshot — prevents overlay on initial load
 };
 
 /* ================================================================
@@ -3202,10 +3203,10 @@ function buildCard(user, pos) {
     <div class="stamp stamp-super" id="ss_${user.id}">SUPER ⭐</div>
     ${pos === 0 ? `<button class="card-report-btn" onclick="event.stopPropagation();showReportBlockMenu('${user.id}','${safeName}')">⋯</button>` : ''}
     <div class="card-info">
-      <div class="card-name">${user.name}, ${user.age}${user.online ? ' <span class="online-dot"></span>' : ''}</div>
+      <div class="card-name">${escHtml(user.name)}, ${user.age}${user.online ? ' <span class="online-dot"></span>' : ''}</div>
       <div class="card-sub">${locLine}</div>
-      <div class="card-bio-snip">${user.bio || ''}</div>
-      <div class="card-tags">${(user.interests||[]).slice(0,3).map(t=>`<div class="card-tag">${t}</div>`).join('')}</div>
+      <div class="card-bio-snip">${escHtml(user.bio || '')}</div>
+      <div class="card-tags">${(user.interests||[]).slice(0,3).map(t=>`<div class="card-tag">${escHtml(t)}</div>`).join('')}</div>
     </div>`;
 
   if (pos === 0) {
@@ -3421,12 +3422,13 @@ function subscribeToMatches() {
       S.matches   = results;
       S.matchIds  = new Set(results.map(m => m.uid));
 
-      // Detect brand-new matches
-      results.forEach(m => {
-        if (!prevIds.has(m.uid) && prevIds.size > 0) {
-          newMatches.push(m);
-        }
-      });
+      // Detect brand-new matches — skip overlay on the very first snapshot (initial load)
+      if (S._matchesInitialized) {
+        results.forEach(m => {
+          if (!prevIds.has(m.uid)) newMatches.push(m);
+        });
+      }
+      S._matchesInitialized = true;
 
       if (newMatches.length) {
         const first = newMatches[0];
@@ -3588,8 +3590,21 @@ async function likeBack(uid, btn) {
   btn.disabled = true;
   btn.textContent = '✓ Matched!';
   btn.style.background = 'var(--success)';
+
+  // Optimistically add to S.matches so showMatchOverlay() can find the profile
+  const likedUser = S.likedMe.find(u => u.uid === uid);
+  if (likedUser && !S.matchIds.has(uid)) {
+    const matchEntry = { matchId: [S.user.id, uid].sort().join('_'), uid, ...likedUser };
+    S.matches.push(matchEntry);
+    S.matchIds.add(uid);
+    S.pendingMatchId = uid;
+    S.newMatches.add(uid);
+    // Small delay so the button animation registers before overlay appears
+    setTimeout(() => showMatchOverlay(uid), 350);
+  }
+
   await recordLike(uid, 'like');
-  // Remove from likedMe list and re-render after a moment
+  // Remove from likedMe list and re-render after overlay is shown
   setTimeout(() => {
     S.likedMe = S.likedMe.filter(u => u.uid !== uid);
     renderLikedMe();
