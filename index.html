@@ -2958,13 +2958,15 @@ async function finishSetup() {
   if (!uid) return;
 
   const btn = document.querySelector('[onclick="finishSetup()"]');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Setting up…'; }
 
   const bio = document.getElementById('sBio').value.trim();
-  toast('Saving profile…');
+  toast('Creating your profile…');
 
-  let photoUrls = [];
-  try { photoUrls = await resolvePhotos(S.setup.photos, uid); } catch(e) {}
+  // Save profile immediately WITHOUT waiting for photo uploads.
+  // Photos upload to Firebase Storage in the background so the user is
+  // never blocked by a slow connection or upload failure.
+  const pendingPhotos = [...(S.setup.photos || [])]; // snapshot for background upload
 
   const profile = {
     name:      S.user.name || auth?.currentUser?.displayName || 'User',
@@ -2975,28 +2977,38 @@ async function finishSetup() {
     state:     S.user.state  || '',
     bio:       bio           || '',
     interests: [...(S.setup.interests || [])],
-    photos:    photoUrls,
+    photos:    [],   // start with no photos; filled in below after upload
     online:    true,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-  // Include GPS location if already available from a previous session
   if (S.location?.lat) {
-    profile.lat             = S.location.lat;
-    profile.lng             = S.location.lng;
-    profile.locationCity    = S.location.city;
-    profile.locationRegion  = S.location.region;
+    profile.lat           = S.location.lat;
+    profile.lng           = S.location.lng;
+    profile.locationCity  = S.location.city;
+    profile.locationRegion = S.location.region;
   }
 
   try {
     await db.collection('users').doc(uid).set(profile);
-    logEv('profile_complete', { photo_count: photoUrls.length, has_bio: bio.length > 0 });
     S.user = { id: uid, ...profile };
+    logEv('profile_complete', { photo_count: pendingPhotos.length, has_bio: bio.length > 0 });
     enterMainApp();
-    // New phone signup → offer a glasses-unlock PIN (password still in memory)
     setTimeout(() => offerPinSetup(uid), 1500);
+
+    // Background: upload photos and patch Firestore once done
+    if (pendingPhotos.length > 0) {
+      resolvePhotos(pendingPhotos, uid).then(photoUrls => {
+        if (!photoUrls.length) return;
+        return db.collection('users').doc(uid).update({ photos: photoUrls }).then(() => {
+          S.user.photos = photoUrls;
+          // Refresh profile tab photo display if it's currently open
+          if (S._activeTab === 'profile') renderMyProfile();
+        });
+      }).catch(e => console.warn('Background photo upload failed — user can add via Edit Profile:', e));
+    }
   } catch(e) {
     console.error('finishSetup error:', e);
-    toast('Could not save profile — please check your connection and try again.');
+    toast('Could not create profile — please check your connection and try again.');
     if (btn) { btn.disabled = false; btn.textContent = 'Finish Setup 🎉'; }
   }
 }
@@ -4181,17 +4193,18 @@ async function saveProfile() {
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
   toast('Saving…');
 
-  // Resolve photos — if resolvePhotos fails entirely, keep the existing saved photos
-  let photoUrls = S.user.photos || [];
-  try {
-    const resolved = await resolvePhotos(S.edit.photos, uid);
-    // Only replace photos if we got valid results (or user explicitly cleared all photos)
-    if (resolved.length > 0 || S.edit.photos.filter(Boolean).length === 0) {
-      photoUrls = resolved;
-    }
-  } catch(e) {
-    console.warn('resolvePhotos error — keeping existing photos:', e);
-  }
+  // Snapshot pending photos before any async work
+  const pendingEditPhotos = [...(S.edit.photos || [])];
+  const hasNewPhotos = pendingEditPhotos.some(p => p && p.blob);
+
+  // Use existing saved photos immediately; new uploads happen in background
+  const photoUrls = hasNewPhotos
+    ? pendingEditPhotos.map(p => {
+        if (!p) return null;
+        if (typeof p === 'string') return p;     // existing URL — keep as-is
+        return p.preview || null;                // new upload — use preview for now
+      }).filter(Boolean)
+    : (S.user.photos || []);
 
   const updates = {
     name, age,
@@ -4204,15 +4217,13 @@ async function saveProfile() {
     photos:          photoUrls,
     invisible:       document.getElementById('editInvisibleToggle')?.checked ?? false,
     browsePrivately: document.getElementById('editBrowsePrivatelyToggle')?.checked ?? false,
-    // When Browse Privately is on, mark offline so we don't show as online to others
     online:          !(document.getElementById('editBrowsePrivatelyToggle')?.checked)
   };
-  // Include latest GPS coordinates if available
   if (S.location?.lat) {
-    updates.lat             = S.location.lat;
-    updates.lng             = S.location.lng;
-    updates.locationCity    = S.location.city;
-    updates.locationRegion  = S.location.region;
+    updates.lat           = S.location.lat;
+    updates.lng           = S.location.lng;
+    updates.locationCity  = S.location.city;
+    updates.locationRegion = S.location.region;
   }
 
   try {
@@ -4222,6 +4233,17 @@ async function saveProfile() {
     closeEditProfile();
     renderMyProfile();
     toast('Profile saved! ✨');
+
+    // Background: replace preview base64 with real Storage URLs
+    if (hasNewPhotos) {
+      resolvePhotos(pendingEditPhotos, uid).then(realUrls => {
+        if (!realUrls.length) return;
+        return db.collection('users').doc(uid).update({ photos: realUrls }).then(() => {
+          S.user.photos = realUrls;
+          if (S._activeTab === 'profile') renderMyProfile();
+        });
+      }).catch(e => console.warn('Background photo upload failed:', e));
+    }
   } catch(e) {
     console.error('saveProfile error:', e);
     toast('Could not save — please check your connection and try again.');
