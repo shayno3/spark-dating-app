@@ -685,6 +685,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
 /* ---- RADIUS SLIDER ---- */
 .radius-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0 1rem 0.5rem; }
+.age-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0 1rem 0.5rem; }
+.age-sliders { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .radius-label { font-size: 0.75rem; color: var(--primary); white-space: nowrap; flex-shrink: 0; font-weight: 700; min-width: 90px; }
 .radius-value { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 .radius-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; outline: none; cursor: pointer; background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--pct,9%), rgba(255,255,255,0.12) var(--pct,9%), rgba(255,255,255,0.12) 100%); }
@@ -1476,6 +1478,13 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <input class="radius-slider" id="radiusSlider" type="range" min="5" max="500" step="5" value="50" oninput="setRadius(this.value)">
           <span class="radius-value" id="radiusLiveTag">GPS 🟢</span>
         </div>
+        <div class="age-bar" id="ageBar">
+          <span class="radius-label">🎂 Age: <span id="ageRangeLabel">18–80+</span></span>
+          <div class="age-sliders">
+            <input class="radius-slider" id="ageMinSlider" type="range" min="18" max="80" step="1" value="18" oninput="setAgeMin(this.value)">
+            <input class="radius-slider" id="ageMaxSlider" type="range" min="18" max="80" step="1" value="80" oninput="setAgeMax(this.value)">
+          </div>
+        </div>
         <div class="discover-inner">
           <div class="card-stack" id="cardStack"></div>
           <div id="actionRow" class="action-row" style="display:none">
@@ -1924,6 +1933,8 @@ const S = {
   filter:       'all',
   location:     null,       // { lat, lng, city, region } — filled by GPS on app open
   radius:       50,         // km — user-adjustable radius for Nearby filter
+  minAge:       18,         // age range filter — lower bound
+  maxAge:       80,         // age range filter — upper bound (80 = 80+)
   listeners:    {}          // Firestore unsubscribe fns
 };
 
@@ -1976,6 +1987,36 @@ function updateSliderTrack() {
   const min = 5, max = 500;
   const pct = ((S.radius - min) / (max - min) * 100).toFixed(1) + '%';
   slider.style.setProperty('--pct', pct);
+}
+
+// Age range filter functions
+function setAgeMin(val) {
+  S.minAge = parseInt(val, 10);
+  if (S.minAge > S.maxAge) { S.maxAge = S.minAge; const el = document.getElementById('ageMaxSlider'); if (el) el.value = S.minAge; }
+  updateAgeLabel();
+  updateAgeSliderTracks();
+  renderDiscover();
+}
+
+function setAgeMax(val) {
+  S.maxAge = parseInt(val, 10);
+  if (S.maxAge < S.minAge) { S.minAge = S.maxAge; const el = document.getElementById('ageMinSlider'); if (el) el.value = S.maxAge; }
+  updateAgeLabel();
+  updateAgeSliderTracks();
+  renderDiscover();
+}
+
+function updateAgeLabel() {
+  const el = document.getElementById('ageRangeLabel');
+  if (el) el.textContent = `${S.minAge}–${S.maxAge >= 80 ? '80+' : S.maxAge}`;
+}
+
+function updateAgeSliderTracks() {
+  const minSlider = document.getElementById('ageMinSlider');
+  const maxSlider = document.getElementById('ageMaxSlider');
+  const min = 18, max = 80;
+  if (minSlider) minSlider.style.setProperty('--pct', ((S.minAge - min) / (max - min) * 100).toFixed(1) + '%');
+  if (maxSlider) maxSlider.style.setProperty('--pct', ((S.maxAge - min) / (max - min) * 100).toFixed(1) + '%');
 }
 
 // Show/hide and populate radius bar based on filter + location state
@@ -3047,6 +3088,8 @@ function getProspects() {
     if (S.seen.has(u.id))              return false;
     if (S.matchIds.has(u.id))          return false; // already matched
     if (u.invisible)                   return false; // hidden by user
+    if (u.age < S.minAge)              return false; // age range filter
+    if (S.maxAge < 80 && u.age > S.maxAge) return false;
     if (S.filter === 'nearby') {
       const d = distanceTo(u);
       if (d !== null) return d <= S.radius; // GPS-based: within radius km
@@ -3062,6 +3105,7 @@ function setFilter(f, btn) {
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   updateRadiusBar();
+  updateAgeSliderTracks();
   renderDiscover();
 }
 
