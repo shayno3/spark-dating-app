@@ -2,8 +2,9 @@
  * Spark Dating App — Firebase Cloud Functions
  *
  * These functions send FCM push notifications when:
- *   1. A new match document is created  →  notify both users
- *   2. A new message (msgs sub-doc) is created  →  notify the other user
+ *   1. A new like is received         →  notify the liked user
+ *   2. A new match document is created  →  notify both users
+ *   3. A new message (msgs sub-doc) is created  →  notify the other user
  *
  * DEPLOY REQUIREMENTS:
  *   • Firebase Blaze (pay-as-you-go) plan — free tier covers ~2M invocations/month.
@@ -64,7 +65,45 @@ async function sendAndPrune(uid, message) {
 }
 
 /* ----------------------------------------------------------------
-   TRIGGER 1 — New match created
+   TRIGGER 1 — New like received
+   likes/{senderUid}/sent/{targetUid}  { action: 'like'|'super', ts: ... }
+   Notify the target (liked) user — but NOT if it creates a match
+   (onNewMatch already handles that case with a better message).
+---------------------------------------------------------------- */
+exports.onNewLike = onDocumentCreated('likes/{senderUid}/sent/{targetUid}', async (event) => {
+  const data      = event.data?.data();
+  if (!data) return;
+
+  const senderUid = event.params.senderUid;
+  const targetUid = event.params.targetUid;
+  const isSuper   = data.action === 'super';
+
+  // Check if this like creates a match (target already liked sender back).
+  // If so, skip — onNewMatch will fire a richer "It's a Spark!" notification.
+  const reverseSnap = await db.collection('likes').doc(targetUid).collection('sent').doc(senderUid).get();
+  if (reverseSnap.exists) return; // mutual like — let onNewMatch handle it
+
+  // Sender's name for the notification body.
+  const senderSnap = await db.collection('users').doc(senderUid).get();
+  const senderName = senderSnap.data()?.name || 'Someone';
+
+  const title = isSuper ? '⭐ Super Like!' : '❤️ Someone likes you!';
+  const body  = isSuper
+    ? `${senderName} sent you a Super Like — check them out!`
+    : `${senderName} liked your profile — like them back?`;
+
+  await sendAndPrune(targetUid, {
+    notification: { title, body },
+    data: { type: 'like', senderUid, url: '/' },
+    webpush: {
+      headers: { Urgency: 'normal' },
+      fcmOptions: { link: '/' },
+    },
+  });
+});
+
+/* ----------------------------------------------------------------
+   TRIGGER 2 — New match created
    matches/{matchId}  { uids: [uid1, uid2], ... }
    Notify both participants.
 ---------------------------------------------------------------- */
@@ -83,10 +122,10 @@ exports.onNewMatch = onDocumentCreated('matches/{matchId}', async (event) => {
   const nameA = snapA.data()?.name || 'Someone';
   const nameB = snapB.data()?.name || 'Someone';
 
-  // Notify user A
+  // Notify user A → "You matched with <nameB>!"
   await sendAndPrune(uids[0], {
     notification: {
-      title: "✨ It's a Spark!",
+      title: '✨ It\'s a Spark!',
       body:  `You matched with ${nameB} — say hello!`,
     },
     data: { type: 'match', matchId: event.params.matchId, url: '/' },
@@ -96,10 +135,10 @@ exports.onNewMatch = onDocumentCreated('matches/{matchId}', async (event) => {
     },
   });
 
-  // Notify user B
+  // Notify user B → "You matched with <nameA>!"
   await sendAndPrune(uids[1], {
     notification: {
-      title: "✨ It's a Spark!",
+      title: '✨ It\'s a Spark!',
       body:  `You matched with ${nameA} — say hello!`,
     },
     data: { type: 'match', matchId: event.params.matchId, url: '/' },
@@ -111,7 +150,7 @@ exports.onNewMatch = onDocumentCreated('matches/{matchId}', async (event) => {
 });
 
 /* ----------------------------------------------------------------
-   TRIGGER 2 — New message sent
+   TRIGGER 3 — New message sent
    messages/{matchId}/msgs/{msgId}  { from: uid, text: string }
    Notify the OTHER participant.
 ---------------------------------------------------------------- */
@@ -149,4 +188,3 @@ exports.onNewMessage = onDocumentCreated('messages/{matchId}/msgs/{msgId}', asyn
     },
   });
 });
-
