@@ -2955,6 +2955,10 @@ function renderPhotoGrid(gridId, photos, max, inputId, mode) {
 async function finishSetup() {
   const uid = S.user?.id;
   if (!uid) return;
+
+  const btn = document.querySelector('[onclick="finishSetup()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
   const bio = document.getElementById('sBio').value.trim();
   toast('Saving profile…');
 
@@ -2963,13 +2967,13 @@ async function finishSetup() {
 
   const profile = {
     name:      S.user.name || auth?.currentUser?.displayName || 'User',
-    age:       S.user.age,
-    gender:    S.setup.gender,
-    seeking:   S.setup.seeking,
-    city:      S.user.city,
-    state:     S.user.state,
-    bio,
-    interests: [...S.setup.interests],
+    age:       S.user.age    || 18,
+    gender:    S.setup.gender  || S.user.gender  || '',
+    seeking:   S.setup.seeking || S.user.seeking || 'Everyone',
+    city:      S.user.city   || '',
+    state:     S.user.state  || '',
+    bio:       bio           || '',
+    interests: [...(S.setup.interests || [])],
     photos:    photoUrls,
     online:    true,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2982,12 +2986,18 @@ async function finishSetup() {
     profile.locationRegion  = S.location.region;
   }
 
-  await db.collection('users').doc(uid).set(profile);
-  logEv('profile_complete', { photo_count: photoUrls.length, has_bio: bio.length > 0 });
-  S.user = { id: uid, ...profile };
-  enterMainApp();
-  // New phone signup → offer a glasses-unlock PIN (password still in memory)
-  setTimeout(() => offerPinSetup(uid), 1500);
+  try {
+    await db.collection('users').doc(uid).set(profile);
+    logEv('profile_complete', { photo_count: photoUrls.length, has_bio: bio.length > 0 });
+    S.user = { id: uid, ...profile };
+    enterMainApp();
+    // New phone signup → offer a glasses-unlock PIN (password still in memory)
+    setTimeout(() => offerPinSetup(uid), 1500);
+  } catch(e) {
+    console.error('finishSetup error:', e);
+    toast('Could not save profile — please check your connection and try again.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Finish Setup 🎉'; }
+  }
 }
 
 // Interests helpers (setup + edit)
