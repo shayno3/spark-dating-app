@@ -1366,7 +1366,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   <!-- Step 3: Photos -->
   <div class="setup-step" id="step3">
     <h2>Add photos 📸</h2>
-    <p>Profiles with photos get 10× more matches. Add up to 6.</p>
+    <p>Profiles with photos get 10× more matches. Add up to 3.</p>
     <div class="photo-grid" id="setupPhotoGrid"></div>
     <input type="file" id="setupPhotoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(event,'setup')">
     <div style="margin-top:1.5rem">
@@ -2677,7 +2677,7 @@ function photoSrc(p) {
 async function handlePhotos(event, mode) {
   const files  = Array.from(event.target.files);
   const photos = mode === 'setup' ? S.setup.photos : S.edit.photos;
-  const remaining = 6 - photos.length;
+  const remaining = 3 - photos.length;
   for (const file of files.slice(0, remaining)) {
     const blob    = await compressImage(file);
     const preview = await blobToDataUrl(blob);
@@ -2853,10 +2853,10 @@ function goStep(from) {
 }
 
 function renderSetupPhotoGrid() {
-  renderPhotoGrid('setupPhotoGrid', S.setup.photos, 6, 'setupPhotoInput', 'setup');
+  renderPhotoGrid('setupPhotoGrid', S.setup.photos, 3, 'setupPhotoInput', 'setup');
 }
 function renderEditPhotoGrid() {
-  renderPhotoGrid('editPhotoGrid', S.edit.photos, 6, 'editPhotoInput', 'edit');
+  renderPhotoGrid('editPhotoGrid', S.edit.photos, 3, 'editPhotoInput', 'edit');
 }
 
 function renderPhotoGrid(gridId, photos, max, inputId, mode) {
