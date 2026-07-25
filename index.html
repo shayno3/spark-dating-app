@@ -3627,7 +3627,11 @@ async function renderNearby() {
         if (d.id === myUid) return false;
         const u = d.data();
         if (u.invisible) return false;
-      if ((S.user.blockedUsers||[]).includes(u.id)) return false; // blocked
+        if ((S.user.blockedUsers||[]).includes(u.id)) return false; // blocked
+        // Gender preference filter — only show genders the current user is seeking
+        if (S.user.seeking && S.user.seeking !== 'Everyone') {
+          if (u.gender !== S.user.seeking) return false;
+        }
         const uc = (u.city  || '').toLowerCase().trim();
         const us = (u.state || '').toLowerCase().trim();
         return uc === myLower && (!stLower || us === stLower);
@@ -3668,6 +3672,7 @@ async function renderNearby() {
 
       const card = document.createElement('div');
       card.className = 'nearby-card';
+      card.tabIndex = 0; // make focusable for glasses arrow-key navigation + scroll
       card.innerHTML = `
         ${isMatch ? '<div class="nearby-matched-badge">💕 Matched</div>' : ''}
         <img class="nearby-card-img" src="${photo}" alt="${u.name || ''}" onerror="this.src='${avatar(u.name||'?')}'">
