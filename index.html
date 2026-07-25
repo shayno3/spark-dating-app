@@ -1581,7 +1581,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── EDIT PROFILE PANEL ── -->
-    <div class="panel" id="editPanel" style="overflow:hidden">
+    <div class="panel" id="editPanel" style="overflow-y:auto">
       <div class="edit-header">
         <button class="back-btn" onclick="closeEditProfile()">←</button>
         <h2>Edit Profile</h2>
@@ -3053,8 +3053,11 @@ function showTab(tab) {
   if (el)  el.classList.add('active');
   if (nav) nav.classList.add('active');
   S._activeTab = tab;
-  // Close gear sheet when switching tabs
+  // Close ALL slide-in panels so the tab is never blocked
   closePrivacyPanel();
+  closeEditProfile();
+  closeDetail();
+  closeChat();
 
   // Defer content renders so the browser paints the tab switch first (feels instant)
   requestAnimationFrame(() => {
