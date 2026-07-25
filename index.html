@@ -2771,11 +2771,12 @@ async function resolvePhotos(photoArr, uid) {
   const urls = [];
   for (let i = 0; i < photoArr.length; i++) {
     const p = photoArr[i];
-    if (typeof p === 'string') { urls.push(p); continue; }
-    if (p.blob) {
+    if (!p) continue;                                       // skip null/undefined slots
+    if (typeof p === 'string' && p.length > 0) { urls.push(p); continue; }
+    if (p && p.blob) {
       try { urls.push(await uploadPhoto(p.blob, uid, i)); }
-      catch(e) { if (p.preview) urls.push(p.preview); } // fallback to base64
-    } else if (p.preview) { urls.push(p.preview); }
+      catch(e) { if (p.preview) urls.push(p.preview); }   // fallback to base64 preview
+    } else if (p && p.preview) { urls.push(p.preview); }
   }
   return urls;
 }
@@ -4176,9 +4177,21 @@ async function saveProfile() {
   if (!name)          { toast('Name is required'); return; }
   if (!age || age < 18) { toast('Valid age required'); return; }
 
+  const saveBtn = document.querySelector('.save-btn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
   toast('Saving…');
-  let photoUrls = [];
-  try { photoUrls = await resolvePhotos(S.edit.photos, uid); } catch(e) {}
+
+  // Resolve photos — if resolvePhotos fails entirely, keep the existing saved photos
+  let photoUrls = S.user.photos || [];
+  try {
+    const resolved = await resolvePhotos(S.edit.photos, uid);
+    // Only replace photos if we got valid results (or user explicitly cleared all photos)
+    if (resolved.length > 0 || S.edit.photos.filter(Boolean).length === 0) {
+      photoUrls = resolved;
+    }
+  } catch(e) {
+    console.warn('resolvePhotos error — keeping existing photos:', e);
+  }
 
   const updates = {
     name, age,
@@ -4202,12 +4215,18 @@ async function saveProfile() {
     updates.locationRegion  = S.location.region;
   }
 
-  await db.collection('users').doc(uid).update(updates);
-  logEv('profile_edit', { photo_count: photoUrls.length });
-  Object.assign(S.user, updates);
-  closeEditProfile();
-  renderMyProfile();
-  toast('Profile saved! ✨');
+  try {
+    await db.collection('users').doc(uid).update(updates);
+    logEv('profile_edit', { photo_count: photoUrls.length });
+    Object.assign(S.user, updates);
+    closeEditProfile();
+    renderMyProfile();
+    toast('Profile saved! ✨');
+  } catch(e) {
+    console.error('saveProfile error:', e);
+    toast('Could not save — please check your connection and try again.');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+  }
 }
 
 /* ================================================================
