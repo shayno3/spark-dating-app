@@ -683,6 +683,14 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 /* ---- FILTER BAR — touch-friendly ---- */
 .filter-chip { touch-action: manipulation; min-height: 36px; display: flex; align-items: center; }
 
+/* ---- RADIUS SLIDER ---- */
+.radius-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0 1rem 0.5rem; }
+.radius-label { font-size: 0.75rem; color: var(--primary); white-space: nowrap; flex-shrink: 0; font-weight: 700; min-width: 90px; }
+.radius-value { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.radius-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; outline: none; cursor: pointer; background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--pct,9%), rgba(255,255,255,0.12) var(--pct,9%), rgba(255,255,255,0.12) 100%); }
+.radius-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 2px 8px rgba(233,30,140,0.55); }
+.radius-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; border: none; }
+
 /* ---- PILL BUTTONS ---- */
 .pill-btn { touch-action: manipulation; min-height: 48px; }
 
@@ -1463,6 +1471,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <button class="filter-chip" onclick="setFilter('online',this)">Online 🟢</button>
           <button class="filter-chip" onclick="setFilter('new',this)">New ✨</button>
         </div>
+        <div class="radius-bar" id="radiusBar" style="display:none">
+          <span class="radius-label">📍 Within <span id="radiusKm">50</span> km</span>
+          <input class="radius-slider" id="radiusSlider" type="range" min="5" max="500" step="5" value="50" oninput="setRadius(this.value)">
+          <span class="radius-value" id="radiusLiveTag">GPS 🟢</span>
+        </div>
         <div class="discover-inner">
           <div class="card-stack" id="cardStack"></div>
           <div id="actionRow" class="action-row" style="display:none">
@@ -1909,8 +1922,116 @@ const S = {
   setup:        { gender: null, seeking: null, photos: [], interests: [] },
   edit:         { photos: [], interests: [] },
   filter:       'all',
+  location:     null,       // { lat, lng, city, region } — filled by GPS on app open
+  radius:       50,         // km — user-adjustable radius for Nearby filter
   listeners:    {}          // Firestore unsubscribe fns
 };
+
+/* ================================================================
+   GEOLOCATION — silent GPS, reverse geocoding, distance math
+================================================================ */
+
+// Haversine formula — returns distance in km between two lat/lng pairs
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Human-friendly approximate distance — rounded to avoid trilateration privacy attack
+function approxDist(km) {
+  if (km < 1)    return '< 1 km away';
+  if (km < 10)   return '~' + Math.round(km)       + ' km away';
+  if (km < 100)  return '~' + (Math.round(km/5)*5)  + ' km away';
+  return           '~' + (Math.round(km/25)*25)  + ' km away';
+}
+
+// Reverse geocode via OpenStreetMap Nominatim (free, no key needed)
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=10';
+    const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const data = await res.json();
+    const a    = data.address || {};
+    const city   = a.city || a.town || a.suburb || a.village || a.county || '';
+    const region = a.state || a.country || '';
+    return { city, region };
+  } catch(e) { return { city: '', region: '' }; }
+}
+
+// Return distance in km from current user to a profile, or null if no GPS data
+function distanceTo(user) {
+  if (!S.location || !user.lat || !user.lng) return null;
+  return haversine(S.location.lat, S.location.lng, user.lat, user.lng);
+}
+
+// Update the radius slider track fill (CSS custom property trick)
+function updateSliderTrack() {
+  const slider = document.getElementById('radiusSlider');
+  if (!slider) return;
+  const min = 5, max = 500;
+  const pct = ((S.radius - min) / (max - min) * 100).toFixed(1) + '%';
+  slider.style.setProperty('--pct', pct);
+}
+
+// Show/hide and populate radius bar based on filter + location state
+function updateRadiusBar() {
+  const bar = document.getElementById('radiusBar');
+  if (!bar) return;
+  const showBar = S.location && S.filter === 'nearby';
+  bar.style.display = showBar ? 'flex' : 'none';
+  if (showBar) {
+    const kmEl = document.getElementById('radiusKm');
+    if (kmEl) kmEl.textContent = S.radius;
+    const slider = document.getElementById('radiusSlider');
+    if (slider) slider.value = S.radius;
+    updateSliderTrack();
+  }
+}
+
+// Called by radius slider oninput
+function setRadius(val) {
+  S.radius = parseInt(val, 10);
+  const kmEl = document.getElementById('radiusKm');
+  if (kmEl) kmEl.textContent = S.radius;
+  updateSliderTrack();
+  renderDiscover();
+}
+
+// Run once on app open — silently requests GPS, reverse geocodes, saves to Firestore
+function silentGeolocate() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      S.location = { lat, lng, city: '', region: '' };
+      // Reverse-geocode in background
+      const { city, region } = await reverseGeocode(lat, lng);
+      S.location.city   = city;
+      S.location.region = region;
+      // Persist to Firestore silently
+      if (db && S.user?.id) {
+        const upd = {
+          lat, lng,
+          locationCity:      city,
+          locationRegion:    region,
+          locationUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        db.collection('users').doc(S.user.id).update(upd).catch(() => {});
+        Object.assign(S.user, upd);
+      }
+      updateRadiusBar();
+      renderDiscover();       // re-render to show distances on cards
+    },
+    () => { /* denied or unavailable — silent fallback */ },
+    { timeout: 10000, maximumAge: 5 * 60 * 1000 }
+  );
+}
 
 // findUser: search profiles array and matches array by UID
 function findUser(uid) {
@@ -2781,6 +2902,13 @@ async function finishSetup() {
     online:    true,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
+  // Include GPS location if already available from a previous session
+  if (S.location?.lat) {
+    profile.lat             = S.location.lat;
+    profile.lng             = S.location.lng;
+    profile.locationCity    = S.location.city;
+    profile.locationRegion  = S.location.region;
+  }
 
   await db.collection('users').doc(uid).set(profile);
   logEv('profile_complete', { photo_count: photoUrls.length, has_bio: bio.length > 0 });
@@ -2825,6 +2953,8 @@ async function enterMainApp() {
   subscribeToMatches();
   updateBadges();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
+  // Silently get GPS location — updates S.location, saves lat/lng to Firestore, re-renders cards with distance
+  silentGeolocate();
   // Non-blocking — asks for push permission (or silently refreshes token if already granted).
   initPushNotifications().catch(() => {});
 }
@@ -2917,7 +3047,11 @@ function getProspects() {
     if (S.seen.has(u.id))              return false;
     if (S.matchIds.has(u.id))          return false; // already matched
     if (u.invisible)                   return false; // hidden by user
-    if (S.filter === 'nearby')         return u.city === S.user.city && u.state === S.user.state;
+    if (S.filter === 'nearby') {
+      const d = distanceTo(u);
+      if (d !== null) return d <= S.radius; // GPS-based: within radius km
+      return u.city === S.user.city && u.state === S.user.state; // fallback: city match
+    }
     if (S.filter === 'online')         return u.online;
     return true;
   });
@@ -2927,6 +3061,7 @@ function setFilter(f, btn) {
   S.filter = f;
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
+  updateRadiusBar();
   renderDiscover();
 }
 
@@ -2974,6 +3109,10 @@ function buildCard(user, pos) {
     : '';
 
   const safeName = user.name.replace(/'/g, "\'");
+  const distKm   = distanceTo(user);
+  const locLine  = distKm !== null
+    ? '📍 ' + (user.locationCity || user.city || '') + ' · ' + approxDist(distKm)
+    : '📍 ' + (user.city || '') + (user.state ? ', ' + user.state : '');
   card.innerHTML = `
     ${dots ? `<div class="photo-dots">${dots}</div>` : ''}
     <img class="card-photo" src="${photo}" alt="${user.name}" onerror="this.src='${avatar(user.name)}'">
@@ -2984,7 +3123,7 @@ function buildCard(user, pos) {
     ${pos === 0 ? `<button class="card-report-btn" onclick="event.stopPropagation();showReportBlockMenu('${user.id}','${safeName}')">⋯</button>` : ''}
     <div class="card-info">
       <div class="card-name">${user.name}, ${user.age}${user.online ? ' <span class="online-dot"></span>' : ''}</div>
-      <div class="card-sub">📍 ${user.city}, ${user.state}</div>
+      <div class="card-sub">${locLine}</div>
       <div class="card-bio-snip">${user.bio || ''}</div>
       <div class="card-tags">${(user.interests||[]).slice(0,3).map(t=>`<div class="card-tag">${t}</div>`).join('')}</div>
     </div>`;
@@ -3317,23 +3456,28 @@ async function renderNearby() {
 
   const myCity  = S.user?.city  || '';
   const myState = S.user?.state || '';
+  const hasGPS  = !!S.location?.lat;
 
-  if (!myCity) {
-    cityLine.textContent = '📍 No city set';
-    countLine.textContent = 'Update your profile to see nearby people';
-    grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">📍</div><div class="nearby-empty-title">Set your city first</div><div style="font-size:0.85rem">Go to Profile → Edit Profile to add your location.</div></div>`;
+  if (!hasGPS && !myCity) {
+    cityLine.textContent = '📍 No location set';
+    countLine.textContent = 'Allow location access to see people nearby';
+    grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">📍</div><div class="nearby-empty-title">Location not available</div><div style="font-size:0.85rem">Allow location in your browser, or add your city in Profile → Edit Profile.</div></div>`;
     return;
   }
 
-  cityLine.textContent = `📍 ${myCity}${myState ? ', ' + myState : ''}`;
+  cityLine.textContent = hasGPS
+    ? `📍 ${S.location.city || 'Your area'} · Within ${S.radius} km`
+    : `📍 ${myCity}${myState ? ', ' + myState : ''}`;
   countLine.textContent = '';
   grid.innerHTML = `<div class="nearby-loading">🔍 Finding people nearby…</div>`;
 
   try {
-    // Fetch all users in same city (case-insensitive compare via normalisation)
+    // GPS: load all; city: query by city
     let snap;
     try {
-      snap = await db.collection('users').where('city', '==', myCity).get();
+      snap = hasGPS
+        ? await db.collection('users').get()
+        : await db.collection('users').where('city', '==', myCity).get();
     } catch(e) {
       // Fallback: load all (works even without index)
       snap = await db.collection('users').get();
@@ -3353,11 +3497,20 @@ async function renderNearby() {
         const us = (u.state || '').toLowerCase().trim();
         return uc === myLower && (!stLower || us === stLower);
       })
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0)); // online users first
+      .map(d => {
+        const u = { id: d.id, ...d.data() };
+        u._distance = (hasGPS && u.lat) ? haversine(S.location.lat, S.location.lng, u.lat, u.lng) : null;
+        return u;
+      })
+      .sort((a, b) => {
+        if (hasGPS && a._distance !== null && b._distance !== null) return a._distance - b._distance;
+        return (b.online ? 1 : 0) - (a.online ? 1 : 0);
+      });
 
     countLine.textContent = nearby.length === 0 ? '' :
-      `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} in your city`;
+      hasGPS
+        ? `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} within ${S.radius} km`
+        : `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} in your city`;
 
     grid.innerHTML = '';
 
@@ -3365,7 +3518,7 @@ async function renderNearby() {
       grid.innerHTML = `<div class="nearby-empty">
         <div class="nearby-empty-icon">🏙️</div>
         <div class="nearby-empty-title">No one nearby yet</div>
-        <div style="font-size:0.85rem;color:var(--text-muted)">Be the first in ${myCity}!<br>Invite friends to join Spark.</div>
+        <div style="font-size:0.85rem;color:var(--text-muted)">Be the first in the area!<br>Invite friends to join Spark.</div>
       </div>`;
       return;
     }
@@ -3376,6 +3529,7 @@ async function renderNearby() {
       const photo   = u.photos?.[0] ? photoSrc(u.photos[0]) || u.photos[0] : avatar(u.name || '?');
       const isMatch = matchedUids.has(u.id);
       const alreadyLiked = _nearbyLiked.has(u.id) || S.seen.has(u.id);
+      const distStr = u._distance !== null ? approxDist(u._distance) : '';
 
       const card = document.createElement('div');
       card.className = 'nearby-card';
@@ -3384,7 +3538,7 @@ async function renderNearby() {
         <img class="nearby-card-img" src="${photo}" alt="${u.name || ''}" onerror="this.src='${avatar(u.name||'?')}'">
         <div class="nearby-card-body">
           <div class="nearby-card-name">${u.name || 'User'}${u.age ? ', ' + u.age : ''}</div>
-          <div class="nearby-card-sub">${u.online ? '<span class="nearby-online-dot"></span>Online' : (u.bio ? u.bio.slice(0,35) + (u.bio.length>35?'…':'') : '')}</div>
+          <div class="nearby-card-sub">${u.online ? '<span class="nearby-online-dot"></span>Online' : distStr || (u.bio ? u.bio.slice(0,35) + (u.bio.length>35?'…':'') : '')}</div>
           ${!isMatch ? `<button class="nearby-like-btn${alreadyLiked?' liked':''}" onclick="nearbyLike('${u.id}',this)">${alreadyLiked ? '✓ Liked' : '♥ Like'}</button>` : `<button class="nearby-like-btn liked" onclick="openMatchProfile('${u.id}')">💬 Message</button>`}
         </div>`;
 
@@ -3847,6 +4001,13 @@ async function saveProfile() {
     // When Browse Privately is on, mark offline so we don't show as online to others
     online:          !(document.getElementById('editBrowsePrivatelyToggle')?.checked)
   };
+  // Include latest GPS coordinates if available
+  if (S.location?.lat) {
+    updates.lat             = S.location.lat;
+    updates.lng             = S.location.lng;
+    updates.locationCity    = S.location.city;
+    updates.locationRegion  = S.location.region;
+  }
 
   await db.collection('users').doc(uid).update(updates);
   logEv('profile_edit', { photo_count: photoUrls.length });
