@@ -1436,7 +1436,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <div class="toggle-row-label">👻 Invisible Mode</div>
           <div class="toggle-row-desc">Hide your profile from others</div>
         </div>
-        <label class="toggle-switch">
+        <label class="toggle-switch" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){this.querySelector('input').click();event.preventDefault()}">
           <input type="checkbox" id="gearInvisibleToggle" onchange="savePrivacySetting('invisible',this.checked)">
           <span class="toggle-slider"></span>
         </label>
@@ -1446,7 +1446,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <div class="toggle-row-label">🕵️ Browse Privately</div>
           <div class="toggle-row-desc">Don't appear online while browsing</div>
         </div>
-        <label class="toggle-switch">
+        <label class="toggle-switch" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){this.querySelector('input').click();event.preventDefault()}">
           <input type="checkbox" id="gearBrowsePrivatelyToggle" onchange="savePrivacySetting('browsePrivately',this.checked)">
           <span class="toggle-slider"></span>
         </label>
@@ -4077,7 +4077,7 @@ function openEditProfile() {
           <div class="toggle-row-label">👻 Invisible Mode</div>
           <div class="toggle-row-desc">Hide your profile from other users</div>
         </div>
-        <label class="toggle-switch">
+        <label class="toggle-switch" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){this.querySelector('input').click();event.preventDefault()}">
           <input type="checkbox" id="editInvisibleToggle" ${u.invisible ? 'checked' : ''}>
           <span class="toggle-slider"></span>
         </label>
@@ -4088,7 +4088,7 @@ function openEditProfile() {
           <div class="toggle-row-label">🕵️ Browse Privately</div>
           <div class="toggle-row-desc">Don't appear online while browsing</div>
         </div>
-        <label class="toggle-switch">
+        <label class="toggle-switch" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){this.querySelector('input').click();event.preventDefault()}">
           <input type="checkbox" id="editBrowsePrivatelyToggle" ${u.browsePrivately ? 'checked' : ''}>
           <span class="toggle-slider"></span>
         </label>
