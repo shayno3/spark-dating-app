@@ -177,6 +177,13 @@ html, body {
 .app-logo-wrap { display: flex; align-items: center; gap: 0.5rem; }
 .app-logo { font-size: 1.3rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
 .header-icon-btn { background: transparent; border: none; cursor: pointer; font-size: 1.25rem; padding: 0.25rem; border-radius: 8px; }
+.chat-more-btn { font-size: 1.4rem; font-weight: 900; letter-spacing: -1px; color: var(--text-muted); padding: 0.2rem 0.4rem; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
+/* ---- REPORT / BLOCK bottom-sheet row styling ---- */
+.rb-sheet-row { background: var(--bg-elevated); color: var(--text); border: 1.5px solid var(--border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.95rem; cursor: pointer; width: 100%; text-align: left; display: flex; align-items: center; gap: 0.6rem; transition: background 0.15s; }
+.rb-sheet-row:active { background: rgba(255,255,255,0.07); }
+.rb-sheet-row.danger { color: #ff6b6b; border-color: rgba(255,107,107,0.25); }
+.rb-sheet-cancel { background: none; border: none; color: var(--text-muted); padding: 0.6rem; font-size: 0.9rem; cursor: pointer; width: 100%; margin-top: 0.25rem; border-radius: 10px; }
+.rb-sheet-cancel:active { background: rgba(255,255,255,0.05); }
 .content-area { flex: 1; overflow: visible; position: relative; }
 .tab-content { display: none; height: auto; flex-direction: column; overflow: visible; }
 .tab-content.active { display: flex; }
@@ -1605,6 +1612,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <div class="chat-head-status">Online now</div>
         </div>
         <button class="header-icon-btn" onclick="viewChatProfile()" title="View Profile">👤</button>
+        <button class="header-icon-btn chat-more-btn" onclick="openChatMenu()" title="More options" id="chatMoreBtn">⋮</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-input-bar">
@@ -2560,6 +2568,8 @@ function _navMove(dir) {
 /* Escape key: close the innermost open panel (Meta wearables back-navigation standard) */
 function _navBack() {
   if (document.getElementById('vkPanel')?.classList.contains('vk-open')) { closeVK(); return true; }
+  const rbModal = document.getElementById('reportBlockModal');
+  if (rbModal) { rbModal.remove(); return true; }
   if (document.getElementById('chatPanel')?.classList.contains('open'))  { closeChat(); return true; }
   if (document.getElementById('editPanel')?.classList.contains('open'))  { closeEditProfile(); return true; }
   if (document.getElementById('detailPanel')?.classList.contains('open')){ closeDetail(); return true; }
@@ -3441,101 +3451,184 @@ async function createMatch(uid1, uid2) {
     logEv('match', {});
   }
 }
-/* ---- Report & Block ---- */
-function _makeModal() {
-  var modal = document.createElement('div');
+/* ================================================================
+   BLOCK / REPORT
+================================================================ */
+
+/** Opens the ⋮ menu from the active chat header */
+function openChatMenu() {
+  const uid  = S.activeChatId;
+  const name = S.matches.find(m => m.uid === uid)?.name || 'User';
+  showReportBlockMenu(uid, name);
+}
+
+function _rbModal() {
+  const el = document.getElementById('reportBlockModal');
+  if (el) el.remove();
+  const modal = document.createElement('div');
   modal.id = 'reportBlockModal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;';
-  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.72);display:flex;align-items:flex-end;justify-content:center;';
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   return modal;
 }
-function _makeSheet() {
-  var sheet = document.createElement('div');
-  sheet.style.cssText = 'background:var(--card-bg,#1e1e2e);border-radius:1.25rem 1.25rem 0 0;padding:1.5rem;width:100%;max-width:480px;display:flex;flex-direction:column;gap:0.75rem;';
+
+function _rbSheet() {
+  const sheet = document.createElement('div');
+  sheet.style.cssText = `background:var(--bg-card);border-radius:1.25rem 1.25rem 0 0;
+    padding:1.25rem 1rem calc(1.25rem + env(safe-area-inset-bottom,0px));
+    width:100%;max-width:480px;display:flex;flex-direction:column;gap:0.6rem;`;
   return sheet;
 }
-function _makeTitle(text) {
-  var d = document.createElement('div');
-  d.style.cssText = 'text-align:center;font-weight:700;font-size:1rem;color:var(--text,#fff);margin-bottom:0.25rem;';
-  d.textContent = text;
-  return d;
-}
-function _makeBtn(label, style, fn) {
-  var b = document.createElement('button');
-  b.textContent = label;
-  b.style.cssText = style;
-  b.addEventListener('click', fn);
-  return b;
+
+function _rbRow(icon, label, danger, fn) {
+  const btn = document.createElement('button');
+  btn.className = 'rb-sheet-row' + (danger ? ' danger' : '');
+  btn.innerHTML = `<span style="font-size:1.1rem">${icon}</span><span>${label}</span>`;
+  btn.addEventListener('click', fn);
+  return btn;
 }
 
 function showReportBlockMenu(uid, name) {
-  var ex = document.getElementById('reportBlockModal');
-  if (ex) ex.remove();
-  var modal = _makeModal();
-  var sheet = _makeSheet();
-  sheet.appendChild(_makeTitle(name));
-  sheet.appendChild(_makeBtn('🚫 Block ' + name, 'background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.85rem;font-size:0.95rem;cursor:pointer;width:100%;text-align:left;', function() {
-    blockUser(uid, name);
+  const modal = _rbModal();
+  const sheet = _rbSheet();
+
+  // Title
+  const title = document.createElement('div');
+  title.style.cssText = 'text-align:center;font-weight:800;font-size:1rem;color:var(--text);padding-bottom:0.4rem;';
+  title.textContent = name;
+  sheet.appendChild(title);
+
+  sheet.appendChild(_rbRow('🚫', `Block ${name}`, false, () => {
     modal.remove();
+    confirmBlock(uid, name);
   }));
-  sheet.appendChild(_makeBtn('🚩 Report ' + name, 'background:var(--input-bg,#2a2a3e);color:#ff6b6b;border:1.5px solid rgba(255,107,107,0.3);border-radius:0.75rem;padding:0.85rem;font-size:0.95rem;cursor:pointer;width:100%;', function() {
+  sheet.appendChild(_rbRow('🚩', `Report ${name}`, true, () => {
+    modal.remove();
     showReportReasons(uid, name);
-    modal.remove();
   }));
-  sheet.appendChild(_makeBtn('Cancel', 'background:none;border:none;color:var(--text-muted,#888);padding:0.5rem;font-size:0.9rem;cursor:pointer;width:100%;', function() { modal.remove(); }));
+
+  const cancel = document.createElement('button');
+  cancel.className = 'rb-sheet-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => modal.remove());
+  sheet.appendChild(cancel);
+
+  modal.appendChild(sheet);
+  document.body.appendChild(modal);
+}
+
+function confirmBlock(uid, name) {
+  const modal = _rbModal();
+  const sheet = _rbSheet();
+
+  const title = document.createElement('div');
+  title.style.cssText = 'text-align:center;font-weight:800;font-size:1rem;color:var(--text);';
+  title.textContent = `Block ${name}?`;
+  sheet.appendChild(title);
+
+  const sub = document.createElement('div');
+  sub.style.cssText = 'text-align:center;font-size:0.82rem;color:var(--text-muted);padding:0.1rem 0.5rem 0.4rem;line-height:1.45;';
+  sub.textContent = 'This will remove your match and conversation. They won\'t be able to contact you, and you won\'t see each other on Spark.';
+  sheet.appendChild(sub);
+
+  sheet.appendChild(_rbRow('🚫', `Yes, block ${name}`, false, () => {
+    modal.remove();
+    blockUser(uid, name);
+  }));
+
+  const cancel = document.createElement('button');
+  cancel.className = 'rb-sheet-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => modal.remove());
+  sheet.appendChild(cancel);
+
   modal.appendChild(sheet);
   document.body.appendChild(modal);
 }
 
 function showReportReasons(uid, name) {
-  var ex = document.getElementById('reportBlockModal');
-  if (ex) ex.remove();
-  var modal = _makeModal();
-  var sheet = _makeSheet();
-  sheet.style.gap = '0.6rem';
-  sheet.appendChild(_makeTitle('Report ' + name));
-  var sub = document.createElement('div');
-  sub.style.cssText = 'font-size:0.82rem;color:var(--text-muted,#888);text-align:center;margin-bottom:0.25rem;';
-  sub.textContent = 'Select a reason';
+  const modal = _rbModal();
+  const sheet = _rbSheet();
+
+  const title = document.createElement('div');
+  title.style.cssText = 'text-align:center;font-weight:800;font-size:1rem;color:var(--text);';
+  title.textContent = `Report ${name}`;
+  sheet.appendChild(title);
+
+  const sub = document.createElement('div');
+  sub.style.cssText = 'text-align:center;font-size:0.8rem;color:var(--text-muted);margin-bottom:0.2rem;';
+  sub.textContent = 'Why are you reporting this profile?';
   sheet.appendChild(sub);
-  ['Fake profile','Inappropriate photos','Harassment','Spam','Underage'].forEach(function(r) {
-    sheet.appendChild(_makeBtn(r, 'background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.75rem;font-size:0.9rem;cursor:pointer;width:100%;text-align:left;padding-left:1rem;', function() {
-      reportUser(uid, r);
+
+  const reasons = [
+    { icon: '🤖', label: 'Fake profile' },
+    { icon: '🔞', label: 'Inappropriate photos' },
+    { icon: '😠', label: 'Harassment' },
+    { icon: '📧', label: 'Spam' },
+    { icon: '👶', label: 'Underage' },
+    { icon: '💬', label: 'Other' },
+  ];
+
+  reasons.forEach(({ icon, label }) => {
+    sheet.appendChild(_rbRow(icon, label, false, () => {
       modal.remove();
+      reportUser(uid, name, label);
     }));
   });
-  sheet.appendChild(_makeBtn('Cancel', 'background:none;border:none;color:var(--text-muted,#888);padding:0.5rem;font-size:0.9rem;cursor:pointer;width:100%;', function() { modal.remove(); }));
+
+  const cancel = document.createElement('button');
+  cancel.className = 'rb-sheet-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => modal.remove());
+  sheet.appendChild(cancel);
+
   modal.appendChild(sheet);
   document.body.appendChild(modal);
 }
 
 async function blockUser(uid, name) {
-  var myUid = S.user && S.user.id;
+  const myUid = S.user?.id;
   if (!myUid || !db) return;
   try {
+    // 1. Persist block on user doc
     await db.collection('users').doc(myUid).update({
       blockedUsers: firebase.firestore.FieldValue.arrayUnion(uid)
     });
+    // 2. Delete the shared match document (so neither side sees it)
+    const matchId = [myUid, uid].sort().join('_');
+    try { await db.collection('matches').doc(matchId).delete(); } catch(_) {}
+    // 3. Update local state
     if (!S.user.blockedUsers) S.user.blockedUsers = [];
     if (!S.user.blockedUsers.includes(uid)) S.user.blockedUsers.push(uid);
     S.seen.add(uid);
+    S.matches    = S.matches.filter(m => m.uid !== uid);
+    S.matchIds.delete(uid);
+    delete S.messages[uid];
+    delete S.unread[uid];
+    // 4. Close chat if the blocked user is currently open
+    if (S.activeChatId === uid) closeChat();
+    // 5. Re-render affected views
     renderDiscover();
-    toast((name || 'User') + ' blocked');
+    renderMatches();
+    renderConversations();
+    if (S.filter === 'new') renderWhoLikedYou();
+    toast(`${name || 'User'} blocked`);
   } catch(e) { toast(fbErrMsg(e)); }
 }
 
-async function reportUser(uid, reason) {
-  var myUid = S.user && S.user.id;
+async function reportUser(uid, name, reason) {
+  const myUid = S.user?.id;
   if (!myUid || !db) return;
   try {
     await db.collection('reports').add({
       reporterId: myUid,
       reportedId: uid,
-      reason: reason,
+      reason,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await blockUser(uid, '');
-    toast('Report submitted — user blocked 🚩');
+    // Auto-block after reporting so they can't contact the user
+    await blockUser(uid, name);
+    toast('Report submitted — thank you 🚩');
   } catch(e) { toast(fbErrMsg(e)); }
 }
 
