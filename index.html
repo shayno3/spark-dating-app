@@ -58,6 +58,7 @@ html, body {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-x: none;
+  scroll-padding-bottom: 72px; /* leave room for sticky tab bar when glasses nav scrolls to an element */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -695,8 +696,13 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
 /* ---- RADIUS SLIDER ---- */
 .radius-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0 1rem 0.5rem; }
-.age-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0 1rem 0.5rem; }
+.age-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0 1rem 0.5rem; flex-wrap: wrap; }
 .age-sliders { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.age-stepper-wrap { display: flex; align-items: center; gap: 0.3rem; }
+.age-stepper-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 0.1rem; }
+.age-step-btn { width: 30px; height: 30px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 1.1rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; }
+.age-step-btn:active, .age-step-btn.kbd-focus { background: var(--primary); border-color: var(--primary); color: #fff; }
+.age-step-val { min-width: 32px; text-align: center; font-weight: 800; font-size: 0.9rem; color: var(--text); }
 .radius-label { font-size: 0.75rem; color: var(--primary); white-space: nowrap; flex-shrink: 0; font-weight: 700; min-width: 90px; }
 .radius-value { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 .radius-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; outline: none; cursor: pointer; background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--pct,9%), rgba(255,255,255,0.12) var(--pct,9%), rgba(255,255,255,0.12) 100%); }
@@ -1272,9 +1278,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <div id="loginForm" class="auth-form" style="display:none">
-    <input type="email" class="form-input vk-input" id="loginEmail" placeholder="Email address" autocomplete="email" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+    <input type="email" class="form-input vk-input" id="loginEmail" placeholder="Email address" autocomplete="email" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <div class="pw-wrap">
-      <input type="password" class="form-input vk-input" id="loginPw" placeholder="Password" autocomplete="current-password" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+      <input type="password" class="form-input vk-input" id="loginPw" placeholder="Password" autocomplete="current-password" readonly onclick="this.removeAttribute('readonly');openVK(this)">
       <button class="pw-eye" type="button" onclick="togglePwEye('loginPw',this)" tabindex="-1" aria-label="Show/hide password">
         <svg id="loginPw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
@@ -1285,10 +1291,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <div id="registerForm" class="auth-form" style="display:none">
-    <input type="text" class="form-input vk-input" id="regName" placeholder="Your first name" autocomplete="given-name" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
-    <input type="email" class="form-input vk-input" id="regEmail" placeholder="Email address" autocomplete="email" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+    <input type="text" class="form-input vk-input" id="regName" placeholder="Your first name" autocomplete="given-name" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="email" class="form-input vk-input" id="regEmail" placeholder="Email address" autocomplete="email" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <div class="pw-wrap">
-      <input type="password" class="form-input vk-input" id="regPw" placeholder="Create a password (6+ chars)" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+      <input type="password" class="form-input vk-input" id="regPw" placeholder="Create a password (6+ chars)" autocomplete="new-password" readonly onclick="this.removeAttribute('readonly');openVK(this)">
       <button class="pw-eye" type="button" onclick="togglePwEye('regPw',this)" tabindex="-1" aria-label="Show/hide password">
         <svg id="regPw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
@@ -1302,7 +1308,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       No password needed!<br>Enter your phone number — we'll text a 6-digit code.
     </div>
     <div id="smsPhasePhone">
-      <input type="tel" class="form-input vk-input" id="smsPhone" placeholder="+1 (555) 000-0000" autocomplete="tel" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)" style="margin-bottom:0.75rem">
+      <input type="tel" class="form-input vk-input" id="smsPhone" placeholder="+1 (555) 000-0000" autocomplete="tel" readonly onclick="this.removeAttribute('readonly');openVK(this)" style="margin-bottom:0.75rem">
       <button class="btn-primary" onclick="sendSMSCode()">Send Code 📱</button>
     </div>
     <div id="smsPhaseOTP" style="display:none">
@@ -1310,7 +1316,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <div class="sms-icon">📲</div>
         <p><strong style="color:var(--text)">Code sent!</strong><br>Enter the 6-digit code we texted you.</p>
       </div>
-      <input type="number" class="form-input otp-input vk-input" id="smsOTP" placeholder="• • • • • •" maxlength="6" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)" style="margin-bottom:0.75rem">
+      <input type="text" inputmode="numeric" class="form-input otp-input vk-input" id="smsOTP" placeholder="• • • • • •" maxlength="6" autocomplete="one-time-code" readonly onclick="this.removeAttribute('readonly');openVK(this)" style="margin-bottom:0.75rem">
       <button class="btn-primary" onclick="verifySMSCode()">Verify &amp; Sign In ✅</button>
       <button class="btn-outline" onclick="resetSMSFlow()" style="margin-top:0.5rem;font-size:0.82rem">← Change number</button>
     </div>
@@ -1340,7 +1346,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <h2>About you 👋</h2>
     <p>Help us find great matches for you</p>
     <label class="form-label">Your age</label>
-    <input type="number" class="form-input" id="sAge" placeholder="e.g. 27" min="18" max="99">
+    <input type="text" inputmode="numeric" class="form-input" id="sAge" placeholder="e.g. 27">
     <label class="form-label">Gender</label>
     <div class="pill-group" id="genderGroup">
       <button class="pill-btn" onclick="selectPill('gender','Man',this)">👨 Man</button>
@@ -1430,7 +1436,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   <div id="privacySheet" class="privacy-sheet">
     <div class="privacy-sheet-backdrop" onclick="closePrivacyPanel()"></div>
     <div class="privacy-sheet-card">
-      <div class="privacy-sheet-title">🔒 Privacy</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">
+        <div class="privacy-sheet-title" style="margin-bottom:0">🔒 Privacy</div>
+        <button onclick="closePrivacyPanel()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;line-height:1;padding:0.15rem 0.3rem;border-radius:6px" title="Close">✕</button>
+      </div>
       <div class="toggle-row">
         <div>
           <div class="toggle-row-label">👻 Invisible Mode</div>
@@ -1489,11 +1498,23 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <span class="radius-value" id="radiusLiveTag">GPS 🟢</span>
         </div>
         <div class="age-bar" id="ageBar">
-          <span class="radius-label">🎂 Age: <span id="ageRangeLabel">18–80+</span></span>
-          <div class="age-sliders">
-            <input class="radius-slider" id="ageMinSlider" type="range" min="18" max="80" step="1" value="18" oninput="setAgeMin(this.value)">
-            <input class="radius-slider" id="ageMaxSlider" type="range" min="18" max="80" step="1" value="80" oninput="setAgeMax(this.value)">
+          <span class="radius-label">🎂 Age</span>
+          <div class="age-stepper-wrap">
+            <span class="age-stepper-label">Min</span>
+            <button class="age-step-btn" onclick="stepAge('min',-1)" title="Decrease min age">−</button>
+            <span class="age-step-val" id="ageMinVal">18</span>
+            <button class="age-step-btn" onclick="stepAge('min',1)" title="Increase min age">+</button>
           </div>
+          <div class="age-stepper-wrap">
+            <span class="age-stepper-label">Max</span>
+            <button class="age-step-btn" onclick="stepAge('max',-1)" title="Decrease max age">−</button>
+            <span class="age-step-val" id="ageMaxVal">80+</span>
+            <button class="age-step-btn" onclick="stepAge('max',1)" title="Increase max age">+</button>
+          </div>
+          <!-- Hidden sliders kept for setAgeMin/setAgeMax / updateAgeSliderTracks compatibility -->
+          <input type="range" id="ageMinSlider" min="18" max="80" step="1" value="18" style="display:none" oninput="setAgeMin(this.value)">
+          <input type="range" id="ageMaxSlider" min="18" max="80" step="1" value="80" style="display:none" oninput="setAgeMax(this.value)">
+          <span id="ageRangeLabel" style="display:none">18–80+</span>
         </div>
         <div class="discover-inner">
           <div class="card-stack" id="cardStack"></div>
@@ -2022,9 +2043,27 @@ function setAgeMax(val) {
   renderDiscover();
 }
 
+function stepAge(which, delta) {
+  if (which === 'min') {
+    const next = Math.max(18, Math.min(S.maxAge, S.minAge + delta));
+    const sl = document.getElementById('ageMinSlider');
+    if (sl) sl.value = next;
+    setAgeMin(next);
+  } else {
+    const next = Math.max(S.minAge, Math.min(80, S.maxAge + delta));
+    const sl = document.getElementById('ageMaxSlider');
+    if (sl) sl.value = next;
+    setAgeMax(next);
+  }
+}
+
 function updateAgeLabel() {
   const el = document.getElementById('ageRangeLabel');
   if (el) el.textContent = `${S.minAge}–${S.maxAge >= 80 ? '80+' : S.maxAge}`;
+  const minVal = document.getElementById('ageMinVal');
+  if (minVal) minVal.textContent = S.minAge;
+  const maxVal = document.getElementById('ageMaxVal');
+  if (maxVal) maxVal.textContent = S.maxAge >= 80 ? '80+' : S.maxAge;
 }
 
 function updateAgeSliderTracks() {
@@ -2449,7 +2488,8 @@ function _navSet(el) {
     try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch(e) {}
   }
 }
-/* Directional move: pick the nearest interactive element in the pressed direction */
+/* Directional move: pick the nearest interactive element in the pressed direction.
+   At list edges, wraps to the opposite end (Meta wearables nav standard). */
 function _navMove(dir) {
   const els = _navList();
   if (!els.length) return;
@@ -2472,7 +2512,25 @@ function _navMove(dir) {
     const cost = primary + cross * 2;   // prefer aligned, then closest
     if (cost < bestCost) { bestCost = cost; best = el; }
   });
-  if (best) _navSet(best);
+  if (best) {
+    _navSet(best);
+  } else {
+    // Wrap: at list boundary, cycle to opposite end (Meta wearables standard)
+    const idx = els.indexOf(cur);
+    if (dir === 'down' || dir === 'right')  _navSet(els[0]);
+    else if (dir === 'up' || dir === 'left') _navSet(els[els.length - 1]);
+  }
+}
+
+/* Escape key: close the innermost open panel (Meta wearables back-navigation standard) */
+function _navBack() {
+  if (document.getElementById('vkPanel')?.classList.contains('vk-open')) { closeVK(); return true; }
+  if (document.getElementById('chatPanel')?.classList.contains('open'))  { closeChat(); return true; }
+  if (document.getElementById('editPanel')?.classList.contains('open'))  { closeEditProfile(); return true; }
+  if (document.getElementById('detailPanel')?.classList.contains('open')){ closeDetail(); return true; }
+  if (document.getElementById('matchProfilePanel')?.classList.contains('open')) { document.getElementById('matchProfilePanel').classList.remove('open'); _navRefresh(); return true; }
+  if (document.getElementById('privacySheet')?.classList.contains('open')){ closePrivacyPanel(); return true; }
+  return false;
 }
 function _navFocus() {           // land focus on the first element in context
   const els = _navList();
@@ -2483,7 +2541,8 @@ document.addEventListener('keydown', e => {
   const a = document.activeElement;
   // Let real (typable) inputs keep native arrow/Enter behaviour. All of this
   // app's inputs are readonly vk-inputs, so those still participate in nav.
-  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && !a.classList.contains('vk-input')) return;
+  // EXCEPT type="range" — range sliders trap arrow keys, so we always intercept those.
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && !a.classList.contains('vk-input') && a.type !== 'range') return;
   if (e.key === 'ArrowRight')      { _navMove('right'); e.preventDefault(); }
   else if (e.key === 'ArrowLeft')  { _navMove('left');  e.preventDefault(); }
   else if (e.key === 'ArrowDown')  { _navMove('down');  e.preventDefault(); }
@@ -2491,6 +2550,9 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Enter') {
     const f = document.querySelector('.kbd-focus') || a;
     if (f && f !== document.body) { f.click(); e.preventDefault(); }   // click divs, buttons, anything focused
+  }
+  else if (e.key === 'Escape') {
+    if (_navBack()) e.preventDefault();                                 // Meta wearables: Escape = back
   }
 });
 
@@ -4049,17 +4111,17 @@ function renderMyProfile() {
   el.innerHTML = `
     <div class="my-header" style="position:relative">
       <button class="profile-edit-fab" onclick="openEditProfile()" title="Edit Profile">✏️</button>
-      <div class="photo-ring"><img src="${photo}" alt="${u.name}" onerror="this.src='${avatar(u.name)}'"></div>
+      <div class="photo-ring" tabindex="0" style="cursor:default" title="Your photo"><img src="${photo}" alt="${u.name}" onerror="this.src='${avatar(u.name)}'"></div>
       <div class="my-name-lg">${u.name}${u.age ? `, ${u.age}` : ''}</div>
       <div class="my-loc-sm">📍 ${u.city || 'Set your location'}${u.state ? ', '+u.state : ''}</div>
-      <div class="my-stats">
+      <div class="my-stats" tabindex="0" title="Your stats">
         <div class="stat-item"><div class="stat-num">${S.matches.length}</div><div class="stat-label">Matches</div></div>
         <div class="stat-item"><div class="stat-num">${(u.photos||[]).length}</div><div class="stat-label">Photos</div></div>
         <div class="stat-item"><div class="stat-num">${(u.interests||[]).length}</div><div class="stat-label">Interests</div></div>
       </div>
     </div>
 
-    ${u.photos?.length > 0 ? `<div class="card-section">
+    ${u.photos?.length > 0 ? `<div class="card-section" tabindex="0" title="Your photos">
       <div class="section-hd">Photos</div>
       <div class="my-mini-photos">${u.photos.map(p=>`<img src="${p}" onerror="this.src='${avatar(u.name)}'">`).join('')}</div>
     </div>` : `<div class="card-section" style="text-align:center;cursor:pointer" onclick="openEditProfile()">
@@ -4068,12 +4130,12 @@ function renderMyProfile() {
       <div style="color:var(--text-muted);font-size:0.82rem;margin-top:0.25rem">Profiles with photos get 10× more matches</div>
     </div>`}
 
-    <div class="card-section">
+    <div class="card-section" tabindex="0" title="About you">
       <div class="section-hd">About Me</div>
       <div class="bio-body">${u.bio || '<span style="color:var(--text-muted)">No bio yet — edit your profile to add one</span>'}</div>
     </div>
 
-    ${u.interests?.length > 0 ? `<div class="card-section">
+    ${u.interests?.length > 0 ? `<div class="card-section" tabindex="0" title="Your interests">
       <div class="section-hd">Interests</div>
       <div class="tags-wrap">${u.interests.map(t=>`<div class="tag-pill">${t}</div>`).join('')}</div>
     </div>` : ''}
@@ -4117,11 +4179,11 @@ function openEditProfile() {
     <div class="photo-grid" id="editPhotoGrid" style="margin-bottom:1.25rem"></div>
 
     <label class="form-label">Name</label>
-    <input type="text" class="form-input vk-input" id="editNameIn" value="${escAttr(u.name||'')}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+    <input type="text" class="form-input vk-input" id="editNameIn" value="${escAttr(u.name||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">Age</label>
-    <input type="text" inputmode="numeric" class="form-input vk-input" id="editAgeIn" value="${u.age||''}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+    <input type="text" inputmode="numeric" class="form-input vk-input" id="editAgeIn" value="${u.age||''}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">Gender</label>
-    <input type="text" class="form-input vk-input" id="editGenderIn" value="${escAttr(u.gender||'')}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+    <input type="text" class="form-input vk-input" id="editGenderIn" value="${escAttr(u.gender||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">Seeking</label>
     <select class="form-select" id="editSeekingIn">
       <option value="Men"      ${u.seeking==='Men'?'selected':''}>Men</option>
@@ -4129,7 +4191,7 @@ function openEditProfile() {
       <option value="Everyone" ${u.seeking==='Everyone'?'selected':''}>Everyone</option>
     </select>
     <label class="form-label">City</label>
-    <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onfocus="this.removeAttribute('readonly');openVK(this)" onclick="openVK(this)">
+    <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">State</label>
     <select class="form-select" id="editStateDropdown"></select>
     <label class="form-label">Bio</label>
@@ -5118,6 +5180,7 @@ function _vkGetTarget() {
 // Auto-open VK when any input/textarea is focused
 document.addEventListener('focusin', e => {
   if (e.target.matches('input:not([type=file]):not([type=checkbox]):not([type=range]), textarea')) {
+    if (e.target.hasAttribute('readonly')) return; // VK-inputs open via onclick only; skip on scroll focus
     VK.target = e.target;
     if (!VK.open) openVK(e.target);
     else _vkScrollTargetIntoView(); // keyboard stays open — just bring the new field into view
