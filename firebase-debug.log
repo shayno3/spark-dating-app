@@ -1,0 +1,31 @@
+[debug] [2026-07-26T17:23:31.726Z] ----------------------------------------------------------------------
+[debug] [2026-07-26T17:23:31.733Z] Command:       /usr/local/bin/node /usr/local/bin/firebase functions:secrets:set STRIPE_SECRET_KEY
+[debug] [2026-07-26T17:23:31.734Z] CLI Version:   15.24.0
+[debug] [2026-07-26T17:23:31.734Z] Platform:      darwin
+[debug] [2026-07-26T17:23:31.734Z] Node Version:  v24.18.0
+[debug] [2026-07-26T17:23:31.734Z] Detected Agent: unknown
+[debug] [2026-07-26T17:23:31.734Z] Time:          Sun Jul 26 2026 13:23:31 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-07-26T17:23:31.734Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-26T17:23:31.917Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-26T17:23:31.918Z] > authorizing via signed-in user (shayno3@gmail.com)
+[debug] [2026-07-26T17:23:31.918Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-26T17:23:31.918Z] > authorizing via signed-in user (shayno3@gmail.com)
+[debug] [2026-07-26T17:23:31.918Z] [iam] checking project spark-dating-c74f4 for permissions ["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]
+[debug] [2026-07-26T17:23:31.936Z] Checked if tokens are valid: true, expires at: 1785088501434
+[debug] [2026-07-26T17:23:31.936Z] Checked if tokens are valid: true, expires at: 1785088501434
+[debug] [2026-07-26T17:23:31.937Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4:testIamPermissions [none]
+[debug] [2026-07-26T17:23:31.937Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4:testIamPermissions  x-goog-user-project=spark-dating-c74f4
+[debug] [2026-07-26T17:23:31.937Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2026-07-26T17:23:32.145Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4:testIamPermissions 200
+[debug] [2026-07-26T17:23:32.146Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4:testIamPermissions {"permissions":["firebase.projects.get","secretmanager.secrets.create","secretmanager.secrets.get","secretmanager.secrets.update","secretmanager.versions.add"]}
+[debug] [2026-07-26T17:23:32.146Z] Checked if tokens are valid: true, expires at: 1785088501434
+[debug] [2026-07-26T17:23:32.146Z] Checked if tokens are valid: true, expires at: 1785088501434
+[debug] [2026-07-26T17:23:32.146Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4 [none]
+[debug] [2026-07-26T17:23:32.227Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4 200
+[debug] [2026-07-26T17:23:32.227Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/spark-dating-c74f4 {"projectNumber":"983075921138","projectId":"spark-dating-c74f4","lifecycleState":"ACTIVE","name":"Spark Dating","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-07-05T19:32:48.007Z"}
+[debug] [2026-07-26T17:23:32.228Z] Checked if tokens are valid: true, expires at: 1785088501434
+[debug] [2026-07-26T17:23:32.228Z] Checked if tokens are valid: true, expires at: 1785088501434
+[debug] [2026-07-26T17:23:32.228Z] >>> [apiv2][query] GET https://secretmanager.googleapis.com/v1/projects/spark-dating-c74f4/secrets/STRIPE_SECRET_KEY [none]
+[debug] [2026-07-26T17:23:32.432Z] <<< [apiv2][status] GET https://secretmanager.googleapis.com/v1/projects/spark-dating-c74f4/secrets/STRIPE_SECRET_KEY 200
+[debug] [2026-07-26T17:23:32.432Z] <<< [apiv2][body] GET https://secretmanager.googleapis.com/v1/projects/spark-dating-c74f4/secrets/STRIPE_SECRET_KEY {"name":"projects/983075921138/secrets/STRIPE_SECRET_KEY","replication":{"automatic":{}},"createTime":"2026-07-26T15:10:30.050071Z","labels":{"firebase-managed":"functions"},"etag":"\"16578501a6fdb9\""}
