@@ -24,6 +24,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -365,6 +366,8 @@ html, body {
 .msg.recv { align-self: flex-start; background: var(--bg-card); border-bottom-left-radius: 4px; }
 .msg-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; }
 .msg-time.r { text-align: right; }
+.msg-seen { font-size: 0.62rem; color: var(--text-muted); text-align: right; margin-top: 1px; padding-right: 2px; letter-spacing: 0.01em; }
+.msg-seen-banner { display:flex; align-items:center; justify-content:center; gap:0.4rem; margin:0.75rem 0 0.25rem; padding:0.55rem 1rem; background:var(--bg-card); border-radius:20px; font-size:0.78rem; color:var(--pink); cursor:pointer; border:1px solid rgba(var(--pink-rgb,219,39,119),0.25); }
 .chat-input-bar { display: flex; gap: 0.625rem; padding: 0.7rem; border-top: 1px solid var(--border); background: var(--bg-card); align-items: flex-end; flex-shrink: 0; }
 .chat-input { flex: 1; background: var(--bg); border: 1.5px solid var(--border); border-radius: 20px; padding: 0.6rem 1rem; color: var(--text); font-size: 0.9rem; outline: none; resize: none; max-height: 90px; font-family: inherit; }
 .chat-input:focus { border-color: var(--primary); }
@@ -427,6 +430,53 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 
 /* ---- ONLINE INDICATOR ---- */
 .online-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #4CAF50; border: 2px solid var(--bg); vertical-align: middle; }
+
+/* ---- BOOST ---- */
+.boost-card { border-radius: 16px; padding: 1rem; border: 1.5px solid var(--border); background: var(--bg-elevated); display: flex; align-items: center; gap: 0.85rem; }
+.boost-card.active  { border-color: rgba(245,166,35,0.5);  background: rgba(245,166,35,0.07); }
+.boost-card.ready   { border-color: rgba(233,30,140,0.35); background: rgba(233,30,140,0.06); }
+.boost-card.locked  { border-color: var(--border); opacity: 0.8; }
+.boost-icon-wrap { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+.boost-icon-wrap.active { background: rgba(245,166,35,0.2); animation: boost-pulse 2s ease-in-out infinite; }
+.boost-icon-wrap.ready  { background: rgba(233,30,140,0.15); }
+.boost-icon-wrap.locked { background: rgba(255,255,255,0.05); }
+@keyframes boost-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,0.4)} 50%{box-shadow:0 0 0 10px rgba(245,166,35,0)} }
+.boost-text { flex: 1; }
+.boost-label { font-size: 0.9rem; font-weight: 800; }
+.boost-sub   { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; line-height: 1.35; }
+.boost-countdown { font-size: 0.78rem; font-weight: 800; color: #F5A623; margin-top: 0.15rem; }
+.boost-action-btn { flex-shrink: 0; padding: 0.5rem 1rem; border-radius: 20px; border: none; font-size: 0.8rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.boost-action-btn.go     { background: var(--gradient); color: white; }
+.boost-action-btn.muted  { background: var(--bg-card); color: var(--text-muted); border: 1.5px solid var(--border); cursor: default; }
+.boost-action-btn.locked { background: linear-gradient(135deg,#F5A623,#E91E8C); color: white; }
+/* "⚡ Boosted" badge on discover cards */
+.boost-card-badge { position: absolute; top: 10px; left: 10px; background: linear-gradient(135deg,#F5A623,#ff8c00); color: white; font-size: 0.65rem; font-weight: 900; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 3px; }
+
+/* ---- VERIFIED BADGE ---- */
+.verified-badge    { display: inline-flex; align-items: center; justify-content: center; background: #1877F2; color: white; font-size: 0.65rem; font-weight: 900; width: 17px; height: 17px; border-radius: 50%; vertical-align: middle; margin-left: 0.25rem; flex-shrink: 0; letter-spacing: 0; line-height: 1; }
+.verified-badge-lg { display: inline-flex; align-items: center; justify-content: center; background: #1877F2; color: white; font-size: 0.8rem;  font-weight: 900; width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; margin-left: 0.3rem;  flex-shrink: 0; letter-spacing: 0; line-height: 1; }
+
+/* ---- VERIFICATION STATUS CARD (Profile tab) ---- */
+.verif-card { display: flex; align-items: center; gap: 1rem; padding: 0.9rem 1rem; background: var(--bg-elevated); border: 1.5px solid var(--border); border-radius: 14px; }
+.verif-icon-wrap { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+.verif-icon-wrap.unverified { background: rgba(255,255,255,0.06); }
+.verif-icon-wrap.pending     { background: rgba(245,166,35,0.15); }
+.verif-icon-wrap.verified    { background: rgba(24,119,242,0.15); }
+.verif-icon-wrap.rejected    { background: rgba(239,83,80,0.12); }
+.verif-text-col { flex: 1; }
+.verif-status-label { font-size: 0.9rem; font-weight: 800; }
+.verif-status-sub   { font-size: 0.77rem; color: var(--text-muted); margin-top: 0.1rem; line-height: 1.35; }
+.verif-action-btn { flex-shrink: 0; padding: 0.45rem 0.9rem; border-radius: 20px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.verif-action-btn.blue  { background: #1877F2; color: white; }
+.verif-action-btn.muted { background: var(--bg-card); color: var(--text-muted); border: 1.5px solid var(--border); }
+
+/* ---- VERIFICATION FLOW PANEL ---- */
+.verif-panel { position: fixed; inset: 0; z-index: 9600; background: rgba(15,15,26,0.92); display: flex; align-items: flex-end; justify-content: center; }
+.verif-sheet { background: var(--bg-card); border-radius: 1.5rem 1.5rem 0 0; padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom,0px)); width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 0.9rem; }
+.verif-selfie-preview { width: 100%; aspect-ratio: 3/4; max-height: 280px; object-fit: cover; border-radius: 14px; display: block; }
+.verif-selfie-placeholder { width: 100%; aspect-ratio: 3/4; max-height: 240px; background: var(--bg-elevated); border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; border: 2px dashed var(--border); cursor: pointer; }
+.verif-selfie-placeholder .ph-icon { font-size: 2.5rem; }
+.verif-selfie-placeholder .ph-text { font-size: 0.85rem; color: var(--text-muted); }
 
 /* ---- RED FLASHING NOTIFICATION DOT ---- */
 @keyframes flashDot {
@@ -1923,7 +1973,7 @@ const FIREBASE_CONFIG = {
    INIT
 ================================================================ */
 const FB_READY = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-let auth, db, messaging, analytics, storage;
+let auth, db, messaging, analytics, storage, functions;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -1931,11 +1981,12 @@ if (FB_READY) {
     new firebase.appCheck.ReCaptchaV3Provider('6LcDcFotAAAAAGpbDvMC5n1-hM7FQsEsqaCZ05cx'),
     true // auto-refresh tokens
   );
-  auth    = firebase.auth();
-  db      = firebase.firestore();
+  auth      = firebase.auth();
+  db        = firebase.firestore();
   messaging = firebase.messaging();
   analytics = firebase.analytics();
   storage   = firebase.storage();
+  functions = firebase.functions();
 } else {
   // Show the setup guide; hide the app shell
   document.getElementById('app').style.display = 'none';
@@ -1979,9 +2030,10 @@ function applyPastedConfig() {
           new firebase.appCheck.ReCaptchaV3Provider('6LcDcFotAAAAAGpbDvMC5n1-hM7FQsEsqaCZ05cx'),
           true
         );
-        auth    = firebase.auth();
-        db      = firebase.firestore();
+        auth      = firebase.auth();
+        db        = firebase.firestore();
         messaging = firebase.messaging();
+        functions = firebase.functions();
         document.getElementById('app').style.display = '';
         document.getElementById('fbSetupOverlay').style.display = 'none';
       }
@@ -2014,6 +2066,7 @@ const S = {
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
   isPremium:    false,      // true once user has Spark Premium — unlocks Who Liked You full view
+  matchReadAt:  {},         // matchId → Date — when the other person last read this chat
   listeners:    {},         // Firestore unsubscribe fns
   _matchesInitialized: false // true after first matches snapshot — prevents overlay on initial load
 };
@@ -2208,6 +2261,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         const snap = await db.collection('users').doc(firebaseUser.uid).get();
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
+          S.isPremium = snap.data()?.isPremium === true;
           enterMainApp();
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
@@ -2482,6 +2536,9 @@ function _navRoot() {
   const vk = document.getElementById('vkPanel');
   if (vk && vk.classList.contains('vk-open'))                      // virtual keyboard
     return document.getElementById('vkOverlay') || vk;
+  // Overlay modals that sit above open panels — must be checked before panel loop
+  const rbModal = document.getElementById('reportBlockModal');
+  if (rbModal) return rbModal;
   // Scope nav to whichever panel/sheet is open so elements behind it don't get highlighted
   const modeSheet = document.getElementById('modeSheetOverlay');
   if (modeSheet && modeSheet.classList.contains('open')) return modeSheet;
@@ -2570,6 +2627,8 @@ function _navBack() {
   if (document.getElementById('vkPanel')?.classList.contains('vk-open')) { closeVK(); return true; }
   const rbModal = document.getElementById('reportBlockModal');
   if (rbModal) { rbModal.remove(); return true; }
+  const verifPanel = document.getElementById('verifPanel');
+  if (verifPanel) { verifPanel.remove(); return true; }
   if (document.getElementById('chatPanel')?.classList.contains('open'))  { closeChat(); return true; }
   if (document.getElementById('editPanel')?.classList.contains('open'))  { closeEditProfile(); return true; }
   if (document.getElementById('detailPanel')?.classList.contains('open')){ closeDetail(); return true; }
@@ -2702,6 +2761,8 @@ async function submitPasswordReset() {
 // Check for ?mode=resetPassword on page load
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
+
+  // Password reset deep-link
   if (params.get('mode') === 'resetPassword') {
     const oobCode = params.get('oobCode');
     if (oobCode && auth) {
@@ -2709,6 +2770,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (oobCode) {
       setTimeout(() => { if (auth) _showResetOverlay(oobCode); }, 1500);
     }
+  }
+
+  // Stripe checkout return — show toast after redirect back to app
+  if (params.get('checkout') === 'success') {
+    history.replaceState({}, '', '/'); // clean the URL bar
+    // Wait for auth + Firestore to load, then confirm premium status
+    const waitForAuth = setInterval(() => {
+      if (S.user) {
+        clearInterval(waitForAuth);
+        toast('🎉 Welcome to Spark Premium! Your features are now unlocked.');
+        // Refresh isPremium from Firestore in case webhook just fired
+        if (db && S.user.id) {
+          db.collection('users').doc(S.user.id).get().then(snap => {
+            if (snap.exists) S.isPremium = snap.data()?.isPremium === true;
+          }).catch(() => {});
+        }
+      }
+    }, 500);
+    setTimeout(() => clearInterval(waitForAuth), 10000); // safety timeout
+  }
+
+  if (params.get('checkout') === 'cancel') {
+    history.replaceState({}, '', '/');
+    // Small delay so the toast shows after the app finishes loading
+    setTimeout(() => toast('Checkout cancelled — your plan has not changed.'), 1500);
   }
 });
 
@@ -3260,6 +3346,7 @@ async function loadProfiles() {
 }
 
 function getProspects() {
+  const now = Date.now();
   return S.profiles.filter(u => {
     if (!S.user || u.id === S.user.id) return false;
     if (S.seen.has(u.id))              return false;
@@ -3278,6 +3365,11 @@ function getProspects() {
     }
     if (S.filter === 'online')         return u.online;
     return true;
+  }).sort((a, b) => {
+    // Boosted profiles always appear first in the stack
+    const aEnd = (a.boostActiveUntil > now) ? a.boostActiveUntil : 0;
+    const bEnd = (b.boostActiveUntil > now) ? b.boostActiveUntil : 0;
+    return bEnd - aEnd;
   });
 }
 
@@ -3351,11 +3443,12 @@ function buildCard(user, pos) {
     ? user.photos.map((_,i) => `<div class="photo-dot${i===0?' on':''}"></div>`).join('')
     : '';
 
-  const safeName = user.name.replace(/'/g, "\'");
-  const distKm   = distanceTo(user);
-  const locLine  = distKm !== null
+  const safeName  = user.name.replace(/'/g, "\'");
+  const distKm    = distanceTo(user);
+  const locLine   = distKm !== null
     ? '📍 ' + (user.locationCity || user.city || '') + ' · ' + approxDist(distKm)
     : '📍 ' + (user.city || '') + (user.state ? ', ' + user.state : '');
+  const isBoosted = user.boostActiveUntil > Date.now();
   card.innerHTML = `
     ${dots ? `<div class="photo-dots">${dots}</div>` : ''}
     <img class="card-photo" src="${photo}" alt="${user.name}" onerror="this.src='${avatar(user.name)}'">
@@ -3363,9 +3456,10 @@ function buildCard(user, pos) {
     <div class="stamp stamp-like" id="sl_${user.id}">LIKE</div>
     <div class="stamp stamp-nope" id="sn_${user.id}">NOPE</div>
     <div class="stamp stamp-super" id="ss_${user.id}">SUPER ⭐</div>
+    ${isBoosted ? '<div class="boost-card-badge">⚡ Boosted</div>' : ''}
     ${pos === 0 ? `<button class="card-report-btn" onclick="event.stopPropagation();showReportBlockMenu('${user.id}','${safeName}')">⋯</button>` : ''}
     <div class="card-info">
-      <div class="card-name">${escHtml(user.name)}, ${user.age}${user.online ? ' <span class="online-dot"></span>' : ''}</div>
+      <div class="card-name">${escHtml(user.name)}, ${user.age}${user.online ? ' <span class="online-dot"></span>' : ''}${user.verified ? ' <span class="verified-badge" title="Verified profile">✓</span>' : ''}</div>
       <div class="card-sub">${locLine}</div>
       <div class="card-bio-snip">${escHtml(user.bio || '')}</div>
       <div class="card-tags">${(user.interests||[]).slice(0,3).map(t=>`<div class="card-tag">${escHtml(t)}</div>`).join('')}</div>
@@ -3729,7 +3823,7 @@ function openDetail(uid) {
   const photo = u.photos?.[0] || avatar(u.name);
   document.getElementById('detailPhoto').src = photo;
   document.getElementById('detailPhoto').onerror = function(){ this.src = avatar(u.name); };
-  document.getElementById('detailNameLine').textContent = `${u.name}, ${u.age}`;
+  document.getElementById('detailNameLine').innerHTML = `${escHtml(u.name)}, ${u.age}${u.verified ? ' <span class="verified-badge-lg" title="Verified profile">✓</span>' : ''}`;
   document.getElementById('detailLocLine').innerHTML = `📍 ${u.city}, ${u.state}${u.online?' &nbsp;<span class="online-dot"></span> Online now':''}`;
   document.getElementById('detailTags').innerHTML  = (u.interests||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('');
   document.getElementById('detailBioText').textContent = u.bio || 'No bio yet.';
@@ -3982,19 +4076,43 @@ function upgradeToPremium() {
           <span style="font-size:1.1rem">⭐</span><span style="font-size:0.82rem">1 free Super Like per day</span>
         </div>
       </div>
-      <button class="btn-primary" onclick="activatePremium()" style="width:100%;font-size:1rem;padding:0.85rem">Get Premium — $9.99/mo</button>
-      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.75rem">Cancel anytime · Billed monthly</div>
+      ${S.isPremium
+        ? `<button class="btn-primary" onclick="document.getElementById('premiumModal').remove();openBillingPortal()" style="width:100%;font-size:1rem;padding:0.85rem">Manage Subscription</button>
+           <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.75rem">You're on Spark Premium ✨ · Manage billing via Stripe</div>`
+        : `<button class="btn-primary" onclick="activatePremium()" style="width:100%;font-size:1rem;padding:0.85rem">Get Premium — $9.99/mo</button>
+           <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.75rem">Cancel anytime · Billed monthly</div>`
+      }
     </div>`;
   document.body.appendChild(modal);
 }
 
-function activatePremium() {
-  // Placeholder — replace with Stripe checkout / Apple IAP / Google Play Billing
-  S.isPremium = true;
-  const modal = document.getElementById('premiumModal');
-  if (modal) modal.remove();
-  // Re-render WLY section with full access
-  if (S.filter === 'new') renderWhoLikedYou();
+async function activatePremium() {
+  if (!functions) { toast('Payment service not ready — try again'); return; }
+
+  // Disable the button to prevent double-taps
+  const btn = document.querySelector('#premiumModal .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to checkout…'; }
+
+  try {
+    const createCheckoutSession = functions.httpsCallable('createCheckoutSession');
+    const result = await createCheckoutSession();
+    window.location.href = result.data.url; // Stripe-hosted checkout page
+  } catch (e) {
+    console.error('Checkout error:', e);
+    toast('Could not start checkout — ' + (e.message || 'please try again'));
+    if (btn) { btn.disabled = false; btn.textContent = 'Get Premium — $9.99/mo'; }
+  }
+}
+
+async function openBillingPortal() {
+  if (!functions) { toast('Service not ready — try again'); return; }
+  try {
+    const createPortalSession = functions.httpsCallable('createPortalSession');
+    const result = await createPortalSession();
+    window.location.href = result.data.url;
+  } catch (e) {
+    toast('Could not open billing portal — ' + (e.message || 'please try again'));
+  }
 }
 
 /* ================================================================
@@ -4303,12 +4421,15 @@ function openChat(uid) {
   document.getElementById('chatPanel').classList.add('open');
   _navRefresh();
   subscribeToMessages(match.matchId, uid);
+  markChatRead(match.matchId);
+  subscribeToMatchDoc(match.matchId, uid);
 }
 
 function closeChat() {
   document.getElementById('chatPanel').classList.remove('open');
   _navRefresh();
-  if (S.listeners.messages) { S.listeners.messages(); S.listeners.messages = null; }
+  if (S.listeners.messages)  { S.listeners.messages();  S.listeners.messages  = null; }
+  if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
   S.activeChatId  = null;
   S.activeMatchId = null;
 }
@@ -4334,12 +4455,33 @@ function subscribeToMessages(matchId, uid) {
       if (S.activeChatId === uid) {
         renderChatMessages();
         scrollChatToBottom();
+        markChatRead(matchId); // mark their new messages as read while chat is open
       } else {
         S.unread[uid] = true;
         updateBadges();
         if (tab === 'tab-messages') renderConversations();
       }
     }, e => console.warn('messages listener:', e));
+}
+
+function markChatRead(matchId) {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+  db.collection('matches').doc(matchId)
+    .update({ [`readAt_${myUid}`]: firebase.firestore.FieldValue.serverTimestamp() })
+    .catch(() => {}); // silent — older match docs may need set() but update is fine for new ones
+}
+
+function subscribeToMatchDoc(matchId, otherUid) {
+  if (S.listeners.matchDoc) S.listeners.matchDoc();
+  if (!db) return;
+  S.listeners.matchDoc = db.collection('matches').doc(matchId)
+    .onSnapshot(snap => {
+      if (!snap.exists) return;
+      const raw = snap.data()[`readAt_${otherUid}`];
+      S.matchReadAt[matchId] = raw ? raw.toDate() : null;
+      if (S.activeChatId === otherUid) renderChatMessages();
+    }, () => {});
 }
 
 function renderChatMessages() {
@@ -4354,11 +4496,41 @@ function renderChatMessages() {
     </div>`;
     return;
   }
-  container.innerHTML = msgs.map(msg => `
-    <div>
-      <div class="msg ${msg.from===S.user?.id?'sent':'recv'}">${escHtml(msg.text)}</div>
-      <div class="msg-time ${msg.from===S.user?.id?'r':''}">${fmtTime(msg.time)}</div>
-    </div>`).join('');
+
+  const myUid = S.user?.id;
+  // Find the index of the last message I sent
+  let lastSentIdx = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].from === myUid) { lastSentIdx = i; break; }
+  }
+
+  // Check if the other person has read past my last sent message
+  const theirReadAt = S.matchReadAt[matchId] || null;
+  const lastSentMsg = lastSentIdx >= 0 ? msgs[lastSentIdx] : null;
+  const theySaw     = theirReadAt && lastSentMsg && theirReadAt > lastSentMsg.time;
+
+  container.innerHTML = msgs.map((msg, i) => {
+    const isSent = msg.from === myUid;
+    let seenHtml = '';
+    if (i === lastSentIdx && lastSentMsg) {
+      if (S.isPremium && theySaw) {
+        seenHtml = '<div class="msg-seen">Seen ✓</div>';
+      }
+    }
+    return `
+      <div>
+        <div class="msg ${isSent?'sent':'recv'}">${escHtml(msg.text)}</div>
+        <div class="msg-time ${isSent?'r':''}">${fmtTime(msg.time)}</div>
+        ${seenHtml}
+      </div>`;
+  }).join('');
+
+  // Non-premium upsell banner — shown once at the bottom if they have sent messages
+  if (!S.isPremium && lastSentIdx >= 0) {
+    container.innerHTML += `<div class="msg-seen-banner" onclick="upgradeToPremium()">
+      🔒 See when your messages are read — Go Premium
+    </div>`;
+  }
 }
 
 function scrollChatToBottom() {
@@ -4426,6 +4598,9 @@ function renderMyProfile() {
       <div class="tags-wrap">${u.interests.map(t=>`<div class="tag-pill">${t}</div>`).join('')}</div>
     </div>` : ''}
 
+    ${renderBoostCard(u)}
+    ${renderVerifCard(u)}
+
     <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.25rem">
       <button class="btn-primary" onclick="openEditProfile()">✏️ Edit Profile</button>
       <button class="btn-primary" style="background:rgba(0,191,165,0.15);border:1.5px solid rgba(0,191,165,0.3);color:#4DB6AC" onclick="copyInviteLink()">🔗 Invite Friends</button>
@@ -4434,6 +4609,277 @@ function renderMyProfile() {
       <button class="btn-outline" style="background:rgba(244,67,54,0.06);border-color:rgba(244,67,54,0.25);color:#ef5350;font-size:0.85rem" onclick="openDeleteModal()">🗑️ Delete Account</button>
     </div>
     <div style="height:1rem"></div>`;
+}
+
+/* ================================================================
+   BOOST / FEATURED
+================================================================ */
+let _boostTimer = null;
+
+function renderBoostCard(u) {
+  const now      = Date.now();
+  const boostEnd = u.boostActiveUntil || 0;
+  const isActive = boostEnd > now;
+  const today    = new Date().toISOString().slice(0, 10);
+  const usedToday = u.lastBoostDate === today && !isActive;
+
+  if (!S.isPremium) {
+    return `
+      <div class="boost-card locked">
+        <div class="boost-icon-wrap locked">⚡</div>
+        <div class="boost-text">
+          <div class="boost-label">Profile Boost</div>
+          <div class="boost-sub">Jump to the top of everyone's Discover for 30 min. Premium only.</div>
+        </div>
+        <button class="boost-action-btn locked" onclick="upgradeToPremium()">Unlock</button>
+      </div>`;
+  }
+
+  if (isActive) {
+    const minsLeft = Math.floor((boostEnd - now) / 60000);
+    const secsLeft = Math.floor(((boostEnd - now) % 60000) / 1000);
+    // Start the live countdown if not already running
+    setTimeout(startBoostCountdown, 0);
+    return `
+      <div class="boost-card active">
+        <div class="boost-icon-wrap active">⚡</div>
+        <div class="boost-text">
+          <div class="boost-label">Boost Active!</div>
+          <div class="boost-sub">You're at the top of Discover right now.</div>
+          <div class="boost-countdown" id="boostCountdown">${minsLeft}:${String(secsLeft).padStart(2,'0')} remaining</div>
+        </div>
+      </div>`;
+  }
+
+  if (usedToday) {
+    return `
+      <div class="boost-card">
+        <div class="boost-icon-wrap locked">⚡</div>
+        <div class="boost-text">
+          <div class="boost-label">Boost Used</div>
+          <div class="boost-sub">You've used your daily boost. Come back tomorrow!</div>
+        </div>
+        <button class="boost-action-btn muted" disabled>Used</button>
+      </div>`;
+  }
+
+  return `
+    <div class="boost-card ready">
+      <div class="boost-icon-wrap ready">⚡</div>
+      <div class="boost-text">
+        <div class="boost-label">Boost Profile</div>
+        <div class="boost-sub">Jump to the top of Discover for 30 minutes. 1 free boost per day.</div>
+      </div>
+      <button class="boost-action-btn go" onclick="activateBoost()">Boost ⚡</button>
+    </div>`;
+}
+
+function startBoostCountdown() {
+  if (_boostTimer) clearInterval(_boostTimer);
+  _boostTimer = setInterval(() => {
+    const el = document.getElementById('boostCountdown');
+    if (!el) { clearInterval(_boostTimer); _boostTimer = null; return; }
+    const remaining = (S.user?.boostActiveUntil || 0) - Date.now();
+    if (remaining <= 0) {
+      clearInterval(_boostTimer);
+      _boostTimer = null;
+      S.user.boostActiveUntil = 0;
+      renderMyProfile();
+      renderDiscover();
+      return;
+    }
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `${mins}:${String(secs).padStart(2, '0')} remaining`;
+  }, 1000);
+}
+
+async function activateBoost() {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+
+  const boostEndMs = Date.now() + 30 * 60 * 1000; // 30 minutes from now
+  const today      = new Date().toISOString().slice(0, 10);
+
+  try {
+    await db.collection('users').doc(myUid).update({
+      boostActiveUntil: boostEndMs,
+      lastBoostDate:    today
+    });
+    // Update local state
+    S.user.boostActiveUntil = boostEndMs;
+    S.user.lastBoostDate    = today;
+    // Also update the matching profile in S.profiles so Discover sorts correctly
+    const prof = S.profiles.find(p => p.id === myUid);
+    if (prof) prof.boostActiveUntil = boostEndMs;
+    // Refresh UI
+    renderMyProfile();
+    renderDiscover();
+    toast('⚡ Boosted! You\'re at the top of Discover for 30 minutes');
+  } catch(e) { toast(fbErrMsg(e)); }
+}
+
+/* ================================================================
+   PROFILE VERIFICATION
+================================================================ */
+
+/** Returns the verification status card HTML for the Profile tab */
+function renderVerifCard(u) {
+  const status = u.verified ? 'verified' : (u.verificationStatus || 'none');
+
+  const states = {
+    verified: {
+      icon: '✓', iconCls: 'verified', bg: '#1877F2',
+      label: 'Profile Verified',
+      sub:   'Your blue checkmark is live — other users can see you\'re real.',
+      btn: null,
+    },
+    pending: {
+      icon: '⏳', iconCls: 'pending',
+      label: 'Verification Pending',
+      sub:   'We received your selfie and are reviewing it. Usually takes under 24 hours.',
+      btn: { label: 'Resubmit', cls: 'muted', fn: 'openVerificationFlow()' },
+    },
+    rejected: {
+      icon: '✕', iconCls: 'rejected',
+      label: 'Verification Declined',
+      sub:   'Your selfie didn\'t meet our requirements. Try again with a clear, well-lit photo.',
+      btn: { label: 'Try Again', cls: 'blue', fn: 'openVerificationFlow()' },
+    },
+    none: {
+      icon: '🛡️', iconCls: 'unverified',
+      label: 'Get Verified',
+      sub:   'Add a blue checkmark to show you\'re real. Takes one selfie — instant.',
+      btn: { label: 'Verify ✓', cls: 'blue', fn: 'openVerificationFlow()' },
+    },
+  };
+
+  const s = states[status] || states.none;
+  const iconStyle = status === 'verified'
+    ? `background:#1877F2;color:white;font-size:1rem;font-weight:900;`
+    : '';
+  const btnHtml = s.btn
+    ? `<button class="verif-action-btn ${s.btn.cls}" onclick="${s.btn.fn}">${s.btn.label}</button>`
+    : '';
+
+  return `
+    <div class="verif-card" style="${status === 'verified' ? 'border-color:rgba(24,119,242,0.4)' : ''}">
+      <div class="verif-icon-wrap ${s.iconCls}" style="${iconStyle}">${s.icon}</div>
+      <div class="verif-text-col">
+        <div class="verif-status-label">${s.label}</div>
+        <div class="verif-status-sub">${s.sub}</div>
+      </div>
+      ${btnHtml}
+    </div>`;
+}
+
+function openVerificationFlow() {
+  const existing = document.getElementById('verifPanel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'verifPanel';
+  panel.className = 'verif-panel';
+  panel.innerHTML = `
+    <div class="verif-sheet" id="verifSheet">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
+        <div style="font-size:1.05rem;font-weight:900">Verify Your Profile</div>
+        <button onclick="document.getElementById('verifPanel').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1;padding:0.2rem 0.3rem">✕</button>
+      </div>
+      <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.5">
+        Take a quick selfie to earn your blue ✓ badge. Your photo is reviewed by our team and never shown to other users.
+      </div>
+
+      <div class="verif-selfie-placeholder" id="verifPlaceholder" onclick="document.getElementById('verifInput').click()">
+        <div class="ph-icon">🤳</div>
+        <div class="ph-text">Tap to take a selfie</div>
+      </div>
+      <img class="verif-selfie-preview" id="verifPreview" style="display:none" alt="Your selfie">
+
+      <input type="file" id="verifInput" accept="image/*" capture="user" style="display:none" onchange="onVerifPhotoChosen(event)">
+
+      <button class="btn-primary" id="verifCameraBtn" onclick="document.getElementById('verifInput').click()">📷 Open Camera</button>
+      <button class="btn-primary" id="verifSubmitBtn" style="display:none" onclick="submitVerification()">Verify My Profile ✓</button>
+      <button style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0.3rem" onclick="document.getElementById('verifPanel').remove()">Not now</button>
+    </div>`;
+
+  panel.addEventListener('click', e => { if (e.target === panel) panel.remove(); });
+  document.body.appendChild(panel);
+}
+
+function onVerifPhotoChosen(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('verifPreview');
+    const placeholder = document.getElementById('verifPlaceholder');
+    const cameraBtn = document.getElementById('verifCameraBtn');
+    const submitBtn = document.getElementById('verifSubmitBtn');
+
+    if (preview)     { preview.src = e.target.result; preview.style.display = 'block'; }
+    if (placeholder) placeholder.style.display = 'none';
+    if (cameraBtn)   cameraBtn.textContent = '🔄 Retake Selfie';
+    if (submitBtn)   submitBtn.style.display = '';
+
+    // Store blob for upload
+    window._verifBlob = file;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitVerification() {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+
+  const submitBtn = document.getElementById('verifSubmitBtn');
+  const cameraBtn = document.getElementById('verifCameraBtn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading…'; }
+  if (cameraBtn) cameraBtn.disabled = true;
+
+  try {
+    // 1. Upload selfie to Firebase Storage
+    const blob   = window._verifBlob;
+    const path   = `verification/${myUid}/selfie.jpg`;
+
+    if (blob && firebase.storage) {
+      const ref = firebase.storage().ref(path);
+      await ref.put(blob, { contentType: blob.type || 'image/jpeg' });
+      const url = await ref.getDownloadURL();
+      // 2. Auto-verify immediately — no manual review needed
+      await db.collection('users').doc(myUid).update({
+        verified: true,
+        verificationStatus: 'verified',
+        verificationPhotoUrl: url,
+        verificationSubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      // Storage not available — still auto-verify
+      await db.collection('users').doc(myUid).update({
+        verified: true,
+        verificationStatus: 'verified',
+        verificationSubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    // 3. Update local user state so badge appears instantly
+    S.user.verified = true;
+    S.user.verificationStatus = 'verified';
+    window._verifBlob = null;
+
+    // 4. Close panel and refresh profile
+    const panel = document.getElementById('verifPanel');
+    if (panel) panel.remove();
+
+    toast('Profile verified! Your blue ✓ is now live 🎉');
+    renderMyProfile();
+  } catch(e) {
+    console.warn('Verification submit error:', e);
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit for Review ✓'; }
+    if (cameraBtn) cameraBtn.disabled = false;
+    toast('Upload failed — please try again');
+  }
 }
 
 function copyInviteLink() {
