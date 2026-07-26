@@ -2275,12 +2275,21 @@ async function _pinComplete() {
   } else if (PIN.mode === 'glasscode') {
     // First keypad step on the glasses: look up the pairing record by code
     document.getElementById('pinSub').textContent = 'Checking…';
-    if (!db) { document.getElementById('pinSub').textContent = 'Not ready — try again'; return; }
+    if (!db) { document.getElementById('pinSub').textContent = 'Not ready — wait a moment and try again'; return; }
     let snap;
     try { snap = await db.collection('glassPair').doc(pin).get(); }
-    catch(e) { document.getElementById('pinSub').textContent = 'Network error — try again'; if (navigator.vibrate) navigator.vibrate(80); return; }
+    catch(e) {
+      console.warn('glassPair lookup error:', e.code, e.message);
+      // permission-denied means Firestore rules need: allow read on glassPair for unauthenticated users
+      const msg = (e.code === 'permission-denied')
+        ? 'Access denied — on your phone open Profile → Reset Glasses Code, then try again'
+        : 'Connection failed — make sure glasses are on WiFi, then try again';
+      document.getElementById('pinSub').textContent = msg;
+      if (navigator.vibrate) navigator.vibrate(80);
+      return;
+    }
     if (!snap.exists) {
-      document.getElementById('pinSub').textContent = 'Code not found — check your phone';
+      document.getElementById('pinSub').textContent = 'Code not found — get a fresh code from your phone';
       if (navigator.vibrate) navigator.vibrate(80);
       return;
     }
@@ -3044,7 +3053,9 @@ function removeInterest(idx, mode) {
 async function enterMainApp() {
   showView('main');
   showTab('discover');
-  await loadProfiles();
+  // Load profiles in background — app shows immediately rather than waiting for
+  // Firestore to return all user docs (glasses are especially sensitive to this delay)
+  loadProfiles();
   subscribeToMatches();
   updateBadges();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
