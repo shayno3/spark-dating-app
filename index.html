@@ -272,6 +272,37 @@ html, body {
 .liked-me-card-age { font-size: 0.68rem; color: var(--text-muted); padding: 0 0.4rem 0.2rem; }
 .liked-me-like-btn { width: 100%; padding: 0.3rem; border: none; background: var(--gradient); color: white; font-size: 0.7rem; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
 .liked-me-super-badge { position: absolute; top: 4px; right: 4px; background: #6C63FF; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; }
+
+/* ---- WHO LIKED YOU — Discover "New ✨" tab premium section ---- */
+.wly-section { padding: 0.75rem 1rem 2rem; }
+.wly-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.wly-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+.wly-count { font-size: 0.8rem; font-weight: 700; color: var(--primary); }
+.wly-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; }
+.wly-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; border: 1.5px solid rgba(233,30,140,0.3); position: relative; cursor: pointer; transition: transform 0.18s; }
+.wly-card:hover { transform: translateY(-2px); }
+.wly-card-photo { width: 100%; height: 160px; object-fit: cover; display: block; }
+.wly-card-photo.blurred { filter: blur(10px); transform: scale(1.05); }
+.wly-card-info { padding: 0.5rem 0.6rem 0.2rem; }
+.wly-card-name { font-size: 0.82rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wly-card-name.blurred { filter: blur(7px); user-select: none; pointer-events: none; }
+.wly-card-age { font-size: 0.72rem; color: var(--text-muted); }
+.wly-card-age.blurred { filter: blur(7px); user-select: none; pointer-events: none; }
+.wly-like-btn { width: 100%; padding: 0.45rem; border: none; background: var(--gradient); color: white; font-size: 0.75rem; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; transition: opacity 0.2s; }
+.wly-like-btn:disabled { opacity: 0.6; cursor: default; }
+.wly-lock-overlay { position: absolute; inset: 0 0 36px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15,15,26,0.45); pointer-events: none; }
+.wly-lock-icon { font-size: 2rem; }
+.wly-super-badge { position: absolute; top: 6px; right: 6px; background: #6C63FF; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+.wly-upgrade-btn { width: 100%; padding: 0.45rem; border: none; background: linear-gradient(135deg,#F5A623,#E91E8C); color: white; font-size: 0.75rem; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
+/* CTA banner at bottom of WLY section for non-premium */
+.wly-cta-banner { margin-top: 1.5rem; background: linear-gradient(135deg,rgba(233,30,140,0.15),rgba(156,39,176,0.15)); border: 1.5px solid rgba(233,30,140,0.35); border-radius: 18px; padding: 1.25rem 1rem; text-align: center; }
+.wly-cta-icon { font-size: 2rem; margin-bottom: 0.4rem; }
+.wly-cta-title { font-size: 1rem; font-weight: 900; color: var(--text); margin-bottom: 0.3rem; }
+.wly-cta-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4; }
+.wly-empty { text-align: center; padding: 3rem 1rem; }
+.wly-empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+.wly-empty-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.4rem; }
+.wly-empty-sub { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
 .match-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; }
 .match-card:hover { transform: translateY(-3px); }
 .match-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
@@ -1516,7 +1547,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <input type="range" id="ageMaxSlider" min="18" max="80" step="1" value="80" style="display:none" oninput="setAgeMax(this.value)">
           <span id="ageRangeLabel" style="display:none">18–80+</span>
         </div>
-        <div class="discover-inner">
+        <div class="discover-inner" id="discoverInner">
           <div class="card-stack" id="cardStack"></div>
           <div id="actionRow" class="action-row" style="display:none">
             <button class="act-btn act-pass" onclick="swipe('pass')" title="Pass">✕</button>
@@ -1525,6 +1556,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           </div>
           <div class="swipe-hint" id="swipeHint" style="display:none">👈 Pass &nbsp;·&nbsp; Like 👉</div>
         </div>
+
+        <!-- Who Liked You — shown when "New ✨" filter is active -->
+        <div id="whoLikedYouSection" class="wly-section" style="display:none"></div>
       </div>
     </div>
 
@@ -1971,6 +2005,7 @@ const S = {
   minAge:       18,         // age range filter — lower bound
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
+  isPremium:    false,      // true once user has Spark Premium — unlocks Who Liked You full view
   listeners:    {},         // Firestore unsubscribe fns
   _matchesInitialized: false // true after first matches snapshot — prevents overlay on initial load
 };
@@ -3242,7 +3277,25 @@ function setFilter(f, btn) {
   btn.classList.add('active');
   updateRadiusBar();
   updateAgeSliderTracks();
-  renderDiscover();
+
+  const discoverInner = document.getElementById('discoverInner');
+  const wlySection    = document.getElementById('whoLikedYouSection');
+  const ageBar        = document.getElementById('ageBar');
+
+  if (f === 'new') {
+    // Show "Who Liked You" panel, hide the card stack
+    if (discoverInner) discoverInner.style.display = 'none';
+    if (ageBar)        ageBar.style.display = 'none';
+    if (wlySection)    wlySection.style.display = '';
+    // Load fresh likedMe data then render the WLY view
+    loadLikedMe().then(() => renderWhoLikedYou());
+  } else {
+    // Show normal card stack, hide WLY panel
+    if (discoverInner) discoverInner.style.display = '';
+    if (ageBar)        ageBar.style.display = '';
+    if (wlySection)    wlySection.style.display = 'none';
+    renderDiscover();
+  }
 }
 
 function renderDiscover() {
@@ -3707,8 +3760,148 @@ async function likeBack(uid, btn) {
   setTimeout(() => {
     S.likedMe = S.likedMe.filter(u => u.uid !== uid);
     renderLikedMe();
+    // Also refresh the Discover "New" WLY panel if it's currently showing
+    if (S.filter === 'new') renderWhoLikedYou();
     renderMatches();
   }, 800);
+}
+
+/* ================================================================
+   WHO LIKED YOU — Discover "New ✨" premium panel
+================================================================ */
+function renderWhoLikedYou() {
+  const section = document.getElementById('whoLikedYouSection');
+  if (!section) return;
+
+  const visible = S.likedMe.filter(u => !S.matchIds.has(u.uid));
+
+  // Empty state
+  if (visible.length === 0) {
+    section.innerHTML = `
+      <div class="wly-empty">
+        <div class="wly-empty-icon">💭</div>
+        <div class="wly-empty-title">No likes yet</div>
+        <div class="wly-empty-sub">Keep swiping — your admirers will appear here when someone likes your profile!</div>
+      </div>`;
+    return;
+  }
+
+  const isPremium = S.isPremium;
+
+  let cardsHtml = visible.map(u => {
+    const photo   = u.photos?.[0] || avatar(u.name || '?');
+    const isSup   = u.action === 'super';
+    const imgCls  = isPremium ? 'wly-card-photo' : 'wly-card-photo blurred';
+    const nameCls = isPremium ? 'wly-card-name'  : 'wly-card-name blurred';
+    const ageCls  = isPremium ? 'wly-card-age'   : 'wly-card-age blurred';
+    const name    = u.name || '?';
+    const age     = u.age ? `${u.age} yrs` : '';
+    const lockOverlay = isPremium ? '' : `<div class="wly-lock-overlay"><div class="wly-lock-icon">🔒</div></div>`;
+    const btn = isPremium
+      ? `<button class="wly-like-btn" id="wlybtn-${u.uid}" onclick="wlyLikeBack('${u.uid}',this)">Like Back ♥</button>`
+      : `<button class="wly-upgrade-btn" onclick="upgradeToPremium()">Unlock ✨</button>`;
+
+    return `
+      <div class="wly-card" onclick="${isPremium ? `openDetail('${u.uid}')` : 'upgradeToPremium()'}">
+        ${isSup ? '<div class="wly-super-badge">⭐</div>' : ''}
+        <img class="${imgCls}" src="${photo}" alt="${name}" onerror="this.src='${avatar(name)}'">
+        ${lockOverlay}
+        <div class="wly-card-info">
+          <div class="${nameCls}">${isPremium ? name : '••••••'}</div>
+          <div class="${ageCls}">${isPremium ? age : '-- yrs'}</div>
+        </div>
+        ${btn}
+      </div>`;
+  }).join('');
+
+  const countLabel = `${visible.length} person${visible.length !== 1 ? 's' : ''} liked you`;
+
+  let ctaBanner = '';
+  if (!isPremium) {
+    ctaBanner = `
+      <div class="wly-cta-banner">
+        <div class="wly-cta-icon">✨</div>
+        <div class="wly-cta-title">See Who Likes You</div>
+        <div class="wly-cta-sub">Upgrade to Spark Premium to see exactly who liked your profile and like them back instantly.</div>
+        <button class="btn-primary" style="max-width:220px" onclick="upgradeToPremium()">Upgrade to Premium ✨</button>
+      </div>`;
+  }
+
+  section.innerHTML = `
+    <div class="wly-header">
+      <div class="wly-title">❤️ Who Liked You</div>
+      <div class="wly-count">${countLabel}</div>
+    </div>
+    <div class="wly-grid">${cardsHtml}</div>
+    ${ctaBanner}`;
+}
+
+async function wlyLikeBack(uid, btn) {
+  // Same logic as likeBack() but called from the WLY panel in Discover
+  btn.disabled  = true;
+  btn.textContent = '✓ Matched!';
+  btn.style.background = 'var(--success)';
+
+  const likedUser = S.likedMe.find(u => u.uid === uid);
+  if (likedUser && !S.matchIds.has(uid)) {
+    const matchEntry = { matchId: [S.user.id, uid].sort().join('_'), uid, ...likedUser };
+    S.matches.push(matchEntry);
+    S.matchIds.add(uid);
+    S.pendingMatchId = uid;
+    S.newMatches.add(uid);
+    setTimeout(() => showMatchOverlay(uid), 350);
+  }
+  await recordLike(uid, 'like');
+  setTimeout(() => {
+    S.likedMe = S.likedMe.filter(u => u.uid !== uid);
+    renderLikedMe();
+    renderWhoLikedYou();
+    renderMatches();
+  }, 800);
+}
+
+function upgradeToPremium() {
+  // TODO: wire to Stripe / in-app purchase when billing is set up.
+  // For now show a coming-soon modal styled in Spark branding.
+  const existing = document.getElementById('premiumModal');
+  if (existing) { existing.remove(); }
+
+  const modal = document.createElement('div');
+  modal.id = 'premiumModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,26,0.88);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem;';
+  modal.innerHTML = `
+    <div style="background:var(--bg-card);border-radius:22px;padding:2rem 1.5rem;max-width:340px;width:100%;text-align:center;border:1.5px solid rgba(233,30,140,0.35);position:relative">
+      <button onclick="document.getElementById('premiumModal').remove()" style="position:absolute;top:0.75rem;right:0.9rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+      <div style="font-size:3rem;margin-bottom:0.6rem">✨</div>
+      <div style="font-size:1.3rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.4rem">Spark Premium</div>
+      <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.5">See everyone who liked you, like them back instantly, and unlock unlimited swipes.</div>
+      <div style="display:flex;flex-direction:column;gap:0.7rem;margin-bottom:1.25rem">
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">👁️</span><span style="font-size:0.82rem">See who liked your profile</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">♥</span><span style="font-size:0.82rem">Like them back with one tap</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">♾️</span><span style="font-size:0.82rem">Unlimited swipes every day</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">⭐</span><span style="font-size:0.82rem">1 free Super Like per day</span>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="activatePremium()" style="width:100%;font-size:1rem;padding:0.85rem">Get Premium — $9.99/mo</button>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.75rem">Cancel anytime · Billed monthly</div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function activatePremium() {
+  // Placeholder — replace with Stripe checkout / Apple IAP / Google Play Billing
+  S.isPremium = true;
+  const modal = document.getElementById('premiumModal');
+  if (modal) modal.remove();
+  // Re-render WLY section with full access
+  if (S.filter === 'new') renderWhoLikedYou();
 }
 
 /* ================================================================
