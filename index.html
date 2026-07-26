@@ -3355,8 +3355,10 @@ function getProspects() {
     if (u.age < S.minAge)              return false; // age range filter
     if (S.maxAge < 80 && u.age > S.maxAge) return false;
     // Gender preference filter — only show genders the current user is seeking
+    // Note: seeking values are pluralised ('Men','Women'); gender values are singular ('Man','Woman')
     if (S.user.seeking && S.user.seeking !== 'Everyone') {
-      if (u.gender !== S.user.seeking) return false;
+      const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
+      if (u.gender !== wantGender) return false;
     }
     if (S.filter === 'nearby') {
       const d = distanceTo(u);
@@ -4165,10 +4167,16 @@ async function renderNearby() {
         const u = d.data();
         if (u.invisible) return false;
         if ((S.user.blockedUsers||[]).includes(u.id)) return false; // blocked
-        // Gender preference filter — only show genders the current user is seeking
+        // Gender preference filter — seeking is pluralised ('Men'/'Women'); gender is singular ('Man'/'Woman')
         if (S.user.seeking && S.user.seeking !== 'Everyone') {
-          if (u.gender !== S.user.seeking) return false;
+          const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
+          if (u.gender !== wantGender) return false;
         }
+        // GPS-based: filter by radius distance
+        if (hasGPS && u.lat) {
+          return haversine(S.location.lat, S.location.lng, u.lat, u.lng) <= S.radius;
+        }
+        // Fallback: city match
         const uc = (u.city  || '').toLowerCase().trim();
         const us = (u.state || '').toLowerCase().trim();
         return uc === myLower && (!stLower || us === stLower);
