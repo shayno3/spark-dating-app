@@ -1679,6 +1679,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="detail-photos" id="detailPhotoWrap">
         <img class="detail-photo-img" id="detailPhoto" src="" alt="">
         <button class="detail-back" onclick="closeDetail()">←</button>
+        <div class="match-profile-photo-dots" id="detailPhotoDots"></div>
+        <button class="match-profile-arrow prev" id="detailPhotoPrev" onclick="detailPhotoNav(-1)" style="display:none">‹</button>
+        <button class="match-profile-arrow next" id="detailPhotoNext" onclick="detailPhotoNav(1)" style="display:none">›</button>
         <div class="card-gradient"></div>
       </div>
       <div class="detail-info">
@@ -3818,13 +3821,57 @@ function goToMatchChat() {
 /* ================================================================
    PROFILE DETAIL
 ================================================================ */
+let _detailPhotos = [], _detailPhotoIndex = 0;
+
+function _detailSetPhoto(idx) {
+  _detailPhotoIndex = Math.max(0, Math.min(idx, _detailPhotos.length - 1));
+  const img = document.getElementById('detailPhoto');
+  img.src = _detailPhotos[_detailPhotoIndex];
+  img.onerror = () => { img.src = avatar(S.activeDetailId || '?'); };
+
+  // Update dots
+  const dotsEl = document.getElementById('detailPhotoDots');
+  dotsEl.innerHTML = '';
+  _detailPhotos.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'match-profile-photo-dot' + (i === _detailPhotoIndex ? ' on' : '');
+    dotsEl.appendChild(d);
+  });
+
+  // Show/hide arrows
+  document.getElementById('detailPhotoPrev').style.display = _detailPhotoIndex > 0 ? '' : 'none';
+  document.getElementById('detailPhotoNext').style.display = _detailPhotoIndex < _detailPhotos.length - 1 ? '' : 'none';
+}
+
+function detailPhotoNav(dir) {
+  _detailSetPhoto(_detailPhotoIndex + dir);
+}
+
+// Touch-swipe on detail photo
+(function() {
+  let _tx = 0;
+  document.addEventListener('DOMContentLoaded', () => {
+    const wrap = document.getElementById('detailPhotoWrap');
+    if (!wrap) return;
+    wrap.addEventListener('touchstart', e => { _tx = e.touches[0].clientX; }, { passive: true });
+    wrap.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _tx;
+      if (Math.abs(dx) > 35) detailPhotoNav(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  });
+})();
+
 function openDetail(uid) {
   const u = findUser(uid);
   if (!u) return;
   S.activeDetailId = uid;
-  const photo = u.photos?.[0] || avatar(u.name);
-  document.getElementById('detailPhoto').src = photo;
-  document.getElementById('detailPhoto').onerror = function(){ this.src = avatar(u.name); };
+
+  // Build photo array
+  _detailPhotos = (u.photos && u.photos.length > 0)
+    ? u.photos.map(p => photoSrc(p) || p).filter(Boolean)
+    : [avatar(u.name)];
+  _detailSetPhoto(0);
+
   document.getElementById('detailNameLine').innerHTML = `${escHtml(u.name)}, ${u.age}${u.verified ? ' <span class="verified-badge-lg" title="Verified profile">✓</span>' : ''}`;
   document.getElementById('detailLocLine').innerHTML = `📍 ${u.city}, ${u.state}${u.online?' &nbsp;<span class="online-dot"></span> Online now':''}`;
   document.getElementById('detailTags').innerHTML  = (u.interests||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('');
@@ -4098,10 +4145,12 @@ async function activatePremium() {
   try {
     const createCheckoutSession = functions.httpsCallable('createCheckoutSession');
     const result = await createCheckoutSession();
+    if (!result.data?.url) throw new Error('No checkout URL returned');
     window.location.href = result.data.url; // Stripe-hosted checkout page
   } catch (e) {
     console.error('Checkout error:', e);
-    toast('Could not start checkout — ' + (e.message || 'please try again'));
+    const msg = [e.code, e.message].filter(Boolean).join(': ') || 'please try again';
+    toast('Checkout error — ' + msg);
     if (btn) { btn.disabled = false; btn.textContent = 'Get Premium — $9.99/mo'; }
   }
 }
