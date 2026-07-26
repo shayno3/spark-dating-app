@@ -240,6 +240,8 @@ html, body {
 .act-pass { width: 58px; height: 58px; background: #222236; font-size: 1.4rem; }
 .act-super { width: 48px; height: 48px; background: #181830; font-size: 1.2rem; border: 2px solid #6C63FF; }
 .act-like { width: 68px; height: 68px; background: var(--gradient-btn); font-size: 1.8rem; }
+.act-rewind { width: 44px; height: 44px; background: #181830; font-size: 1.1rem; border: 2px solid #444; opacity: 0.45; transition: opacity 0.2s, transform 0.18s, box-shadow 0.18s; }
+.act-rewind.ready { opacity: 1; border-color: #A78BFA; }
 .swipe-hint { font-size: 0.72rem; color: var(--text-muted); text-align: center; padding-bottom: 0.5rem; letter-spacing: 0.04em; }
 
 /* ---- CARD ANIMATIONS ---- */
@@ -1607,6 +1609,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <div class="discover-inner" id="discoverInner">
           <div class="card-stack" id="cardStack"></div>
           <div id="actionRow" class="action-row" style="display:none">
+            <button class="act-btn act-rewind" id="rewindBtn" onclick="rewind()" title="Undo last swipe">↩</button>
             <button class="act-btn act-pass" onclick="swipe('pass')" title="Pass">✕</button>
             <button class="act-btn act-super" onclick="swipe('super')" title="Super Like">⭐</button>
             <button class="act-btn act-like" onclick="swipe('like')" title="Like">♥</button>
@@ -2069,6 +2072,7 @@ const S = {
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
   isPremium:    false,      // true once user has Spark Premium — unlocks Who Liked You full view
+  lastSwiped:   null,       // { uid, action } — enables Rewind for premium users
   matchReadAt:  {},         // matchId → Date — when the other person last read this chat
   listeners:    {},         // Firestore unsubscribe fns
   _matchesInitialized: false // true after first matches snapshot — prevents overlay on initial load
@@ -2265,6 +2269,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
           S.isPremium = snap.data()?.isPremium === true;
+          _updateRewindBtn();
           enterMainApp();
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
@@ -3493,6 +3498,35 @@ function currentCardId() {
 /* ================================================================
    SWIPE — writes like to Firestore, checks for mutual match
 ================================================================ */
+function _updateRewindBtn() {
+  const btn = document.getElementById('rewindBtn');
+  if (btn) btn.classList.toggle('ready', !!(S.lastSwiped && S.isPremium));
+}
+
+async function rewind() {
+  if (!S.isPremium) { upgradeToPremium(); return; }
+  if (!S.lastSwiped) { toast('Nothing to undo'); return; }
+
+  const { uid, action } = S.lastSwiped;
+  S.lastSwiped = null;
+  S.seen.delete(uid);
+  _updateRewindBtn();
+
+  // If it was a like/super, delete the Firestore like docs
+  if ((action === 'like' || action === 'super') && db && S.user?.id) {
+    const myUid = S.user.id;
+    try {
+      await Promise.all([
+        db.collection('likes').doc(myUid).collection('sent').doc(uid).delete(),
+        db.collection('likes').doc(uid).collection('received').doc(myUid).delete(),
+      ]);
+    } catch(e) { console.warn('rewind delete error:', e); }
+  }
+
+  toast('↩ Rewound!');
+  renderDiscover();
+}
+
 async function swipe(action) {
   const uid  = currentCardId();
   if (!uid) return;
@@ -3511,6 +3545,8 @@ async function swipe(action) {
     card.classList.add('fly-left');
   }
   S.seen.add(uid);
+  S.lastSwiped = { uid, action };
+  _updateRewindBtn();
   setTimeout(renderDiscover, 400);
 }
 
