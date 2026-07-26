@@ -1,3 +1,4 @@
+// v2 — stripe support
 /**
  * Spark Dating App — Firebase Cloud Functions
  *
@@ -21,6 +22,8 @@
  */
 
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret }      = require('firebase-functions/params');
 const { initializeApp }     = require('firebase-admin/app');
 const { getFirestore }      = require('firebase-admin/firestore');
 const { getMessaging }      = require('firebase-admin/messaging');
@@ -28,6 +31,19 @@ const { getMessaging }      = require('firebase-admin/messaging');
 initializeApp();
 const db        = getFirestore();
 const messaging = getMessaging();
+
+/* ----------------------------------------------------------------
+   Stripe secrets — stored in Firebase Secret Manager, never in code.
+   Set them once with:
+     firebase functions:secrets:set STRIPE_SECRET_KEY
+     firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+---------------------------------------------------------------- */
+const STRIPE_SECRET_KEY     = defineSecret('STRIPE_SECRET_KEY');
+const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
+
+/* Your Stripe Price ID for Spark Premium $9.99/mo (Test Mode) */
+const STRIPE_PRICE_ID = 'price_1TxTYKDFkYr4mQ8SAyC7K2Yl';
+const APP_URL         = 'https://spark-dating-d16.pages.dev';
 
 /* ----------------------------------------------------------------
    Helper — fetch FCM tokens for a user uid, skip if none stored.
@@ -188,3 +204,141 @@ exports.onNewMessage = onDocumentCreated('messages/{matchId}/msgs/{msgId}', asyn
     },
   });
 });
+
+/* ================================================================
+   STRIPE — SUBSCRIPTION FUNCTIONS
+================================================================ */
+
+/* ----------------------------------------------------------------
+   FUNCTION 4 — createCheckoutSession
+   Called from the app when user taps "Get Premium".
+   Creates a Stripe Checkout session and returns the redirect URL.
+---------------------------------------------------------------- */
+exports.createCheckoutSession = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+
+    const Stripe     = require('stripe');
+    const stripe     = Stripe(STRIPE_SECRET_KEY.value());
+    const uid        = request.auth.uid;
+    const email      = request.auth.token.email || '';
+
+    // Re-use existing Stripe customer if one already exists for this user
+    const userDoc    = await db.collection('users').doc(uid).get();
+    let customerId   = userDoc.data()?.stripeCustomerId;
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email,
+        metadata: { firebaseUid: uid },
+      });
+      customerId = customer.id;
+      await db.collection('users').doc(uid).update({ stripeCustomerId: customerId });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      customer:             customerId,
+      payment_method_types: ['card'],
+      mode:                 'subscription',
+      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      success_url: `${APP_URL}/?checkout=success`,
+      cancel_url:  `${APP_URL}/?checkout=cancel`,
+    });
+
+    return { url: session.url };
+  }
+);
+
+/* ----------------------------------------------------------------
+   FUNCTION 5 — stripeWebhook
+   Stripe calls this on subscription events.
+   Keeps Firestore isPremium in sync with the real subscription state.
+---------------------------------------------------------------- */
+exports.stripeWebhook = onRequest(
+  { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET] },
+  async (req, res) => {
+    const Stripe = require('stripe');
+    const stripe = Stripe(STRIPE_SECRET_KEY.value());
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.rawBody,
+        req.headers['stripe-signature'],
+        STRIPE_WEBHOOK_SECRET.value()
+      );
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const sub      = event.data.object;
+        const customer = await stripe.customers.retrieve(sub.customer);
+        const uid      = customer.metadata?.firebaseUid;
+        if (!uid) break;
+
+        const isActive = ['active', 'trialing'].includes(sub.status);
+        await db.collection('users').doc(uid).update({
+          isPremium:                isActive,
+          stripeSubscriptionId:     sub.id,
+          stripeSubscriptionStatus: sub.status,
+          premiumExpiresAt:         new Date(sub.current_period_end * 1000),
+        });
+        console.log(`User ${uid} isPremium → ${isActive} (${sub.status})`);
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const sub      = event.data.object;
+        const customer = await stripe.customers.retrieve(sub.customer);
+        const uid      = customer.metadata?.firebaseUid;
+        if (!uid) break;
+
+        await db.collection('users').doc(uid).update({
+          isPremium:                false,
+          stripeSubscriptionStatus: 'canceled',
+        });
+        console.log(`User ${uid} subscription canceled — isPremium → false`);
+        break;
+      }
+
+      default:
+        // Ignore other event types
+        break;
+    }
+
+    res.json({ received: true });
+  }
+);
+
+/* ----------------------------------------------------------------
+   FUNCTION 6 — createPortalSession
+   Lets users manage or cancel their subscription via Stripe's
+   hosted billing portal — no UI to build on your end.
+---------------------------------------------------------------- */
+exports.createPortalSession = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+
+    const Stripe     = require('stripe');
+    const stripe     = Stripe(STRIPE_SECRET_KEY.value());
+    const userDoc    = await db.collection('users').doc(request.auth.uid).get();
+    const customerId = userDoc.data()?.stripeCustomerId;
+
+    if (!customerId) {
+      throw new HttpsError('not-found', 'No billing account found for this user');
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer:   customerId,
+      return_url: APP_URL,
+    });
+
+    return { url: session.url };
+  }
+);
