@@ -3443,11 +3443,13 @@ async function savePrivacySetting(field, value) {
 /* ================================================================
    DISCOVER / SWIPE — profiles from Firestore
 ================================================================ */
-async function loadProfiles() {
+function loadProfiles() {
   if (!db) return;
-  try {
-    const snap = await db.collection('users').get();
-    const now  = Date.now();
+  // Unsubscribe any previous listener before starting a new one
+  if (S.listeners.profiles) { S.listeners.profiles(); S.listeners.profiles = null; }
+
+  S.listeners.profiles = db.collection('users').onSnapshot(snap => {
+    const now = Date.now();
     S.profiles = snap.docs
       .filter(d => d.id !== S.user?.id)
       .map(d => {
@@ -3457,9 +3459,9 @@ async function loadProfiles() {
         return { id: d.id, ...data, online };
       });
     renderDiscover();
-  } catch(e) {
+  }, e => {
     console.warn('loadProfiles error:', e);
-  }
+  });
 }
 
 function getProspects() {
@@ -6428,21 +6430,36 @@ async function confirmDeleteAccount() {
 
     // 2. Delete all matches and their message sub-collections
     const matchSnap = await db.collection('matches')
-      .where('users', 'array-contains', uid).get();
+      .where('uids', 'array-contains', uid).get();  // 'uids' is the correct field name
 
     for (const matchDoc of matchSnap.docs) {
-      const msgSnap = await db.collection('matches')
-        .doc(matchDoc.id).collection('messages').get();
+      // Messages live at top-level: messages/{matchId}/msgs/{msgId}
+      const msgSnap = await db.collection('messages')
+        .doc(matchDoc.id).collection('msgs').get();
       msgSnap.docs.forEach(m => batchDelete(m.ref));
       batchDelete(matchDoc.ref);
     }
 
-    // 3. Delete likes sent BY this user (actual subcollection: likes/{uid}/sent/{targetUid})
+    // 3. Delete likes sent BY this user and clean up the received index on the other side
     const sentSnap = await db.collection('likes').doc(uid).collection('sent').get();
-    sentSnap.docs.forEach(d => batchDelete(d.ref));
+    for (const sentDoc of sentSnap.docs) {
+      const targetUid = sentDoc.id;
+      // Remove this user's entry from the target's received index
+      batchDelete(db.collection('likes').doc(targetUid).collection('received').doc(uid));
+      batchDelete(sentDoc.ref);
+    }
     if (sentSnap.size > 0) batchDelete(db.collection('likes').doc(uid));
 
-    // 4. Delete the user's Firestore profile document
+    // 4. Delete likes received BY this user and clean up the sent index on the other side
+    const receivedSnap = await db.collection('likes').doc(uid).collection('received').get();
+    for (const recDoc of receivedSnap.docs) {
+      const likerUid = recDoc.id;
+      // Remove this user's entry from the liker's sent index
+      batchDelete(db.collection('likes').doc(likerUid).collection('sent').doc(uid));
+      batchDelete(recDoc.ref);
+    }
+
+    // 5. Delete the user's Firestore profile document
     batchDelete(db.collection('users').doc(uid));
 
     // Commit all batches
