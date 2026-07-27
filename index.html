@@ -2088,6 +2088,7 @@ const S = {
   matches:      [],         // [{matchId, uid, name, photos, ...}]
   matchIds:     new Set(),  // Set of matched UIDs (quick lookup)
   newMatches:   new Set(),
+  newMatchMsgs: new Set(),  // UIDs matched since last Messages tab visit — drives Messages badge
   messages:     {},         // matchId → [{id, from, text, time}]
   unread:       {},         // uid → bool
   pendingMatchId: null,
@@ -2898,7 +2899,7 @@ async function logout() {
   S.listeners = {};
   Object.assign(S, {
     user: null, profiles: [], matches: [], matchIds: new Set(),
-    newMatches: new Set(), messages: {}, unread: {},
+    newMatches: new Set(), newMatchMsgs: new Set(), messages: {}, unread: {},
     activeChatId: null, activeMatchId: null, pendingMatchId: null,
     seen: new Set()
   });
@@ -3391,7 +3392,7 @@ function showTab(tab) {
     if (S._activeTab !== tab) return; // user tapped another tab while frame was pending
     if (tab === 'discover')  renderDiscover();
     if (tab === 'matches')   { renderMatches(); loadLikedMe(); S.newMatches.clear(); updateBadges(); }
-    if (tab === 'messages')  { renderConversations(); clearUnread(); updateBadges(); }
+    if (tab === 'messages')  { renderConversations(); clearUnread(); S.newMatchMsgs.clear(); updateBadges(); }
     if (tab === 'profile')   renderMyProfile();
     if (tab === 'nearby')    renderNearby();
     if (typeof _navFocus === 'function') setTimeout(_navFocus, 120);
@@ -3948,18 +3949,25 @@ function subscribeToMatches() {
         S.newMatches.add(first.uid);
         S.pendingMatchId = first.uid;
         showMatchOverlay(first.uid);
+        // Track for Messages badge — cleared when user opens Messages tab
+        newMatches.forEach(m => S.newMatchMsgs.add(m.uid));
       }
 
       updateBadges();
       const activeTab = document.querySelector('.tab-content.active')?.id;
       if (activeTab === 'tab-matches')  renderMatches();
       if (activeTab === 'tab-messages') renderConversations();
+      // Remove newly matched users from the "New ✨" WLY panel immediately
+      if (S.filter === 'new' && newMatches.length) renderWhoLikedYou();
     }, e => console.warn('matches listener error:', e));
 }
 
 function showMatchOverlay(uid) {
   const them  = S.matches.find(m => m.uid === uid);
   if (!them) return;
+
+  // Close any open detail panel — they're now a match, not someone to pass/like
+  closeDetail();
 
   const theirPhoto = (them.photos?.[0]) || avatar(them.name || '?');
   const myPhoto    = (S.user?.photos?.[0]) || avatar(S.user?.name || '?');
@@ -3979,6 +3987,7 @@ function showMatchOverlay(uid) {
 
 function closeMatchOverlay() {
   document.getElementById('matchOverlay').classList.remove('show');
+  closeDetail(); // ensure detailPanel isn't lingering behind the overlay
 }
 
 function goToMatchChat() {
@@ -4048,6 +4057,11 @@ function trackProfileView(targetUid) {
 }
 
 function openDetail(uid) {
+  // If this person is already a match, show the match profile (with Send Message) instead
+  if (S.matchIds?.has(uid)) {
+    openMatchProfile(uid);
+    return;
+  }
   const u = findUser(uid);
   if (!u) return;
   S.activeDetailId = uid;
@@ -4337,8 +4351,8 @@ async function activatePremium() {
     window.location.href = result.data.url; // Stripe-hosted checkout page
   } catch (e) {
     console.error('Checkout error:', e);
-    const msg = [e.code, e.message].filter(Boolean).join(': ') || 'please try again';
-    toast('Checkout error — ' + msg);
+    const msg = e.message || 'Please try again.';
+    toast('⚠️ ' + msg);
     if (btn) { btn.disabled = false; btn.textContent = 'Get Premium — $9.99/mo'; }
   }
 }
@@ -4650,6 +4664,7 @@ function renderConversations() {
 
 function clearUnread() {
   S.matches.forEach(m => { S.unread[m.uid] = false; });
+  S.newMatchMsgs.clear();
 }
 
 function openChat(uid) {
@@ -5396,7 +5411,8 @@ function updateBadges() {
   const nm       = S.newMatches.size;
   if (matchDot) matchDot.classList.toggle('active', nm > 0);
   const unread = Object.values(S.unread).filter(Boolean).length;
-  if (msgDot) msgDot.classList.toggle('active', unread > 0);
+  // Messages badge fires for unread messages OR new matches waiting in Messages
+  if (msgDot) msgDot.classList.toggle('active', unread > 0 || S.newMatchMsgs.size > 0);
 }
 
 function avatar(name) {

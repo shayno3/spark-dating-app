@@ -170,35 +170,46 @@ exports.createCheckoutSession = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) throw new Error('unauthenticated');
-
-    const Stripe = require('stripe');
-    const stripe = Stripe(stripeSecretKey.value());
-
-    // Look up the user's Stripe customer ID, or create one.
-    const userSnap = await db.collection('users').doc(uid).get();
-    const userData = userSnap.data() || {};
-    let customerId = userData.stripeCustomerId;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        metadata: { firebaseUid: uid },
-        email: userData.email || undefined,
-        name:  userData.name  || undefined,
-      });
-      customerId = customer.id;
-      await db.collection('users').doc(uid).update({ stripeCustomerId: customerId });
+    if (!uid) {
+      const { HttpsError } = require('firebase-functions/v2/https');
+      throw new HttpsError('unauthenticated', 'You must be logged in to subscribe.');
     }
 
-    const session = await stripe.checkout.sessions.create({
-      customer:   customerId,
-      mode:       'subscription',
-      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-      success_url: `${APP_URL}/?checkout=success`,
-      cancel_url:  `${APP_URL}/?checkout=cancel`,
-    });
+    const Stripe = require('stripe');
+    const { HttpsError } = require('firebase-functions/v2/https');
+    const stripe = Stripe(stripeSecretKey.value());
 
-    return { url: session.url };
+    try {
+      // Look up the user's Stripe customer ID, or create one.
+      const userSnap = await db.collection('users').doc(uid).get();
+      const userData = userSnap.data() || {};
+      let customerId = userData.stripeCustomerId;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          metadata: { firebaseUid: uid },
+          email: userData.email || undefined,
+          name:  userData.name  || undefined,
+        });
+        customerId = customer.id;
+        await db.collection('users').doc(uid).update({ stripeCustomerId: customerId });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer:   customerId,
+        mode:       'subscription',
+        line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+        success_url: `${APP_URL}/?checkout=success`,
+        cancel_url:  `${APP_URL}/?checkout=cancel`,
+      });
+
+      return { url: session.url };
+    } catch (err) {
+      console.error('createCheckoutSession error:', err);
+      // Stripe errors have a .message; surface it as a user-readable message
+      const msg = err?.raw?.message || err?.message || 'Unable to start checkout. Please try again.';
+      throw new HttpsError('internal', msg);
+    }
   }
 );
 
@@ -211,21 +222,30 @@ exports.createPortalSession = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) throw new Error('unauthenticated');
+    const { HttpsError } = require('firebase-functions/v2/https');
+    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
 
     const Stripe = require('stripe');
     const stripe = Stripe(stripeSecretKey.value());
 
-    const userSnap = await db.collection('users').doc(uid).get();
-    const customerId = userSnap.data()?.stripeCustomerId;
-    if (!customerId) throw new Error('No billing account found');
+    try {
+      const userSnap = await db.collection('users').doc(uid).get();
+      const customerId = userSnap.data()?.stripeCustomerId;
+      if (!customerId) throw new HttpsError('not-found', 'No billing account found. Subscribe first.');
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer:   customerId,
-      return_url: APP_URL,
-    });
+      const session = await stripe.billingPortal.sessions.create({
+        customer:   customerId,
+        return_url: APP_URL,
+      });
 
-    return { url: session.url };
+      return { url: session.url };
+    } catch (err) {
+      if (err?.code) throw err; // already an HttpsError
+      console.error('createPortalSession error:', err);
+      const msg = err?.raw?.message || err?.message || 'Unable to open billing portal. Please try again.';
+      const { HttpsError: HE } = require('firebase-functions/v2/https');
+      throw new HE('internal', msg);
+    }
   }
 );
 
