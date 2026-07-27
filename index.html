@@ -1589,10 +1589,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <div class="tab-content active" id="tab-discover">
       <div class="discover-wrap">
         <div class="filter-bar">
-          <button class="filter-chip active" onclick="setFilter('all',this)">All 🌎</button>
-          <button class="filter-chip" onclick="setFilter('nearby',this)">Nearby 📍</button>
-          <button class="filter-chip" onclick="setFilter('online',this)">Online 🟢</button>
-          <button class="filter-chip" onclick="setFilter('new',this)">New ✨</button>
+          <button id="chipAll"    class="filter-chip active" onclick="setFilter('all',this)">All 🌎</button>
+          <button id="chipNearby" class="filter-chip" onclick="setFilter('nearby',this)">Nearby 📍</button>
+          <button id="chipOnline" class="filter-chip" onclick="setFilter('online',this)">Online 🟢</button>
+          <button id="chipNew"    class="filter-chip" onclick="setFilter('new',this)">New ✨</button>
         </div>
         <div class="radius-bar" id="radiusBar" style="display:none">
           <span class="radius-label">📍 Within <span id="radiusKm">50</span> km</span>
@@ -2234,6 +2234,7 @@ function setRadius(val) {
   if (kmEl) kmEl.textContent = S.radius;
   updateSliderTrack();
   renderDiscover();
+  updateFilterCounts();
 }
 
 // Run once on app open — silently requests GPS, reverse geocodes, saves to Firestore
@@ -2261,6 +2262,7 @@ function silentGeolocate() {
       }
       updateRadiusBar();
       renderDiscover();       // re-render to show distances on cards
+      updateFilterCounts();   // re-count nearby with real GPS coords
     },
     () => { /* denied or unavailable — silent fallback */ },
     { timeout: 10000, maximumAge: 5 * 60 * 1000 }
@@ -3459,6 +3461,7 @@ function loadProfiles() {
         return { id: d.id, ...data, online };
       });
     renderDiscover();
+    updateFilterCounts();
   }, e => {
     console.warn('loadProfiles error:', e);
   });
@@ -3492,6 +3495,32 @@ function getProspects() {
     const bEnd = (b.boostActiveUntil > now) ? b.boostActiveUntil : 0;
     return bEnd - aEnd;
   });
+}
+
+function updateFilterCounts() {
+  if (!S.profiles) return;
+  // All members (everyone except current user)
+  const allUsers = S.profiles.filter(u => u.id !== S.user?.id && !u.invisible);
+  const totalAll = allUsers.length;
+
+  // Online: last seen within 5 minutes
+  const now = Date.now();
+  const totalOnline = allUsers.filter(u => u.online).length;
+
+  // Nearby: within radius (GPS) or same city as fallback
+  const totalNearby = allUsers.filter(u => {
+    const d = distanceTo(u);
+    if (d !== null) return d <= S.radius;
+    return u.city === S.user?.city && u.state === S.user?.state;
+  }).length;
+
+  const chipAll    = document.getElementById('chipAll');
+  const chipOnline = document.getElementById('chipOnline');
+  const chipNearby = document.getElementById('chipNearby');
+
+  if (chipAll)    chipAll.textContent    = `All 🌎 ${totalAll.toLocaleString()}`;
+  if (chipOnline) chipOnline.textContent = `Online 🟢 ${totalOnline}`;
+  if (chipNearby) chipNearby.textContent = `Nearby 📍 ${totalNearby}`;
 }
 
 function setFilter(f, btn) {
