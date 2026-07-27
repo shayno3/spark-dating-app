@@ -313,9 +313,10 @@ html, body {
 .wly-empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
 .wly-empty-title { font-size: 1rem; font-weight: 800; margin-bottom: 0.4rem; }
 .wly-empty-sub { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
-.match-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; }
+.match-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; position: relative; }
 .match-card:hover { transform: translateY(-3px); }
 .match-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+.match-card-online-dot { position: absolute; top: 8px; right: 8px; width: 11px; height: 11px; background: #22c55e; border-radius: 50%; border: 2px solid var(--bg-card); }
 .match-card-body { padding: 0.7rem 0.8rem 0.8rem; }
 .match-card-name { font-weight: 800; font-size: 0.95rem; }
 .match-card-loc { font-size: 0.77rem; color: var(--text-muted); margin-top: 2px; }
@@ -356,6 +357,12 @@ html, body {
 /* ---- CHAT VIEW ---- */
 .panel { display: none; flex-direction: column; position: absolute; inset: 0; background: var(--bg); z-index: 100; }
 .panel.open { display: flex; }
+
+/* ---- INLINE CHAT SHEET (slides up from bottom on Matches tab) ---- */
+.inline-chat-sheet { position: fixed; left: 0; right: 0; bottom: 0; height: 72vh; max-height: 72vh; background: var(--bg); border-radius: 20px 20px 0 0; box-shadow: 0 -6px 40px rgba(0,0,0,0.22); z-index: 210; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+.inline-chat-sheet.open { transform: translateY(0); }
+.inline-chat-drag { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 8px auto 0; flex-shrink: 0; }
+.inline-chat-sheet .panel-header { padding-top: 0.7rem; }
 .panel-header { padding: 0.85rem 1rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--border); background: var(--bg-card); flex-shrink: 0; }
 .back-btn { background: transparent; border: none; color: var(--text); cursor: pointer; font-size: 1.4rem; padding: 0.1rem 0.3rem; border-radius: 8px; flex-shrink: 0; line-height: 1; }
 .chat-av { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
@@ -1709,6 +1716,26 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="edit-body" id="editBody"></div>
     </div>
 
+    <!-- ── INLINE CHAT SHEET (Matches tab — slides up, no tab switch) ── -->
+    <div class="inline-chat-sheet" id="inlineChatSheet">
+      <div class="inline-chat-drag"></div>
+      <div class="panel-header">
+        <button class="back-btn" onclick="closeInlineChat()" style="font-size:1.1rem">✕</button>
+        <img class="chat-av" id="inlineChatAv" src="" alt="">
+        <div class="chat-head-info">
+          <div class="chat-head-name" id="inlineChatName"></div>
+        </div>
+      </div>
+      <div class="chat-messages" id="inlineChatMessages"></div>
+      <div class="chat-input-bar">
+        <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
+        <button class="send-btn" onclick="sendInlineMsg()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+    </div>
+
     <!-- ── MATCH PROFILE PANEL ── -->
     <div class="panel" id="matchProfilePanel" style="overflow-y:auto">
       <div class="match-profile-photos" id="matchProfilePhotos">
@@ -2072,9 +2099,11 @@ const S = {
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
   isPremium:    false,      // true once user has Spark Premium — unlocks Who Liked You full view
+  superLikeUsedDate: null, // ISO date string (YYYY-MM-DD) of last super like — free users get 1/day
   lastSwiped:   null,       // { uid, action } — enables Rewind for premium users
   matchReadAt:  {},         // matchId → Date — when the other person last read this chat
   listeners:    {},         // Firestore unsubscribe fns
+  chatMode:     'panel',   // 'panel' = full-screen chatPanel, 'inline' = inline chat sheet
   _matchesInitialized: false // true after first matches snapshot — prevents overlay on initial load
 };
 
@@ -2269,6 +2298,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
           S.isPremium = snap.data()?.isPremium === true;
+          S.superLikeUsedDate = snap.data()?.superLikeUsedDate || null;
           _updateRewindBtn();
           enterMainApp();
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
@@ -2637,6 +2667,7 @@ function _navBack() {
   if (rbModal) { rbModal.remove(); return true; }
   const verifPanel = document.getElementById('verifPanel');
   if (verifPanel) { verifPanel.remove(); return true; }
+  if (document.getElementById('inlineChatSheet')?.classList.contains('open')) { closeInlineChat(); return true; }
   if (document.getElementById('chatPanel')?.classList.contains('open'))  { closeChat(); return true; }
   if (document.getElementById('editPanel')?.classList.contains('open'))  { closeEditProfile(); return true; }
   if (document.getElementById('detailPanel')?.classList.contains('open')){ closeDetail(); return true; }
@@ -3259,11 +3290,29 @@ async function enterMainApp() {
   loadProfiles();
   subscribeToMatches();
   updateBadges();
+  startOnlineHeartbeat();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
   // Silently get GPS location — updates S.location, saves lat/lng to Firestore, re-renders cards with distance
   silentGeolocate();
   // Non-blocking — asks for push permission (or silently refreshes token if already granted).
   initPushNotifications().catch(() => {});
+}
+
+/* ================================================================
+   ONLINE PRESENCE HEARTBEAT
+================================================================ */
+let _heartbeatTimer = null;
+function startOnlineHeartbeat() {
+  if (!db || !S.user?.id) return;
+  const ping = () => {
+    if (!db || !S.user?.id) return;
+    db.collection('users').doc(S.user.id)
+      .update({ lastSeen: firebase.firestore.FieldValue.serverTimestamp() })
+      .catch(() => {});
+  };
+  ping(); // immediate ping on login
+  if (_heartbeatTimer) clearInterval(_heartbeatTimer);
+  _heartbeatTimer = setInterval(ping, 60000); // refresh every 60s
 }
 
 /* ================================================================
@@ -3344,9 +3393,15 @@ async function loadProfiles() {
   if (!db) return;
   try {
     const snap = await db.collection('users').get();
+    const now  = Date.now();
     S.profiles = snap.docs
       .filter(d => d.id !== S.user?.id)
-      .map(d => ({ id: d.id, ...d.data() }));
+      .map(d => {
+        const data     = d.data();
+        const lastSeen = data.lastSeen?.toDate?.();
+        const online   = !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000);
+        return { id: d.id, ...data, online };
+      });
     renderDiscover();
   } catch(e) {
     console.warn('loadProfiles error:', e);
@@ -3535,6 +3590,16 @@ async function swipe(action) {
 
   logEv('swipe', { direction: action }); // 'like' | 'super' | 'pass'
 
+  // Super Like daily limit — free users get 1 per day
+  if (action === 'super' && !S.isPremium) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (S.superLikeUsedDate === today) {
+      toast('⭐ You\'ve used your free Super Like today!');
+      setTimeout(() => upgradeToPremium(), 600);
+      return;
+    }
+  }
+
   if (action === 'like' || action === 'super') {
     document.getElementById(action==='super' ? `ss_${uid}` : `sl_${uid}`)?.classList.add('show');
     card.classList.add(action==='super' ? 'fly-up' : 'fly-right');
@@ -3553,6 +3618,16 @@ async function swipe(action) {
 async function recordLike(targetUid, action) {
   const myUid = S.user?.id;
   if (!myUid || !db) return;
+
+  // Track super like usage for free users (1/day limit)
+  if (action === 'super' && !S.isPremium) {
+    const today = new Date().toISOString().slice(0, 10);
+    S.superLikeUsedDate = today;
+    db.collection('users').doc(myUid)
+      .update({ superLikeUsedDate: today })
+      .catch(() => {});
+  }
+
   try {
     // Write my like (sent index)
     await db.collection('likes').doc(myUid).collection('sent').doc(targetUid).set({
@@ -3791,7 +3866,12 @@ function subscribeToMatches() {
         if (!profileData) {
           try {
             const pSnap = await db.collection('users').doc(otherUid).get();
-            if (pSnap.exists) profileData = { id: otherUid, ...pSnap.data() };
+            if (pSnap.exists) {
+              const d = pSnap.data();
+              const lastSeen = d.lastSeen?.toDate?.();
+              const online   = !!(lastSeen && Date.now() - lastSeen.getTime() < 5 * 60 * 1000);
+              profileData = { id: otherUid, ...d, online };
+            }
           } catch(e) {}
         }
         if (!profileData) return null;
@@ -3897,10 +3977,28 @@ function detailPhotoNav(dir) {
   });
 })();
 
+function getWeekKey() {
+  const d   = new Date();
+  const day = d.getDay() || 7;
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - day + 1);
+  const week = Math.ceil(((mon - new Date(mon.getFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  return `${mon.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function trackProfileView(targetUid) {
+  if (!db || !S.user?.id || targetUid === S.user.id) return;
+  const weekKey = getWeekKey();
+  db.collection('users').doc(targetUid)
+    .update({ [`profileViewsWeekly.${weekKey}`]: firebase.firestore.FieldValue.increment(1) })
+    .catch(() => {});
+}
+
 function openDetail(uid) {
   const u = findUser(uid);
   if (!u) return;
   S.activeDetailId = uid;
+  trackProfileView(uid);
 
   // Build photo array
   _detailPhotos = (u.photos && u.photos.length > 0)
@@ -3946,8 +4044,9 @@ function renderMatches() {
     card.tabIndex = 0;
     card.innerHTML = `
       <img class="match-card-img" src="${photo}" alt="${m.name}" onerror="this.src='${avatar(m.name||'?')}'">
+      ${m.online ? '<div class="match-card-online-dot"></div>' : ''}
       <div class="match-card-body">
-        <div class="match-card-name">${m.name}</div>
+        <div class="match-card-name">${m.name}${m.online ? ' <span class="online-dot"></span>' : ''}</div>
         <div class="match-card-loc">📍 ${m.city || ''}, ${m.state || ''}</div>
         ${isNew ? '<div class="new-badge">NEW MATCH ✨</div>' : ''}
       </div>`;
@@ -4385,7 +4484,7 @@ async function openMatchProfile(uid) {
 
   document.getElementById('matchProfileMsgBtn').onclick = () => {
     closeMatchProfile();
-    openChat(uid);
+    openInlineChat(uid);
   };
 
   if (S.newMatches.has(uid)) { S.newMatches.delete(uid); updateBadges(); }
@@ -4505,6 +4604,7 @@ function openChat(uid) {
   if (!match) return;
   S.activeChatId  = uid;
   S.activeMatchId = match.matchId;
+  S.chatMode      = 'panel';
   S.unread[uid]   = false;
 
   const photo = (match.photos?.[0]) || avatar(match.name || '?');
@@ -4525,6 +4625,55 @@ function closeChat() {
   if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
   S.activeChatId  = null;
   S.activeMatchId = null;
+  S.chatMode      = 'panel';
+}
+
+/* ---- Inline chat (Matches tab bottom sheet) ---- */
+function openInlineChat(uid) {
+  const match = S.matches.find(m => m.uid === uid);
+  if (!match) return;
+  S.activeChatId  = uid;
+  S.activeMatchId = match.matchId;
+  S.chatMode      = 'inline';
+  S.unread[uid]   = false;
+
+  const photo = (match.photos?.[0]) || avatar(match.name || '?');
+  const avEl  = document.getElementById('inlineChatAv');
+  avEl.src    = photo;
+  avEl.onerror = function(){ this.src = avatar(match.name||'?'); };
+  document.getElementById('inlineChatName').textContent = match.name || '';
+  document.getElementById('inlineChatSheet').classList.add('open');
+
+  subscribeToMessages(match.matchId, uid);
+  markChatRead(match.matchId);
+  subscribeToMatchDoc(match.matchId, uid);
+}
+
+function closeInlineChat() {
+  document.getElementById('inlineChatSheet').classList.remove('open');
+  if (S.listeners.messages)  { S.listeners.messages();  S.listeners.messages  = null; }
+  if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
+  S.activeChatId  = null;
+  S.activeMatchId = null;
+  S.chatMode      = 'panel';
+}
+
+async function sendInlineMsg() {
+  const input = document.getElementById('inlineChatInput');
+  const text  = input.value.trim();
+  if (!text || !S.activeMatchId || !db) return;
+  input.value = '';
+  try {
+    await db.collection('messages').doc(S.activeMatchId)
+      .collection('msgs').add({
+        from: S.user.id,
+        text,
+        ts: firebase.firestore.FieldValue.serverTimestamp()
+      });
+  } catch(e) {
+    input.value = text;
+    toast('Failed to send — check connection');
+  }
 }
 
 function viewChatProfile() {
@@ -4546,8 +4695,9 @@ function subscribeToMessages(matchId, uid) {
         time: d.data().ts?.toDate() || new Date()
       }));
       if (S.activeChatId === uid) {
-        renderChatMessages();
-        scrollChatToBottom();
+        const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
+        renderChatMessages(cid);
+        scrollChatToBottom(cid);
         markChatRead(matchId); // mark their new messages as read while chat is open
       } else {
         S.unread[uid] = true;
@@ -4573,13 +4723,16 @@ function subscribeToMatchDoc(matchId, otherUid) {
       if (!snap.exists) return;
       const raw = snap.data()[`readAt_${otherUid}`];
       S.matchReadAt[matchId] = raw ? raw.toDate() : null;
-      if (S.activeChatId === otherUid) renderChatMessages();
+      if (S.activeChatId === otherUid) {
+        const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
+        renderChatMessages(cid);
+      }
     }, () => {});
 }
 
-function renderChatMessages() {
+function renderChatMessages(containerId = 'chatMessages') {
   const matchId   = S.activeMatchId;
-  const container = document.getElementById('chatMessages');
+  const container = document.getElementById(containerId);
   if (!matchId || !container) return;
   const msgs = S.messages[matchId] || [];
   if (msgs.length === 0) {
@@ -4626,9 +4779,9 @@ function renderChatMessages() {
   }
 }
 
-function scrollChatToBottom() {
+function scrollChatToBottom(containerId = 'chatMessages') {
   setTimeout(() => {
-    const c = document.getElementById('chatMessages');
+    const c = document.getElementById(containerId);
     if (c) c.scrollTop = c.scrollHeight;
   }, 60);
 }
@@ -4691,6 +4844,7 @@ function renderMyProfile() {
       <div class="tags-wrap">${u.interests.map(t=>`<div class="tag-pill">${t}</div>`).join('')}</div>
     </div>` : ''}
 
+    ${renderProfileViewsCard(u)}
     ${renderBoostCard(u)}
     ${renderVerifCard(u)}
 
@@ -4702,6 +4856,37 @@ function renderMyProfile() {
       <button class="btn-outline" style="background:rgba(244,67,54,0.06);border-color:rgba(244,67,54,0.25);color:#ef5350;font-size:0.85rem" onclick="openDeleteModal()">🗑️ Delete Account</button>
     </div>
     <div style="height:1rem"></div>`;
+}
+
+/* ================================================================
+   PROFILE VIEWS CARD
+================================================================ */
+function renderProfileViewsCard(u) {
+  const weekKey  = getWeekKey();
+  const viewCount = (u.profileViewsWeekly?.[weekKey]) || 0;
+
+  if (S.isPremium) {
+    return `
+      <div class="boost-card" tabindex="0" title="Profile views this week">
+        <div class="boost-icon-wrap" style="background:linear-gradient(135deg,rgba(139,92,246,0.18),rgba(99,102,241,0.18))">👁️</div>
+        <div class="boost-text">
+          <div class="boost-label">${viewCount} ${viewCount === 1 ? 'person' : 'people'} viewed your profile</div>
+          <div class="boost-sub">This week · Profile views update as others discover you</div>
+        </div>
+      </div>`;
+  }
+
+  // Free users see a teaser
+  const teaser = viewCount > 0 ? viewCount : '?';
+  return `
+    <div class="boost-card locked" onclick="upgradeToPremium()" style="cursor:pointer" tabindex="0" title="Unlock profile views">
+      <div class="boost-icon-wrap locked">👁️</div>
+      <div class="boost-text">
+        <div class="boost-label"><span style="filter:blur(4px);user-select:none">${teaser}</span> people viewed your profile this week</div>
+        <div class="boost-sub">Go Premium to see exactly who's checking you out</div>
+      </div>
+      <button class="boost-action-btn locked" onclick="event.stopPropagation();upgradeToPremium()">Unlock</button>
+    </div>`;
 }
 
 /* ================================================================
