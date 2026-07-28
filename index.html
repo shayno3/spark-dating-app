@@ -168,7 +168,7 @@ html, body {
 .chip-x { opacity: 0.6; font-size: 0.9rem; }
 
 /* ---- MAIN APP ---- */
-.main-view { min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+.main-view { height: calc(var(--vh, 1vh) * 100); min-height: 0; display: flex; flex-direction: column; position: relative; overflow: hidden; }
 
 /* ---- GEAR PRIVACY SHEET ---- */
 .privacy-sheet { position: absolute; inset: 0; z-index: 300; display: none; pointer-events: none; }
@@ -190,7 +190,7 @@ html, body {
 .rb-sheet-row.danger { color: #ff6b6b; border-color: rgba(255,107,107,0.25); }
 .rb-sheet-cancel { background: none; border: none; color: var(--text-muted); padding: 0.6rem; font-size: 0.9rem; cursor: pointer; width: 100%; margin-top: 0.25rem; border-radius: 10px; }
 .rb-sheet-cancel:active { background: rgba(255,255,255,0.05); }
-.content-area { flex: 1; overflow: visible; position: relative; }
+.content-area { flex: 1; overflow-y: auto; position: relative; min-height: 0; }
 .tab-content { display: none; height: auto; flex-direction: column; overflow: visible; }
 .tab-content.active { display: flex; }
 
@@ -204,13 +204,14 @@ html, body {
 .nav-badge { position: absolute; top: 1px; right: 10px; background: var(--primary); color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center; }
 
 /* ---- DISCOVER ---- */
-.discover-wrap { display: flex; flex-direction: column; min-height: calc(100vh - 120px); }
-.filter-bar { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.discover-wrap { display: flex; flex-direction: column; }
+.filter-bar { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--border); }
 .filter-bar::-webkit-scrollbar { display: none; }
 .filter-chip { flex-shrink: 0; padding: 0.4rem 0.9rem; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-muted); font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; }
 .filter-chip.active { background: rgba(233,30,140,0.12); border-color: var(--primary); color: var(--primary); }
 .discover-inner { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 1rem; overflow: visible; }
-.card-stack { width: 100%; position: relative; max-width: 400px; height: 480px; }
+/* Card height scales with actual viewport — accounts for header (~56px), filter bar (~50px), action row (~80px), bottom nav (~65px) */
+.card-stack { width: 100%; position: relative; max-width: 400px; height: clamp(300px, calc(var(--vh, 1vh) * 100 - 270px), 480px); }
 
 /* ---- PROFILE CARDS ---- */
 .profile-card { position: absolute; inset: 0; border-radius: 22px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.55); }
@@ -1013,6 +1014,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 #app.glasses-mode {
   box-shadow: 0 0 0 2px #6C63FF, 0 0 40px rgba(108,99,255,0.35), 0 0 80px rgba(108,99,255,0.15);
   animation: glassesGlow 2.5s ease-in-out infinite;
+}
+/* In glasses mode the voice/neural status bars take extra vertical space (~80px combined),
+   so shrink the card stack to keep everything on screen */
+#app.glasses-mode .card-stack {
+  height: clamp(240px, calc(var(--vh, 1vh) * 100 - 350px), 420px);
 }
 @keyframes glassesGlow {
   0%,100% { box-shadow: 0 0 0 2px #6C63FF, 0 0 40px rgba(108,99,255,0.35); }
