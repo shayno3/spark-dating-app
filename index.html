@@ -250,6 +250,18 @@ html, body {
 .act-rewind.ready { opacity: 1; border-color: #A78BFA; }
 .swipe-hint { font-size: 0.72rem; color: var(--text-muted); text-align: center; padding-bottom: 0.5rem; letter-spacing: 0.04em; }
 
+/* ---- DISCOVER GRID ---- */
+.card-stack.grid-mode { height: auto; max-width: none; position: static; }
+.discover-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; padding: 0.5rem 0 1rem; width: 100%; }
+.disc-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; position: relative; }
+.disc-card:active { transform: scale(0.97); }
+.disc-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; object-position: top; display: block; }
+.disc-card-body { padding: 0.5rem 0.65rem 0.65rem; }
+.disc-card-name { font-weight: 800; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.disc-card-sub { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+.disc-online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle; }
+.disc-boosted-badge { position: absolute; top: 7px; left: 7px; background: linear-gradient(135deg,#F5A623,#E91E8C); color: white; font-size: 0.6rem; font-weight: 800; padding: 2px 7px; border-radius: 20px; letter-spacing: 0.03em; }
+
 /* ---- CARD ANIMATIONS ---- */
 @keyframes flyRight { 0%{transform:translateX(0) rotate(0);opacity:1} 100%{transform:translateX(160%) rotate(22deg);opacity:0} }
 @keyframes flyLeft  { 0%{transform:translateX(0) rotate(0);opacity:1} 100%{transform:translateX(-160%) rotate(-22deg);opacity:0} }
@@ -3505,16 +3517,23 @@ function getProspects() {
 
 function updateFilterCounts() {
   if (!S.profiles) return;
-  // All members (everyone except current user)
-  const allUsers = S.profiles.filter(u => u.id !== S.user?.id && !u.invisible);
-  const totalAll = allUsers.length;
+  // Apply same gender preference filter as getProspects() so counts match what user sees
+  const genderOk = u => {
+    if (!S.user?.seeking || S.user.seeking === 'Everyone') return true;
+    const want = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
+    return u.gender === want;
+  };
+  const baseUsers = S.profiles.filter(u =>
+    u.id !== S.user?.id && !u.invisible && genderOk(u) &&
+    !S.seen.has(u.id) && !S.matchIds.has(u.id)
+  );
+  const totalAll = baseUsers.length;
 
-  // Online: last seen within 5 minutes
   const now = Date.now();
-  const totalOnline = allUsers.filter(u => u.online).length;
+  const totalOnline = baseUsers.filter(u => u.online).length;
 
   // Nearby: within radius (GPS) or same city as fallback
-  const totalNearby = allUsers.filter(u => {
+  const totalNearby = baseUsers.filter(u => {
     const d = distanceTo(u);
     if (d !== null) return d <= S.radius;
     return u.city === S.user?.city && u.state === S.user?.state;
@@ -3556,6 +3575,28 @@ function setFilter(f, btn) {
   }
 }
 
+function buildDiscCard(user) {
+  const card = document.createElement('div');
+  card.className = 'disc-card';
+  card.dataset.uid = user.id;
+
+  const rawPhoto = user.photos?.[0];
+  const photo    = rawPhoto ? (photoSrc(rawPhoto) || rawPhoto) : avatar(user.name);
+  const now      = Date.now();
+  const isBoosted = user.boostActiveUntil > now;
+
+  card.innerHTML = `
+    <img class="disc-card-img" src="${photo}" alt="${user.name}" loading="lazy">
+    ${isBoosted ? '<div class="disc-boosted-badge">⚡ Boosted</div>' : ''}
+    <div class="disc-card-body">
+      <div class="disc-card-name">${user.name}${user.age ? ', ' + user.age : ''}</div>
+      <div class="disc-card-sub">${user.online ? '<span class="disc-online-dot"></span>Online' : (user.city || '')}</div>
+    </div>`;
+
+  card.onclick = () => openDetail(user.id);
+  return card;
+}
+
 function renderDiscover() {
   const stack     = document.getElementById('cardStack');
   const actionRow = document.getElementById('actionRow');
@@ -3566,6 +3607,8 @@ function renderDiscover() {
   stack.innerHTML = '';
 
   if (prospects.length === 0) {
+    // Empty state: revert to original positioned sizing so absolute-fill works
+    stack.classList.remove('grid-mode');
     stack.innerHTML = `<div class="empty-state" style="position:absolute;inset:0">
       <div class="empty-icon">😢</div>
       <div class="empty-title">All caught up!</div>
@@ -3576,14 +3619,16 @@ function renderDiscover() {
     if (hint)      hint.style.display = 'none';
     return;
   }
-  if (actionRow) actionRow.style.display = '';
-  if (hint)      hint.style.display = '';
 
-  const visible = prospects.slice(0, 3);
-  visible.slice().reverse().forEach((user, ri) => {
-    const pos = visible.length - 1 - ri;
-    stack.appendChild(buildCard(user, pos));
-  });
+  // Grid mode — hide swipe action row and hint
+  if (actionRow) actionRow.style.display = 'none';
+  if (hint)      hint.style.display = 'none';
+
+  stack.classList.add('grid-mode');
+  const grid = document.createElement('div');
+  grid.className = 'discover-grid';
+  prospects.forEach(user => grid.appendChild(buildDiscCard(user)));
+  stack.appendChild(grid);
 }
 
 function buildCard(user, pos) {
