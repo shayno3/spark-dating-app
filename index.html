@@ -1545,10 +1545,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <span class="app-logo">Spark</span>
     </div>
     <div style="display:flex;gap:0.4rem;align-items:center">
-      <button class="modes-btn" id="modesSelectorBtn" onclick="openModeSelector()" title="Input Modes">
-        🎛️ MODES
-      </button>
-      <button class="header-icon-btn" onclick="togglePrivacyPanel()" title="Privacy Settings" id="gearBtn">⚙️</button>
+      <button class="header-icon-btn" onclick="togglePrivacyPanel()" title="Settings" id="gearBtn" style="display:none">⚙️</button>
     </div>
   </div>
 
@@ -1570,7 +1567,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <div class="toggle-row" style="border-bottom:none;padding-bottom:0.25rem">
+      <div class="toggle-row" style="padding-bottom:0.25rem">
         <div>
           <div class="toggle-row-label">🕵️ Browse Privately</div>
           <div class="toggle-row-desc">Don't appear online while browsing</div>
@@ -1579,6 +1576,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <input type="checkbox" id="gearBrowsePrivatelyToggle" onchange="savePrivacySetting('browsePrivately',this.checked)">
           <span class="toggle-slider"></span>
         </label>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.1rem">
+        <button onclick="closePrivacyPanel();openModeSelector();" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;color:var(--text);cursor:pointer;padding:0.35rem 0.1rem;border-radius:8px;touch-action:manipulation">
+          <div>
+            <div style="font-weight:700;font-size:0.9rem;text-align:left" id="modesSelectorBtn">🎛️ Input Modes</div>
+            <div style="font-size:0.77rem;color:var(--text-muted);margin-top:2px;text-align:left">Voice, glasses, neural band</div>
+          </div>
+          <span style="color:var(--text-muted);font-size:1.2rem;line-height:1">›</span>
+        </button>
       </div>
     </div>
   </div>
@@ -3401,6 +3407,9 @@ function showTab(tab) {
   if (el)  el.classList.add('active');
   if (nav) nav.classList.add('active');
   S._activeTab = tab;
+  // Gear/settings button only visible on the Profile tab
+  const gearBtn = document.getElementById('gearBtn');
+  if (gearBtn) gearBtn.style.display = tab === 'profile' ? '' : 'none';
   // Close ALL slide-in panels so the tab is never blocked
   closePrivacyPanel();
   closeEditProfile();
