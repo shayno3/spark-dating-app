@@ -1480,6 +1480,30 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <button class="pill-btn" onclick="selectPill('seeking','Women',this)">Women</button>
       <button class="pill-btn" onclick="selectPill('seeking','Everyone',this)">Everyone</button>
     </div>
+    <label class="form-label" style="margin-top:1rem">Height <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div id="heightFtInRow" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem">
+      <input type="text" inputmode="numeric" class="form-input" id="sHeightFt" placeholder="ft" style="flex:1">
+      <input type="text" inputmode="numeric" class="form-input" id="sHeightIn" placeholder="in" style="flex:1">
+      <button class="pill-btn" id="heightUnitBtn" onclick="toggleHeightUnit()" style="flex-shrink:0;padding:0.45rem 0.75rem;font-size:0.78rem;white-space:nowrap">→ cm</button>
+    </div>
+    <div id="heightCmRow" style="display:none;margin-bottom:0.25rem">
+      <input type="text" inputmode="numeric" class="form-input" id="sHeightCm" placeholder="cm">
+    </div>
+    <label class="form-label" style="margin-top:1rem">Zodiac Sign <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="zodiacGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('zodiac','♈ Aries',this)">♈ Aries</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♉ Taurus',this)">♉ Taurus</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♊ Gemini',this)">♊ Gemini</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♋ Cancer',this)">♋ Cancer</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♌ Leo',this)">♌ Leo</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♍ Virgo',this)">♍ Virgo</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♎ Libra',this)">♎ Libra</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♏ Scorpio',this)">♏ Scorpio</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♐ Sagittarius',this)">♐ Sagittarius</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♑ Capricorn',this)">♑ Capricorn</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♒ Aquarius',this)">♒ Aquarius</button>
+      <button class="pill-btn" onclick="selectPill('zodiac','♓ Pisces',this)">♓ Pisces</button>
+    </div>
     <div style="margin-top:1.5rem">
       <button class="btn-primary" onclick="goStep(1)">Continue →</button>
     </div>
@@ -1517,7 +1541,14 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   <div class="setup-step" id="step4">
     <h2>Your story ✍️</h2>
     <p>Tell potential matches what makes you unique</p>
-    <label class="form-label">Bio <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(<span id="bioCharCount">0</span>/500)</span></label>
+    <label class="form-label">Looking for</label>
+    <div class="pill-group" id="intentGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('intent','Relationship',this)">💍 Relationship</button>
+      <button class="pill-btn" onclick="selectPill('intent','Something casual',this)">✨ Something casual</button>
+      <button class="pill-btn" onclick="selectPill('intent','Friends first',this)">🤝 Friends first</button>
+      <button class="pill-btn" onclick="selectPill('intent','Open to anything',this)">🌈 Open to anything</button>
+    </div>
+    <label class="form-label" style="margin-top:1rem">Bio <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(<span id="bioCharCount">0</span>/500)</span></label>
     <div class="bio-voice-wrap">
       <textarea class="form-textarea" id="sBio" placeholder="What are you passionate about? What makes you unique? What are you looking for?…" maxlength="500" oninput="document.getElementById('bioCharCount').textContent=this.value.length" style="padding-bottom:2.8rem"></textarea>
       <button class="bio-voice-btn" id="sBioMicBtn" onclick="voiceBio('sBio','sBioMicBtn')" title="Speak your bio">🎤</button>
@@ -3178,13 +3209,54 @@ function selectPill(field, val, btn) {
   S.setup[field] = val;
 }
 
+function toggleHeightUnit() {
+  S.setup._heightUseCm = !S.setup._heightUseCm;
+  const useCm = S.setup._heightUseCm;
+  const ftRow = document.getElementById('heightFtInRow');
+  const cmRow = document.getElementById('heightCmRow');
+  const btn   = document.getElementById('heightUnitBtn');
+  if (!ftRow || !cmRow || !btn) return;
+  if (useCm) {
+    ftRow.style.display = 'none';
+    cmRow.style.display = '';
+    btn.textContent = '→ ft/in';
+    // Convert ft+in → cm if values exist
+    const ft = parseInt(document.getElementById('sHeightFt')?.value) || 0;
+    const ins = parseInt(document.getElementById('sHeightIn')?.value) || 0;
+    if (ft) document.getElementById('sHeightCm').value = Math.round(ft * 30.48 + ins * 2.54);
+  } else {
+    ftRow.style.display = 'flex';
+    cmRow.style.display = 'none';
+    btn.textContent = '→ cm';
+    // Convert cm → ft+in if value exists
+    const cm = parseInt(document.getElementById('sHeightCm')?.value) || 0;
+    if (cm) {
+      const totalIn = Math.round(cm / 2.54);
+      document.getElementById('sHeightFt').value = Math.floor(totalIn / 12);
+      document.getElementById('sHeightIn').value = totalIn % 12;
+    }
+  }
+}
+
 function goStep(from) {
   if (from === 1) {
     const age = parseInt(document.getElementById('sAge').value);
     if (!age || age < 18 || age > 99) { toast('Please enter a valid age (18+)'); return; }
     if (!S.setup.gender)  { toast('Please select your gender'); return; }
     if (!S.setup.seeking) { toast('Please select who you\'re interested in'); return; }
+    // Height (optional)
+    let heightStr = '';
+    if (S.setup._heightUseCm) {
+      const cm = parseInt(document.getElementById('sHeightCm')?.value);
+      if (cm && cm > 50 && cm < 300) heightStr = cm + ' cm';
+    } else {
+      const ft = parseInt(document.getElementById('sHeightFt')?.value);
+      const inches = parseInt(document.getElementById('sHeightIn')?.value) || 0;
+      if (ft && ft >= 1 && ft <= 9) heightStr = ft + '\'' + (inches < 10 ? '0' : '') + inches + '"';
+    }
     S.user.age = age; S.user.gender = S.setup.gender; S.user.seeking = S.setup.seeking;
+    S.user.height = heightStr;
+    S.user.zodiac = S.setup.zodiac || '';
     updateProgress(2);
   } else if (from === 2) {
     const city  = document.getElementById('sCity').value.trim();
@@ -3294,6 +3366,9 @@ async function finishSetup() {
     age:       S.user.age    || 18,
     gender:    S.setup.gender  || S.user.gender  || '',
     seeking:   S.setup.seeking || S.user.seeking || 'Everyone',
+    height:    S.user.height   || '',
+    zodiac:    S.user.zodiac   || S.setup.zodiac  || '',
+    intent:    S.setup.intent  || '',
     city:      S.user.city   || '',
     state:     S.user.state  || '',
     bio:       bio           || '',
@@ -4167,7 +4242,13 @@ function openDetail(uid) {
 
   document.getElementById('detailNameLine').innerHTML = `${escHtml(u.name)}, ${u.age}${u.verified ? ' <span class="verified-badge-lg" title="Verified profile">✓</span>' : ''}`;
   document.getElementById('detailLocLine').innerHTML = `📍 ${u.city}, ${u.state}${u.online?' &nbsp;<span class="online-dot"></span> Online now':''}`;
-  document.getElementById('detailTags').innerHTML  = (u.interests||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('');
+  const extraTags = [
+    ...(u.height ? [`<span class="tag-pill">📏 ${escHtml(u.height)}</span>`] : []),
+    ...(u.zodiac ? [`<span class="tag-pill">${escHtml(u.zodiac)}</span>`] : []),
+    ...(u.intent ? [`<span class="tag-pill">💫 ${escHtml(u.intent)}</span>`] : []),
+    ...(u.interests||[]).map(t=>`<span class="tag-pill">${escHtml(t)}</span>`)
+  ];
+  document.getElementById('detailTags').innerHTML  = extraTags.join('');
   document.getElementById('detailBioText').textContent = u.bio || 'No bio yet.';
   document.getElementById('detailPanel').classList.add('open');
   _navRefresh();
@@ -4996,6 +5077,7 @@ function renderMyProfile() {
 
     <div class="card-section" tabindex="0" title="About you">
       <div class="section-hd">About Me</div>
+      ${(u.height || u.zodiac || u.intent) ? `<div class="tags-wrap" style="margin-bottom:0.75rem">${u.height?`<div class="tag-pill">📏 ${u.height}</div>`:''}${u.zodiac?`<div class="tag-pill">${u.zodiac}</div>`:''}${u.intent?`<div class="tag-pill">💫 ${u.intent}</div>`:''}</div>` : ''}
       <div class="bio-body">${u.bio || '<span style="color:var(--text-muted)">No bio yet — edit your profile to add one</span>'}</div>
     </div>
 
@@ -5386,6 +5468,21 @@ function openEditProfile() {
       <option value="Women"    ${u.seeking==='Women'?'selected':''}>Women</option>
       <option value="Everyone" ${u.seeking==='Everyone'?'selected':''}>Everyone</option>
     </select>
+    <label class="form-label">Looking For</label>
+    <select class="form-select" id="editIntentIn">
+      <option value="">— Not specified —</option>
+      <option value="Relationship"     ${u.intent==='Relationship'?'selected':''}>💍 Relationship</option>
+      <option value="Something casual" ${u.intent==='Something casual'?'selected':''}>✨ Something casual</option>
+      <option value="Friends first"    ${u.intent==='Friends first'?'selected':''}>🤝 Friends first</option>
+      <option value="Open to anything" ${u.intent==='Open to anything'?'selected':''}>🌈 Open to anything</option>
+    </select>
+    <label class="form-label">Height <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <input type="text" class="form-input vk-input" id="editHeightIn" value="${escAttr(u.height||'')}" placeholder="e.g. 5'10&quot; or 178 cm" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <label class="form-label">Zodiac Sign <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <select class="form-select" id="editZodiacIn">
+      <option value="">— Not specified —</option>
+      ${['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'].map(z=>`<option value="${z}" ${u.zodiac===z?'selected':''}>${z}</option>`).join('')}
+    </select>
     <label class="form-label">City</label>
     <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">State</label>
@@ -5479,6 +5576,9 @@ async function saveProfile() {
     name, age,
     gender:          document.getElementById('editGenderIn').value.trim() || S.user.gender,
     seeking:         document.getElementById('editSeekingIn').value,
+    intent:          document.getElementById('editIntentIn')?.value  || '',
+    height:          document.getElementById('editHeightIn')?.value.trim()  || '',
+    zodiac:          document.getElementById('editZodiacIn')?.value  || '',
     city:            document.getElementById('editCityIn').value.trim(),
     state:           document.getElementById('editStateDropdown').value,
     bio:             document.getElementById('editBioIn').value.trim(),
