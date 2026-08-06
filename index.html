@@ -3523,9 +3523,10 @@ function updateFilterCounts() {
     const want = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
     return u.gender === want;
   };
+  // Counts show total eligible users (by gender pref), not just unseen —
+  // so the chip always reflects how many people are on the app matching your preference
   const baseUsers = S.profiles.filter(u =>
-    u.id !== S.user?.id && !u.invisible && genderOk(u) &&
-    !S.seen.has(u.id) && !S.matchIds.has(u.id)
+    u.id !== S.user?.id && !u.invisible && genderOk(u)
   );
   const totalAll = baseUsers.length;
 
