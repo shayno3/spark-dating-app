@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact Us – Spark</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0F0F1A;color:#F0F0F0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.7;padding:0}
+  header{background:linear-gradient(135deg,#1A1A2E,#0F0F1A);border-bottom:1px solid #2a2a3e;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:0.75rem}
+  header a{text-decoration:none;color:#E91E8C;font-weight:800;font-size:1.4rem;letter-spacing:-0.5px}
+  header span{color:#9CA3AF;font-size:0.85rem}
+  .container{max-width:700px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+  h1{font-size:2rem;font-weight:900;margin-bottom:0.4rem;background:linear-gradient(135deg,#F5A623,#E91E8C);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .sub{color:#9CA3AF;font-size:0.93rem;margin-bottom:2.5rem}
+  h2{font-size:1.05rem;font-weight:800;color:#E91E8C;margin:0 0 0.4rem}
+  p,li{color:#D1D5DB;font-size:0.95rem;margin-bottom:0.4rem}
+  a{color:#E91E8C;text-decoration:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-bottom:2rem}
+  .card{background:#1A1A2E;border:1px solid #2a2a3e;border-radius:14px;padding:1.4rem 1.5rem}
+  .icon{font-size:1.6rem;margin-bottom:0.6rem}
+  .info-row{display:flex;flex-direction:column;gap:0.2rem}
+  .label{font-size:0.75rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;font-weight:700}
+  .value{font-size:0.97rem;color:#F0F0F0;font-weight:600}
+  .response-note{background:#1A1A2E;border:1px solid #2a2a3e;border-radius:12px;padding:1rem 1.25rem;color:#9CA3AF;font-size:0.88rem;margin-bottom:2rem}
+  .topic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;margin-top:0.5rem}
+  .topic{background:#1A1A2E;border:1px solid #2a2a3e;border-radius:10px;padding:0.75rem 1rem}
+  .topic-title{font-weight:700;font-size:0.88rem;margin-bottom:0.2rem;color:#F0F0F0}
+  .topic-desc{font-size:0.8rem;color:#9CA3AF}
+  footer{border-top:1px solid #2a2a3e;padding:1.5rem;text-align:center;color:#6B7280;font-size:0.8rem}
+  footer a{color:#E91E8C}
+</style>
+</head>
+<body>
+<header>
+  <a href="/">⚡ Spark</a>
+  <span>/ Contact</span>
+</header>
+<div class="container">
+  <h1>Contact Us</h1>
+  <p class="sub">We're here to help. Reach out with any questions, concerns, or feedback about Spark.</p>
+  <div class="grid">
+    <div class="card">
+      <div class="icon">📧</div>
+      <h2>General Support</h2>
+      <p style="color:#9CA3AF;font-size:0.83rem;margin-bottom:0.7rem">Questions, account issues, feedback</p>
+      <div class="info-row">
+        <span class="label">Email</span>
+        <a href="mailto:support@smartsparks.app" class="value">support@smartsparks.app</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon">💳</div>
+      <h2>Billing &amp; Payments</h2>
+      <p style="color:#9CA3AF;font-size:0.83rem;margin-bottom:0.7rem">Subscription, refunds, charges</p>
+      <div class="info-row">
+        <span class="label">Email</span>
+        <a href="mailto:support@smartsparks.app" class="value">support@smartsparks.app</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon">🚨</div>
+      <h2>Safety &amp; Abuse</h2>
+      <p style="color:#9CA3AF;font-size:0.83rem;margin-bottom:0.7rem">Report harassment, scams, minors</p>
+      <div class="info-row">
+        <span class="label">Email</span>
+        <a href="mailto:support@smartsparks.app" class="value">support@smartsparks.app</a>
+        <span class="label" style="margin-top:0.5rem">Subject line</span>
+        <span class="value" style="font-size:0.87rem">SAFETY REPORT: [brief description]</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon">⚖️</div>
+      <h2>Legal &amp; Law Enforcement</h2>
+      <p style="color:#9CA3AF;font-size:0.83rem;margin-bottom:0.7rem">Legal requests, subpoenas, court orders</p>
+      <div class="info-row">
+        <span class="label">Email</span>
+        <a href="mailto:support@smartsparks.app" class="value">support@smartsparks.app</a>
+        <span class="label" style="margin-top:0.5rem">Subject line</span>
+        <span class="value" style="font-size:0.87rem">LAW ENFORCEMENT REQUEST</span>
+      </div>
+      <p style="font-size:0.8rem;color:#9CA3AF;margin-top:0.5rem">See our <a href="/law-enforcement">Law Enforcement Protocols</a> for full details.</p>
+    </div>
+  </div>
+  <div class="response-note">
+    ⏱️ <strong style="color:#F0F0F0">Response times:</strong> General inquiries — within 2 business days. Safety reports — within 24 hours. Legal requests — within 3 business days or as required by applicable law.
+  </div>
+  <h2 style="margin-bottom:0.75rem;font-size:1.1rem;color:#F0F0F0">Common Topics</h2>
+  <div class="topic-grid">
+    <div class="topic"><div class="topic-title">Account &amp; Login</div><div class="topic-desc">Password reset, account recovery, verification issues</div></div>
+    <div class="topic"><div class="topic-title">Premium Subscription</div><div class="topic-desc">Upgrade, cancel, billing — see <a href="/pricing">Pricing</a> &amp; <a href="/refund">Refunds</a></div></div>
+    <div class="topic"><div class="topic-title">Profile &amp; Photos</div><div class="topic-desc">Photo upload issues, profile edits, visibility settings</div></div>
+    <div class="topic"><div class="topic-title">Privacy</div><div class="topic-desc">Data requests, deletion, CCPA/GDPR — see <a href="/privacy">Privacy Policy</a></div></div>
+    <div class="topic"><div class="topic-title">Reporting Users</div><div class="topic-desc">Use the in-app Report button on any profile or conversation</div></div>
+    <div class="topic"><div class="topic-title">Technical Issues</div><div class="topic-desc">App bugs, loading problems, notification issues</div></div>
+  </div>
+  <div style="margin-top:2.5rem;padding:1.25rem;background:#1A1A2E;border-radius:12px;border:1px solid #2a2a3e">
+    <h2 style="color:#F0F0F0;margin-bottom:0.4rem">Business Information</h2>
+    <p style="color:#9CA3AF;font-size:0.88rem;margin-bottom:0.2rem"><strong style="color:#D1D5DB">Company:</strong> Smart Sparks LLC</p>
+    <p style="color:#9CA3AF;font-size:0.88rem;margin-bottom:0.2rem"><strong style="color:#D1D5DB">Website:</strong> <a href="https://smartsparks.app">https://smartsparks.app</a></p>
+    <p style="color:#9CA3AF;font-size:0.88rem"><strong style="color:#D1D5DB">Email:</strong> <a href="mailto:support@smartsparks.app">support@smartsparks.app</a></p>
+  </div>
+</div>
+<footer>
+  &copy; 2025 Smart Sparks LLC &nbsp;|&nbsp;
+  <a href="/privacy">Privacy Policy</a> &nbsp;|&nbsp;
+  <a href="/terms">Terms</a> &nbsp;|&nbsp;
+  <a href="/contact">Contact</a>
+</footer>
+</body>
+</html>
