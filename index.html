@@ -4419,8 +4419,9 @@ async function recordLike(targetUid, action) {
       action,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Check if they liked me back (mutual like = match)
-    const theirLike = await db.collection('likes').doc(targetUid).collection('sent').doc(myUid).get();
+    // Check if they already liked me back — read from MY OWN received index
+    // (avoids cross-user reads that fail under Firestore security rules)
+    const theirLike = await db.collection('likes').doc(myUid).collection('received').doc(targetUid).get();
     if (theirLike.exists) {
       await createMatch(myUid, targetUid);
     }
