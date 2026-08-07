@@ -451,10 +451,18 @@ html, body {
 .detail-name-line { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
 .detail-loc-line { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 0.9rem; }
 .detail-bio-text { font-size: 0.9rem; line-height: 1.6; color: rgba(255,255,255,0.82); margin-bottom: 1.25rem; }
-.detail-actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
-.detail-pass { flex: 1; padding: 0.875rem; background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.15s; }
+.detail-scroll { flex: 1; overflow-y: auto; }
+.detail-footer { padding: 0.75rem 1.25rem calc(0.75rem + var(--sab, 0px)); background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; }
+.detail-actions { display: flex; gap: 0.75rem; }
+.detail-pass { flex: 1; padding: 0.875rem; background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.15s; touch-action: manipulation; }
 .detail-pass:hover { border-color: #F44336; color: #F44336; }
-.detail-like { flex: 1; padding: 0.875rem; background: var(--gradient-btn); border: none; border-radius: 12px; color: white; font-size: 1rem; font-weight: 800; cursor: pointer; }
+.detail-like { flex: 1; padding: 0.875rem; background: var(--gradient-btn); border: none; border-radius: 12px; color: white; font-size: 1rem; font-weight: 800; cursor: pointer; touch-action: manipulation; }
+/* Full-screen photo overlay */
+#photoFullOverlay { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.97); align-items: center; justify-content: center; }
+#photoFullOverlay.show { display: flex; }
+#photoFullImg { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+#photoFullClose { position: absolute; top: calc(1rem + var(--sat,0px)); right: 1rem; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+.detail-photo-img { cursor: zoom-in; }
 
 /* ---- EMPTY STATES ---- */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 250px; padding: 2rem; text-align: center; gap: 0.7rem; }
@@ -1667,8 +1675,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <button id="chipNew"    class="filter-chip" onclick="setFilter('new',this)">New ✨</button>
         </div>
         <div class="radius-bar" id="radiusBar" style="display:none">
-          <span class="radius-label">📍 Within <span id="radiusKm">50</span> km</span>
-          <input class="radius-slider" id="radiusSlider" type="range" min="5" max="500" step="5" value="50" oninput="setRadius(this.value)">
+          <span class="radius-label">📍 Within</span>
+          <div class="age-stepper-wrap">
+            <button class="age-step-btn" onclick="stepRadius(-1)" title="Decrease radius">−</button>
+            <span class="age-step-val" id="radiusKm">50</span>
+            <button class="age-step-btn" onclick="stepRadius(1)" title="Increase radius">+</button>
+          </div>
+          <span class="radius-label">km</span>
+          <!-- Hidden range kept for setRadius / updateFilterCounts compatibility -->
+          <input type="range" id="radiusSlider" min="5" max="500" step="5" value="50" style="display:none" oninput="setRadius(this.value)">
           <span class="radius-value" id="radiusLiveTag">GPS 🟢</span>
         </div>
         <div class="age-bar" id="ageBar">
@@ -1730,8 +1745,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="profile-scroll" id="profileScroll"></div>
     </div>
 
-    <!-- ── NEARBY TAB ── -->
-    <div class="tab-content" id="tab-nearby">
+    <!-- ── EXPLORE TAB ── -->
+    <div class="tab-content" id="tab-explore">
       <div class="nearby-header">
         <div class="nearby-city-line" id="nearbyCityLine">📍 Loading…</div>
         <div class="nearby-count" id="nearbyCount"></div>
@@ -1770,20 +1785,24 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── PROFILE DETAIL PANEL ── -->
-    <div class="panel" id="detailPanel" style="overflow-y:auto">
-      <div class="detail-photos" id="detailPhotoWrap">
-        <img class="detail-photo-img" id="detailPhoto" src="" alt="">
-        <button class="detail-back" onclick="closeDetail()">←</button>
-        <div class="match-profile-photo-dots" id="detailPhotoDots"></div>
-        <button class="match-profile-arrow prev" id="detailPhotoPrev" onclick="detailPhotoNav(-1)" style="display:none">‹</button>
-        <button class="match-profile-arrow next" id="detailPhotoNext" onclick="detailPhotoNav(1)" style="display:none">›</button>
-        <div class="card-gradient"></div>
+    <div class="panel" id="detailPanel">
+      <div class="detail-scroll">
+        <div class="detail-photos" id="detailPhotoWrap">
+          <img class="detail-photo-img" id="detailPhoto" src="" alt="" onclick="openPhotoFull(this.src)">
+          <button class="detail-back" onclick="closeDetail()">←</button>
+          <div class="match-profile-photo-dots" id="detailPhotoDots"></div>
+          <button class="match-profile-arrow prev" id="detailPhotoPrev" onclick="detailPhotoNav(-1)" style="display:none">‹</button>
+          <button class="match-profile-arrow next" id="detailPhotoNext" onclick="detailPhotoNav(1)" style="display:none">›</button>
+          <div class="card-gradient"></div>
+        </div>
+        <div class="detail-info">
+          <div class="detail-name-line" id="detailNameLine"></div>
+          <div class="detail-loc-line" id="detailLocLine"></div>
+          <div class="tags-wrap" id="detailTags" style="margin-bottom:0.875rem"></div>
+          <div class="detail-bio-text" id="detailBioText"></div>
+        </div>
       </div>
-      <div class="detail-info">
-        <div class="detail-name-line" id="detailNameLine"></div>
-        <div class="detail-loc-line" id="detailLocLine"></div>
-        <div class="tags-wrap" id="detailTags" style="margin-bottom:0.875rem"></div>
-        <div class="detail-bio-text" id="detailBioText"></div>
+      <div class="detail-footer">
         <div class="detail-actions">
           <button class="detail-pass" onclick="passFromDetail()">✕ Pass</button>
           <button class="detail-like" onclick="likeFromDetail()">♥ Like</button>
@@ -1850,6 +1869,12 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
   </div><!-- /content-area -->
 
+  <!-- ── FULL-SCREEN PHOTO OVERLAY ── -->
+  <div id="photoFullOverlay" onclick="closePhotoFull()">
+    <img id="photoFullImg" src="" alt="">
+    <button id="photoFullClose" onclick="closePhotoFull()">✕</button>
+  </div>
+
   <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <button class="nav-btn active" id="nav-discover" onclick="showTab('discover')">
@@ -1866,9 +1891,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <span>Messages</span>
       <span class="nav-dot" id="msgDot"></span>
     </button>
-    <button class="nav-btn" id="nav-nearby" onclick="showTab('nearby')">
-      <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      <span>Nearby</span>
+    <button class="nav-btn" id="nav-explore" onclick="showTab('explore')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" fill="currentColor" stroke="none"/></svg>
+      <span>Explore</span>
     </button>
     <button class="nav-btn" id="nav-profile" onclick="showTab('profile')">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -2320,9 +2345,19 @@ function setRadius(val) {
   S.radius = parseInt(val, 10);
   const kmEl = document.getElementById('radiusKm');
   if (kmEl) kmEl.textContent = S.radius;
+  const sl = document.getElementById('radiusSlider');
+  if (sl) sl.value = S.radius;
   updateSliderTrack();
   renderDiscover();
   updateFilterCounts();
+}
+function stepRadius(delta) {
+  const steps = [5,10,15,20,25,30,40,50,75,100,150,200,300,400,500];
+  const cur = S.radius || 50;
+  let idx = steps.findIndex(s => s >= cur);
+  if (idx < 0) idx = steps.length - 1;
+  idx = Math.max(0, Math.min(steps.length - 1, idx + delta));
+  setRadius(steps[idx]);
 }
 
 // Run once on app open — silently requests GPS, reverse geocodes, saves to Firestore
@@ -3531,7 +3566,7 @@ function showTab(tab) {
     if (tab === 'matches')   { renderMatches(); loadLikedMe(); S.newMatches.clear(); updateBadges(); }
     if (tab === 'messages')  { renderConversations(); clearUnread(); S.newMatchMsgs.clear(); updateBadges(); }
     if (tab === 'profile')   renderMyProfile();
-    if (tab === 'nearby')    renderNearby();
+    if (tab === 'explore')   renderNearby();
     if (typeof _navFocus === 'function') setTimeout(_navFocus, 120);
   });
 }
@@ -4290,6 +4325,17 @@ function closeDetail() {
   document.getElementById('detailPanel').classList.remove('open');
   _navRefresh();
   S.activeDetailId = null;
+}
+function openPhotoFull(src) {
+  const ov = document.getElementById('photoFullOverlay');
+  const img = document.getElementById('photoFullImg');
+  if (!ov || !src) return;
+  img.src = src;
+  ov.classList.add('show');
+}
+function closePhotoFull() {
+  const ov = document.getElementById('photoFullOverlay');
+  if (ov) ov.classList.remove('show');
 }
 function passFromDetail() { closeDetail(); swipe('pass'); }
 function likeFromDetail() { closeDetail(); swipe('like'); }
