@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spark Admin</title>
+<style>
+  :root {
+    --bg: #0F0F1A;
+    --bg-card: #1A1A2E;
+    --border: rgba(255,255,255,0.08);
+    --primary: #E91E8C;
+    --text: #F0F0F8;
+    --text-muted: #8A8AA0;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* ── HEADER ── */
+  .admin-header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .admin-logo { font-size: 1.3rem; font-weight: 900; background: linear-gradient(135deg,#E91E8C,#9C27B0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .admin-badge { background: rgba(233,30,140,0.15); border: 1px solid var(--primary); color: var(--primary); font-size: 0.65rem; font-weight: 900; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.06em; -webkit-text-fill-color: var(--primary); }
+  .header-uid { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); font-family: monospace; }
+  .sign-out-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.3rem 0.7rem; border-radius: 8px; cursor: pointer; }
+  .sign-out-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    padding: 0 1rem;
+    gap: 0.25rem;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  /* ── MAIN ── */
+  .admin-main { max-width: 1000px; margin: 0 auto; padding: 1.25rem; }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .stat-card {
+    flex: 1; min-width: 120px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-num { font-size: 1.8rem; font-weight: 900; color: var(--primary); }
+  .stat-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* ── TABLE ── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .section-title { font-size: 1rem; font-weight: 800; }
+  .count-chip { background: rgba(233,30,140,0.12); color: var(--primary); font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 20px; }
+
+  .search-input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 0.88rem;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.75rem;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+  }
+  .data-table th {
+    text-align: left;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .user-row-info { display: flex; align-items: center; gap: 0.6rem; }
+  .user-avatar {
+    width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+    background: rgba(233,30,140,0.15); flex-shrink: 0;
+    border: 1.5px solid var(--border);
+  }
+  .user-name { font-weight: 700; }
+  .user-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+
+  /* badges */
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 0.68rem; font-weight: 800;
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .badge-active  { background: rgba(34,197,94,0.12);  color: var(--success); }
+  .badge-banned  { background: rgba(239,68,68,0.12);  color: var(--danger); }
+  .badge-deleted { background: rgba(107,114,128,0.15); color: #6b7280; }
+  .badge-premium { background: rgba(233,30,140,0.12); color: var(--primary); }
+  .badge-verified { background: rgba(59,130,246,0.12); color: #60a5fa; }
+
+  /* action buttons */
+  .act-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .action-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.14s;
+    white-space: nowrap;
+  }
+  .action-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .action-btn.ban    { border-color: rgba(239,68,68,0.35);  color: var(--danger); }
+  .action-btn.ban:hover { background: rgba(239,68,68,0.1); }
+  .action-btn.unban  { border-color: rgba(34,197,94,0.35);  color: var(--success); }
+  .action-btn.unban:hover { background: rgba(34,197,94,0.1); }
+  .action-btn.verify { border-color: rgba(59,130,246,0.35); color: #60a5fa; }
+  .action-btn.verify:hover { background: rgba(59,130,246,0.1); }
+  .action-btn.delete { border-color: rgba(239,68,68,0.35);  color: var(--danger); }
+  .action-btn.delete:hover { background: rgba(239,68,68,0.1); }
+
+  /* ── REPORT CARDS ── */
+  .report-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 0.65rem;
+  }
+  .report-card.resolved { opacity: 0.45; }
+  .report-header { display: flex; align-items: flex-start; gap: 0.75rem; }
+  .report-meta { flex: 1; }
+  .report-reason { font-weight: 800; font-size: 0.9rem; margin-bottom: 0.25rem; }
+  .report-detail { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+  .report-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .report-actions { display: flex; gap: 0.4rem; margin-top: 0.75rem; padding-top: 0.65rem; border-top: 1px solid var(--border); }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+  .loading-dots::after { content: ''; animation: dots 1.2s infinite; }
+  @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} }
+
+  /* ── ACCESS DENIED ── */
+  #accessDenied {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; text-align: center; padding: 2rem;
+    gap: 0.75rem;
+  }
+  .denied-icon { font-size: 3rem; }
+  .denied-title { font-size: 1.4rem; font-weight: 900; }
+  .denied-sub { color: var(--text-muted); font-size: 0.88rem; max-width: 360px; }
+  .uid-box {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.65rem 1rem; font-family: monospace; font-size: 0.85rem;
+    cursor: pointer; user-select: all; color: var(--primary); margin-top: 0.5rem;
+    max-width: 340px; word-break: break-all;
+  }
+  .uid-label { font-size: 0.72rem; color: var(--text-muted); }
+
+  /* ── CONFIRM MODAL ── */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; backdrop-filter: blur(4px);
+  }
+  .modal-box {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 1.5rem; max-width: 360px; width: 90%;
+    text-align: center;
+  }
+  .modal-title { font-size: 1.1rem; font-weight: 900; margin-bottom: 0.5rem; }
+  .modal-sub { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5; }
+  .modal-btns { display: flex; gap: 0.6rem; }
+  .modal-cancel { flex: 1; background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 0.75rem; border-radius: 10px; cursor: pointer; font-weight: 700; }
+  .modal-confirm { flex: 1; background: var(--danger); border: none; color: white; padding: 0.75rem; border-radius: 10px; cursor: pointer; font-weight: 800; }
+
+  /* ── TOAST ── */
+  .toast-msg {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    background: rgba(30,30,50,0.95); border: 1px solid var(--border);
+    color: var(--text); font-size: 0.88rem; font-weight: 600;
+    padding: 0.65rem 1.25rem; border-radius: 30px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 99999;
+    animation: toastIn 0.2s ease;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translate(-50%,12px)} to{opacity:1;transform:translate(-50%,0)} }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .data-table th:nth-child(3),
+    .data-table td:nth-child(3) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIGN-IN SCREEN -->
+<div id="signInScreen" style="display:none; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; gap:1.25rem; text-align:center; padding:2rem;">
+  <div style="font-size:2.5rem">✨</div>
+  <div style="font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,#E91E8C,#9C27B0); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Spark Admin</div>
+  <div style="color:var(--text-muted); font-size:0.9rem;">Sign in with your Google account to continue</div>
+  <button onclick="signInWithGoogle()" style="background:#fff; color:#1a1a1a; border:none; border-radius:12px; padding:0.8rem 1.5rem; font-size:0.95rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:0.6rem;">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Continue with Google
+  </button>
+</div>
+
+<!-- ACCESS DENIED SCREEN -->
+<div id="accessDenied" style="display:none">
+  <div class="denied-icon">🔒</div>
+  <div class="denied-title">Admin Access Required</div>
+  <div class="denied-sub">Your account doesn't have admin privileges. Add your UID to <code>ADMIN_UIDS</code> in admin.html.</div>
+  <div class="uid-label">Your UID (click to copy)</div>
+  <div class="uid-box" id="myUidBox" onclick="copyUid()">—</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none">
+  <div class="admin-header">
+    <div class="admin-logo">Spark ✨</div>
+    <div class="admin-badge">ADMIN</div>
+    <div class="header-uid" id="headerUid"></div>
+    <button class="sign-out-btn" onclick="signOut()">Sign out</button>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('reports')">🚨 Reports</button>
+    <button class="tab-btn" onclick="showTab('users')">👥 Users</button>
+  </div>
+
+  <div class="admin-main">
+
+    <!-- STATS -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="stat-num" id="statUsers">—</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card"><div class="stat-num" id="statBanned">—</div><div class="stat-label">Banned</div></div>
+      <div class="stat-card"><div class="stat-num" id="statReports">—</div><div class="stat-label">Open Reports</div></div>
+      <div class="stat-card"><div class="stat-num" id="statPremium">—</div><div class="stat-label">Premium</div></div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div id="tab-reports">
+      <div class="section-head">
+        <div class="section-title">Reports</div>
+        <div class="count-chip" id="reportsCount">0</div>
+        <label style="margin-left:auto;display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="showResolved" onchange="renderReports()"> Show resolved
+        </label>
+      </div>
+      <div id="reportsContainer">
+        <div class="empty-state"><div class="loading-dots">Loading</div></div>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="tab-users" style="display:none">
+      <div class="section-head">
+        <div class="section-title">Users</div>
+        <div class="count-chip" id="usersCount">0</div>
+      </div>
+      <input class="search-input" type="text" id="userSearch" placeholder="Search by name, city or UID…" oninput="renderUsers()">
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr><td colspan="4"><div class="empty-state"><div class="loading-dots">Loading</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /admin-main -->
+</div><!-- /dashboard -->
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<script>
+/* ================================================================
+   ADMIN CONFIG — add your Firebase UID(s) here
+================================================================ */
+const ADMIN_UIDS = [
+  'qwDw0vp4suOugIr39GqJ0K70cIq2'
+];
+
+/* ================================================================
+   FIREBASE INIT
+================================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDse1xgw4UOvPEfzHeiSqLllwP6zaGQOKA",
+  authDomain: "spark-dating-c74f4.firebaseapp.com",
+  projectId: "spark-dating-c74f4",
+  storageBucket: "spark-dating-c74f4.firebasestorage.app",
+  messagingSenderId: "983075921138",
+  appId: "1:983075921138:web:dd6c8b1edaa72ef70c446b"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+const storage = firebase.storage();
+
+/* ================================================================
+   STATE
+================================================================ */
+let allUsers   = [];   // array of user doc objects
+let allReports = [];   // array of report doc objects
+let currentTab = 'reports';
+
+/* ================================================================
+   AUTH GATE
+================================================================ */
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    document.getElementById('signInScreen').style.display = 'flex';
+    return;
+  }
+  document.getElementById('signInScreen').style.display = 'none';
+  const uid = user.uid;
+  document.getElementById('myUidBox').textContent = uid;
+  document.getElementById('headerUid').textContent = uid;
+
+  if (!ADMIN_UIDS.includes(uid)) {
+    document.getElementById('accessDenied').style.display = 'flex';
+    return;
+  }
+
+  document.getElementById('dashboard').style.display = 'block';
+  await Promise.all([loadUsers(), loadReports()]);
+});
+
+function signInWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithRedirect(provider).catch(err => {
+    alert('Sign-in failed: ' + err.message);
+  });
+}
+// Handle redirect result on page load
+auth.getRedirectResult().catch(err => {
+  if (err.code !== 'auth/no-current-user') console.error('Redirect error:', err);
+});
+
+function signOut() {
+  auth.signOut();
+}
+
+function copyUid() {
+  const uid = document.getElementById('myUidBox').textContent;
+  navigator.clipboard?.writeText(uid).then(() => toast('UID copied!'));
+}
+
+/* ================================================================
+   DATA LOADING
+================================================================ */
+async function loadUsers() {
+  const snap = await db.collection('users').orderBy('createdAt', 'desc').limit(500).get()
+    .catch(() => db.collection('users').limit(500).get());
+  allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  updateStats();
+  renderUsers();
+}
+
+async function loadReports() {
+  const snap = await db.collection('reports').orderBy('createdAt', 'desc').limit(200).get()
+    .catch(() => db.collection('reports').limit(200).get());
+  allReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderReports();
+  updateStats();
+}
+
+function updateStats() {
+  const banned  = allUsers.filter(u => u.banned).length;
+  const premium = allUsers.filter(u => u.isPremium || (u.referralPremiumUntil||0) > Date.now()).length;
+  const open    = allReports.filter(r => !r.resolved).length;
+  document.getElementById('statUsers').textContent   = allUsers.length;
+  document.getElementById('statBanned').textContent  = banned;
+  document.getElementById('statReports').textContent = open;
+  document.getElementById('statPremium').textContent = premium;
+}
+
+/* ================================================================
+   TAB SWITCHING
+================================================================ */
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('tab-reports').style.display = tab === 'reports' ? '' : 'none';
+  document.getElementById('tab-users').style.display   = tab === 'users'   ? '' : 'none';
+}
+
+/* ================================================================
+   REPORTS TAB
+================================================================ */
+function renderReports() {
+  const showResolved = document.getElementById('showResolved').checked;
+  const list = showResolved ? allReports : allReports.filter(r => !r.resolved);
+  document.getElementById('reportsCount').textContent = list.length;
+
+  const container = document.getElementById('reportsContainer');
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div>No open reports</div></div>`;
+    return;
+  }
+
+  container.innerHTML = list.map(r => {
+    const reporter = allUsers.find(u => u.id === r.reporterId);
+    const reported = allUsers.find(u => u.id === r.reportedId);
+    const time = r.createdAt?.toDate ? timeAgo(r.createdAt.toDate()) : '—';
+    const reporterName = reporter?.name || r.reporterId?.slice(0,8) || '?';
+    const reportedName = reported?.name || r.reportedId?.slice(0,8) || '?';
+    const reportedPhoto = reported?.photos?.[0] || '';
+    return `
+    <div class="report-card ${r.resolved ? 'resolved' : ''}" id="rcard-${r.id}">
+      <div class="report-header">
+        ${reportedPhoto ? `<img class="user-avatar" src="${reportedPhoto}" onerror="this.style.display='none'">` : ''}
+        <div class="report-meta">
+          <div class="report-reason">⚠️ ${escHtml(r.reason || 'Unknown reason')}</div>
+          <div class="report-detail">
+            <strong>${escHtml(reportedName)}</strong> reported by <strong>${escHtml(reporterName)}</strong>
+            ${r.details ? `<br>${escHtml(r.details)}` : ''}
+          </div>
+          <div class="report-time">${time}${r.resolved ? ' · <em>Resolved</em>' : ''}</div>
+        </div>
+      </div>
+      <div class="report-actions">
+        ${!r.resolved ? `<button class="action-btn" onclick="resolveReport('${r.id}')">✓ Mark Resolved</button>` : ''}
+        ${r.reportedId ? `
+          <button class="action-btn ban" onclick="banUser('${r.reportedId}', '${escHtml(reportedName)}')">🚫 Ban ${escHtml(reportedName)}</button>
+          <button class="action-btn" onclick="viewUser('${r.reportedId}')">View Profile</button>
+        ` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function resolveReport(reportId) {
+  await db.collection('reports').doc(reportId).update({ resolved: true });
+  const r = allReports.find(r => r.id === reportId);
+  if (r) r.resolved = true;
+  renderReports();
+  updateStats();
+  toast('Report marked resolved');
+}
+
+/* ================================================================
+   USERS TAB
+================================================================ */
+function renderUsers() {
+  const q = (document.getElementById('userSearch')?.value || '').toLowerCase();
+  const filtered = q
+    ? allUsers.filter(u =>
+        (u.name||'').toLowerCase().includes(q) ||
+        (u.city||'').toLowerCase().includes(q) ||
+        u.id.toLowerCase().includes(q) ||
+        (u.email||'').toLowerCase().includes(q)
+      )
+    : allUsers;
+
+  document.getElementById('usersCount').textContent = filtered.length;
+  const tbody = document.getElementById('usersTableBody');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">No users found</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(u => {
+    const photo = u.photos?.[0] || '';
+    const status = u.deleted ? 'deleted' : u.banned ? 'banned' : 'active';
+    const joined = u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString() : '—';
+    const isPrem = u.isPremium || (u.referralPremiumUntil||0) > Date.now();
+    return `
+    <tr id="urow-${u.id}">
+      <td>
+        <div class="user-row-info">
+          ${photo ? `<img class="user-avatar" src="${photo}" onerror="this.style.display='none'">` : '<div class="user-avatar" style="display:flex;align-items:center;justify-content:center;font-size:1rem">👤</div>'}
+          <div>
+            <div class="user-name">${escHtml(u.name||'—')}</div>
+            <div class="user-sub">${u.age ? u.age+' · ' : ''}${escHtml(u.city||'')}${u.state ? ', '+u.state : ''}</div>
+            <div class="user-sub" style="font-family:monospace;font-size:0.68rem">${u.id}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <span class="badge badge-${status}">${status}</span>
+        ${isPrem ? '<span class="badge badge-premium" style="margin-left:4px">premium</span>' : ''}
+        ${u.verified ? '<span class="badge badge-verified" style="margin-left:4px">✓ verified</span>' : ''}
+      </td>
+      <td style="font-size:0.78rem;color:var(--text-muted)">${joined}</td>
+      <td>
+        <div class="act-row">
+          ${u.banned
+            ? `<button class="action-btn unban" onclick="unbanUser('${u.id}','${escHtml(u.name||'')}')">✓ Unban</button>`
+            : `<button class="action-btn ban" onclick="banUser('${u.id}','${escHtml(u.name||'')}')">🚫 Ban</button>`
+          }
+          ${u.verified
+            ? `<button class="action-btn" onclick="unverifyUser('${u.id}','${escHtml(u.name||'')}')">✕ Unverify</button>`
+            : `<button class="action-btn verify" onclick="verifyUser('${u.id}','${escHtml(u.name||'')}')">✓ Verify</button>`
+          }
+          <button class="action-btn delete" onclick="confirmDelete('${u.id}','${escHtml(u.name||'')}')">🗑 Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function viewUser(uid) {
+  showTab.call({ currentTarget: document.querySelectorAll('.tab-btn')[1] }, 'users');
+  document.getElementById('userSearch').value = uid;
+  renderUsers();
+}
+
+/* ================================================================
+   USER ACTIONS
+================================================================ */
+async function banUser(uid, name) {
+  await db.collection('users').doc(uid).update({ banned: true });
+  const u = allUsers.find(u => u.id === uid);
+  if (u) u.banned = true;
+  renderUsers();
+  updateStats();
+  toast(`🚫 ${name} banned`);
+}
+
+async function unbanUser(uid, name) {
+  await db.collection('users').doc(uid).update({ banned: false });
+  const u = allUsers.find(u => u.id === uid);
+  if (u) u.banned = false;
+  renderUsers();
+  updateStats();
+  toast(`✓ ${name} unbanned`);
+}
+
+async function verifyUser(uid, name) {
+  await db.collection('users').doc(uid).update({ verified: true });
+  const u = allUsers.find(u => u.id === uid);
+  if (u) u.verified = true;
+  renderUsers();
+  toast(`✓ ${name} verified`);
+}
+
+async function unverifyUser(uid, name) {
+  await db.collection('users').doc(uid).update({ verified: false });
+  const u = allUsers.find(u => u.id === uid);
+  if (u) u.verified = false;
+  renderUsers();
+  toast(`${name} unverified`);
+}
+
+/* ── DELETE (soft) ── */
+let _pendingDelete = null;
+
+function confirmDelete(uid, name) {
+  _pendingDelete = { uid, name };
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg';
+  modal.id = 'deleteModal';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-title">Delete ${escHtml(name)}?</div>
+      <div class="modal-sub">This will ban the account and wipe the profile data. The Firebase Auth account will remain but the user won't be able to access the app. This cannot be undone.</div>
+      <div class="modal-btns">
+        <button class="modal-cancel" onclick="document.getElementById('deleteModal').remove()">Cancel</button>
+        <button class="modal-confirm" onclick="deleteUser()">Delete</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function deleteUser() {
+  const modal = document.getElementById('deleteModal');
+  if (modal) modal.remove();
+  if (!_pendingDelete) return;
+  const { uid, name } = _pendingDelete;
+  _pendingDelete = null;
+
+  try {
+    // Soft-delete: ban + wipe profile data, preserve doc so banned check works
+    await db.collection('users').doc(uid).update({
+      banned:   true,
+      deleted:  true,
+      name:     '[DELETED]',
+      bio:      '',
+      photos:   [],
+      interests: [],
+      city:     '',
+      state:    '',
+    });
+
+    // Remove from match lists (best-effort)
+    const matchSnap = await db.collection('matches')
+      .where('uids', 'array-contains', uid).get().catch(() => ({ docs: [] }));
+    const batch = db.batch();
+    matchSnap.docs.forEach(d => batch.delete(d.ref));
+    if (matchSnap.docs.length) await batch.commit().catch(() => {});
+
+    const u = allUsers.find(u => u.id === uid);
+    if (u) { u.banned = true; u.deleted = true; u.name = '[DELETED]'; }
+    renderUsers();
+    updateStats();
+    toast(`🗑 ${name} deleted`);
+  } catch(e) {
+    console.error('delete error', e);
+    toast('Error deleting user — check console');
+  }
+}
+
+/* ================================================================
+   UTILITIES
+================================================================ */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(date) {
+  const s = Math.floor((Date.now() - date) / 1000);
+  if (s < 60)   return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+let _toastTimer;
+function toast(msg) {
+  const old = document.querySelector('.toast-msg');
+  if (old) old.remove();
+  clearTimeout(_toastTimer);
+  const el = document.createElement('div');
+  el.className = 'toast-msg';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  _toastTimer = setTimeout(() => el.remove(), 3000);
+}
+</script>
+</body>
+</html>
