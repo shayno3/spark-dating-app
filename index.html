@@ -231,6 +231,47 @@ html, body {
 .admin-loading { text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem; }
 .admin-refresh-btn { width: 100%; padding: 0.75rem; border: 1.5px solid rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); color: #f59e0b; border-radius: 12px; font-size: 0.85rem; font-weight: 700; cursor: pointer; touch-action: manipulation; transition: background 0.15s; }
 .admin-refresh-btn:active { background: rgba(245,158,11,0.18); }
+.admin-user-row { cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.admin-user-row:hover { background: rgba(245,158,11,0.07); }
+.admin-user-row:active { transform: scale(0.98); }
+
+/* ---- ADMIN USER DETAIL PANEL ---- */
+.admin-detail-panel { position: fixed; inset: 0; z-index: 8500; background: rgba(10,10,20,0.6); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.22s; }
+.admin-detail-panel.open { opacity: 1; pointer-events: all; }
+.admin-detail-sheet { background: var(--bg-card); border-radius: 22px 22px 0 0; width: 100%; max-width: 480px; max-height: 92vh; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34,1.1,0.64,1); overflow: hidden; }
+.admin-detail-panel.open .admin-detail-sheet { transform: translateY(0); }
+.admin-detail-drag { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
+.admin-detail-header { display: flex; align-items: center; gap: 0.85rem; padding: 0.85rem 1rem 0.75rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.admin-detail-av { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: var(--gradient-btn); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: white; font-weight: 800; }
+.admin-detail-name { font-size: 1.05rem; font-weight: 800; }
+.admin-detail-email { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+.admin-detail-close { margin-left: auto; background: rgba(255,255,255,0.08); border: none; color: var(--text); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; touch-action: manipulation; }
+.admin-detail-body { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+.admin-detail-section-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.5rem; }
+.admin-photos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.admin-photo-wrap { position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 3/4; background: var(--bg); }
+.admin-photo-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.admin-photo-del { position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,0.88); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; transition: background 0.15s; }
+.admin-photo-del:hover { background: #ef4444; }
+.admin-no-photos { color: var(--text-muted); font-size: 0.82rem; text-align: center; padding: 1.5rem 0; }
+.admin-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.admin-action-btn { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 0.85rem 0.5rem; border-radius: 14px; border: none; cursor: pointer; font-size: 0.78rem; font-weight: 700; touch-action: manipulation; transition: opacity 0.15s, transform 0.1s; }
+.admin-action-btn:active { opacity: 0.8; transform: scale(0.96); }
+.admin-action-btn .aab-icon { font-size: 1.4rem; }
+.admin-action-btn.message  { background: rgba(96,165,250,0.12);  color: #60a5fa;  border: 1px solid rgba(96,165,250,0.25); }
+.admin-action-btn.reset-pw { background: rgba(167,139,250,0.12); color: #a78bfa;  border: 1px solid rgba(167,139,250,0.25); }
+.admin-action-btn.reset-pin{ background: rgba(245,158,11,0.12);  color: #f59e0b;  border: 1px solid rgba(245,158,11,0.25); }
+.admin-action-btn.ban      { background: rgba(251,146,60,0.12);  color: #fb923c;  border: 1px solid rgba(251,146,60,0.25); }
+.admin-action-btn.ban.active { background: rgba(34,197,94,0.12); color: #22c55e; border-color: rgba(34,197,94,0.25); }
+.admin-action-btn.delete   { background: rgba(239,68,68,0.1);    color: #f87171;  border: 1px solid rgba(239,68,68,0.25); }
+.admin-msg-compose { display: flex; flex-direction: column; gap: 0.5rem; }
+.admin-msg-compose textarea { background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 0.65rem 0.85rem; color: var(--text); font-size: 0.88rem; resize: none; font-family: inherit; min-height: 80px; outline: none; }
+.admin-msg-compose textarea:focus { border-color: #f59e0b; }
+.admin-msg-send { background: linear-gradient(135deg,#f59e0b,#f97316); color: white; border: none; border-radius: 12px; padding: 0.7rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; touch-action: manipulation; }
+.admin-user-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.admin-info-item { background: var(--bg); border-radius: 10px; padding: 0.5rem 0.65rem; }
+.admin-info-key { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; }
+.admin-info-val { font-size: 0.82rem; font-weight: 600; margin-top: 1px; }
 
 /* ---- DISCOVER ---- */
 .discover-wrap { display: flex; flex-direction: column; }
@@ -1792,6 +1833,22 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <div class="tab-content" id="tab-admin">
       <div class="admin-panel" id="adminPanel">
         <div class="admin-loading">⭐ Loading admin data…</div>
+      </div>
+    </div>
+
+    <!-- ── ADMIN USER DETAIL PANEL (slide-up sheet) ── -->
+    <div class="admin-detail-panel" id="adminDetailPanel" onclick="closeAdminDetail(event)">
+      <div class="admin-detail-sheet" id="adminDetailSheet">
+        <div class="admin-detail-drag"></div>
+        <div class="admin-detail-header" id="adminDetailHeader">
+          <div class="admin-detail-av" id="adminDetailAv"></div>
+          <div>
+            <div class="admin-detail-name" id="adminDetailName"></div>
+            <div class="admin-detail-email" id="adminDetailEmail"></div>
+          </div>
+          <button class="admin-detail-close" onclick="closeAdminDetail()">✕</button>
+        </div>
+        <div class="admin-detail-body" id="adminDetailBody"></div>
       </div>
     </div>
 
@@ -3591,17 +3648,23 @@ async function renderAdminPanel() {
       return ao - bo;
     });
 
+    // Cache users for detail panel lookups
+    window._adminUsers = sorted;
+
     const rows = sorted.slice(0, 30).map(u => {
       const isOnline = u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000;
       const photo    = u.photos?.[0] ? `<img class="admin-user-av" src="${u.photos[0]}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><span class="admin-user-av" style="display:none">${(u.name||'?')[0]}</span>` : `<span class="admin-user-av">${(u.name||'?')[0]}</span>`;
-      return `<div class="admin-user-row">
+      const isBanned = u.banned ? '<span class="admin-badge" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">🚫 Banned</span>' : '';
+      return `<div class="admin-user-row" onclick="openAdminUser('${u.id}')">
         ${photo}
         <div style="flex:1;min-width:0">
           <div class="admin-user-name">${u.name || 'Unknown'}${u.age ? ', '+u.age : ''}</div>
           <div class="admin-user-meta">${u.email || u.id.slice(0,12)+'…'}</div>
         </div>
+        ${isBanned}
         ${isOnline ? '<span class="admin-badge online">Online</span>' : ''}
         ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>' : ''}
+        <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-left:0.25rem">›</span>
       </div>`;
     }).join('');
 
@@ -3639,6 +3702,214 @@ async function renderAdminPanel() {
     `;
   } catch (e) {
     panel.innerHTML = `<div class="admin-loading">⚠️ Error loading data: ${e.message}</div>`;
+  }
+}
+
+/* ================================================================
+   ADMIN USER DETAIL PANEL
+================================================================ */
+async function openAdminUser(uid) {
+  if (auth.currentUser?.email !== ADMIN_EMAIL) return;
+  // Find from cache first, then fetch fresh from Firestore
+  let u = (window._adminUsers || []).find(x => x.id === uid);
+  if (!u && db) {
+    const snap = await db.collection('users').doc(uid).get();
+    if (snap.exists) u = { id: snap.id, ...snap.data() };
+  }
+  if (!u) return;
+
+  const panel = document.getElementById('adminDetailPanel');
+  const avEl  = document.getElementById('adminDetailAv');
+  const nameEl = document.getElementById('adminDetailName');
+  const emailEl = document.getElementById('adminDetailEmail');
+  const body  = document.getElementById('adminDetailBody');
+  if (!panel) return;
+
+  // Header
+  const firstName = (u.name || 'Unknown')[0];
+  if (u.photos?.[0]) {
+    avEl.innerHTML = `<img class="admin-detail-av" src="${u.photos[0]}" alt="" onerror="this.outerHTML='<div class=\\'admin-detail-av\\'>${firstName}</div>'">`;
+  } else {
+    avEl.innerHTML = ''; avEl.textContent = firstName;
+  }
+  nameEl.textContent  = (u.name || 'Unknown') + (u.age ? ', ' + u.age : '') + (u.banned ? ' 🚫' : '');
+  emailEl.textContent = u.email || uid;
+
+  // Photos section
+  const photosHtml = (u.photos || []).length > 0
+    ? `<div class="admin-photos-grid">${(u.photos).map((p,i) => `
+        <div class="admin-photo-wrap">
+          <img src="${p}" alt="Photo ${i+1}" onerror="this.parentElement.style.display='none'">
+          <button class="admin-photo-del" onclick="adminDeletePhoto('${uid}',${i})" title="Delete photo">✕</button>
+        </div>`).join('')}</div>`
+    : `<div class="admin-no-photos">No photos uploaded</div>`;
+
+  // User info grid
+  const joined  = u.createdAt ? new Date(u.createdAt.toMillis?.() || u.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const lastOn  = u.lastSeen  ? new Date(u.lastSeen.toMillis?.() || u.lastSeen).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+
+  const infoHtml = `<div class="admin-user-info-grid">
+    <div class="admin-info-item"><div class="admin-info-key">User ID</div><div class="admin-info-val" style="font-size:0.65rem;word-break:break-all">${uid}</div></div>
+    <div class="admin-info-item"><div class="admin-info-key">Joined</div><div class="admin-info-val">${joined}</div></div>
+    <div class="admin-info-item"><div class="admin-info-key">Last Seen</div><div class="admin-info-val">${lastOn}</div></div>
+    <div class="admin-info-item"><div class="admin-info-key">Premium</div><div class="admin-info-val">${u.premium ? '⭐ Yes' : 'No'}</div></div>
+    <div class="admin-info-item"><div class="admin-info-key">Location</div><div class="admin-info-val">${u.city || u.state || '—'}</div></div>
+    <div class="admin-info-item"><div class="admin-info-key">Status</div><div class="admin-info-val">${u.banned ? '🚫 Banned' : '✅ Active'}</div></div>
+  </div>`;
+
+  const banLabel  = u.banned ? 'Unban User' : 'Ban User';
+  const banClass  = u.banned ? 'ban active' : 'ban';
+  const banIcon   = u.banned ? '✅' : '🚫';
+
+  body.innerHTML = `
+    <div>
+      <div class="admin-detail-section-label">Profile Photos</div>
+      ${photosHtml}
+    </div>
+    <div>
+      <div class="admin-detail-section-label">Account Info</div>
+      ${infoHtml}
+    </div>
+    <div>
+      <div class="admin-detail-section-label">Actions</div>
+      <div class="admin-action-grid">
+        <button class="admin-action-btn message"   onclick="adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
+        <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}','${u.email||''}')"><span class="aab-icon">🔑</span>Reset Password</button>
+        <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
+        <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
+        <button class="admin-action-btn delete" style="grid-column:span 2" onclick="adminDeleteAccount('${uid}','${u.name||'this user'}')"><span class="aab-icon">🗑</span>Delete Account</button>
+      </div>
+    </div>
+    <div id="adminMsgCompose-${uid}" style="display:none">
+      <div class="admin-detail-section-label">Send Message to ${u.name || 'User'}</div>
+      <div class="admin-msg-compose">
+        <textarea id="adminMsgText-${uid}" placeholder="Type your message…" rows="3"></textarea>
+        <button class="admin-msg-send" onclick="adminSendMessage('${uid}','${u.name||'User'}')">Send ✉️</button>
+      </div>
+    </div>
+  `;
+
+  panel.classList.add('open');
+}
+
+function closeAdminDetail(e) {
+  if (e && e.target !== document.getElementById('adminDetailPanel')) return;
+  document.getElementById('adminDetailPanel')?.classList.remove('open');
+}
+
+function adminOpenMessage(uid) {
+  const div = document.getElementById('adminMsgCompose-' + uid);
+  if (!div) return;
+  div.style.display = div.style.display === 'none' ? '' : 'none';
+  if (div.style.display !== 'none') {
+    setTimeout(() => document.getElementById('adminMsgText-' + uid)?.scrollIntoView({behavior:'smooth',block:'end'}), 100);
+  }
+}
+
+async function adminSendMessage(uid, name) {
+  const ta = document.getElementById('adminMsgText-' + uid);
+  const text = ta?.value?.trim();
+  if (!text) { toast('Please type a message first'); return; }
+  if (!db || !S.user?.id) return;
+
+  const matchId = [S.user.id, uid].sort().join('_');
+  try {
+    await db.collection('matches').doc(matchId).collection('messages').add({
+      senderId: S.user.id,
+      text,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      adminMessage: true,
+    });
+    ta.value = '';
+    toast(`✉️ Message sent to ${name}`);
+    document.getElementById('adminMsgCompose-' + uid).style.display = 'none';
+  } catch (e) {
+    toast('⚠️ Send failed: ' + e.message);
+  }
+}
+
+async function adminDeletePhoto(uid, photoIndex) {
+  if (!confirm(`Delete photo ${photoIndex + 1} for this user?`)) return;
+  if (!db) return;
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    if (!snap.exists) { toast('User not found'); return; }
+    const photos = snap.data().photos || [];
+    if (!photos[photoIndex]) { toast('Photo not found'); return; }
+
+    // Remove from Storage if it's a Firebase URL
+    const photoUrl = photos[photoIndex];
+    if (storage && photoUrl.includes('firebasestorage')) {
+      try { await storage.refFromURL(photoUrl).delete(); } catch(e) { /* ignore if already gone */ }
+    }
+
+    photos.splice(photoIndex, 1);
+    await db.collection('users').doc(uid).update({ photos });
+    toast('🗑 Photo deleted');
+    // Refresh the detail panel
+    openAdminUser(uid);
+  } catch (e) {
+    toast('⚠️ Delete failed: ' + e.message);
+  }
+}
+
+async function adminToggleBan(uid, currentlyBanned) {
+  const newState = !currentlyBanned;
+  const action   = newState ? 'ban' : 'unban';
+  if (!confirm(`${newState ? 'Ban' : 'Unban'} this user?`)) return;
+  if (!db) return;
+  try {
+    await db.collection('users').doc(uid).update({ banned: newState });
+    toast(newState ? '🚫 User banned' : '✅ User unbanned');
+    // Update cache
+    if (window._adminUsers) {
+      const cu = window._adminUsers.find(x => x.id === uid);
+      if (cu) cu.banned = newState;
+    }
+    openAdminUser(uid); // refresh panel
+  } catch (e) {
+    toast('⚠️ Failed: ' + e.message);
+  }
+}
+
+async function adminDeleteAccount(uid, name) {
+  if (!confirm(`Permanently delete ${name}'s account? This cannot be undone.`)) return;
+  if (!confirm(`Are you absolutely sure? All data for ${name} will be marked deleted.`)) return;
+  if (!db) return;
+  try {
+    await db.collection('users').doc(uid).update({
+      deleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: 'admin:' + auth.currentUser.email,
+      name: '[Deleted]', email: '[Deleted]', photos: [], bio: '',
+    });
+    toast('🗑 Account deleted');
+    document.getElementById('adminDetailPanel')?.classList.remove('open');
+    renderAdminPanel();
+  } catch (e) {
+    toast('⚠️ Delete failed: ' + e.message);
+  }
+}
+
+async function adminResetPassword(uid, email) {
+  if (!email) { toast('No email on file for this user'); return; }
+  if (!confirm(`Send password reset email to ${email}?`)) return;
+  try {
+    await auth.sendPasswordResetEmail(email);
+    toast(`🔑 Password reset sent to ${email}`);
+  } catch (e) {
+    toast('⚠️ Reset failed: ' + e.message);
+  }
+}
+
+async function adminResetPin(uid) {
+  if (!confirm('Clear the glasses PIN for this user? They will need to set a new one.')) return;
+  if (!db) return;
+  try {
+    await db.collection('users').doc(uid).update({ glassesPin: firebase.firestore.FieldValue.delete() });
+    toast('🕶 Glasses PIN cleared');
+  } catch (e) {
+    toast('⚠️ Reset failed: ' + e.message);
   }
 }
 
