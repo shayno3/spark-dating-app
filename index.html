@@ -202,6 +202,35 @@ html, body {
 .nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .nav-btn span { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.02em; }
 .nav-badge { position: absolute; top: 1px; right: 10px; background: var(--primary); color: white; font-size: 0.6rem; font-weight: 800; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center; }
+.nav-btn.nav-admin-btn { color: #f59e0b; }
+.nav-btn.nav-admin-btn.active { color: #fcd34d; }
+.nav-btn.nav-admin-btn svg { filter: drop-shadow(0 0 4px rgba(245,158,11,0.6)); }
+
+/* ---- ADMIN PANEL ---- */
+.admin-panel { display: flex; flex-direction: column; padding: 1rem; gap: 1rem; overflow-y: auto; }
+.admin-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.1)); border: 1px solid rgba(245,158,11,0.3); border-radius: 14px; }
+.admin-header-icon { font-size: 1.6rem; }
+.admin-header-title { font-size: 1.1rem; font-weight: 800; color: #fcd34d; }
+.admin-header-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+.admin-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.admin-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 0.85rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.admin-stat-val { font-size: 1.8rem; font-weight: 900; color: var(--primary); line-height: 1; }
+.admin-stat-val.gold { color: #f59e0b; }
+.admin-stat-val.green { color: #22c55e; }
+.admin-stat-val.blue { color: #60a5fa; }
+.admin-stat-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-section-title { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem; }
+.admin-user-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.admin-user-row { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0.65rem 0.85rem; }
+.admin-user-av { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: linear-gradient(135deg,#e11d8f,#f97316); flex-shrink: 0; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; color: white; }
+.admin-user-name { font-weight: 700; font-size: 0.88rem; flex: 1; }
+.admin-user-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+.admin-badge { font-size: 0.62rem; font-weight: 800; padding: 2px 7px; border-radius: 8px; margin-left: 0.25rem; flex-shrink: 0; }
+.admin-badge.premium { background: rgba(245,158,11,0.18); color: #f59e0b; border: 1px solid rgba(245,158,11,0.35); }
+.admin-badge.online { background: rgba(34,197,94,0.18); color: #22c55e; border: 1px solid rgba(34,197,94,0.35); }
+.admin-loading { text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem; }
+.admin-refresh-btn { width: 100%; padding: 0.75rem; border: 1.5px solid rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); color: #f59e0b; border-radius: 12px; font-size: 0.85rem; font-weight: 700; cursor: pointer; touch-action: manipulation; transition: background 0.15s; }
+.admin-refresh-btn:active { background: rgba(245,158,11,0.18); }
 
 /* ---- DISCOVER ---- */
 .discover-wrap { display: flex; flex-direction: column; }
@@ -1759,6 +1788,13 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="nearby-grid" id="nearbyGrid"></div>
     </div>
 
+    <!-- ── ADMIN TAB ── -->
+    <div class="tab-content" id="tab-admin">
+      <div class="admin-panel" id="adminPanel">
+        <div class="admin-loading">⭐ Loading admin data…</div>
+      </div>
+    </div>
+
     <!-- ── CHAT PANEL ── -->
     <div class="panel" id="chatPanel">
       <div class="panel-header">
@@ -1905,6 +1941,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <button class="nav-btn" id="nav-profile" onclick="showTab('profile')">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Profile</span>
+    </button>
+    <button class="nav-btn nav-admin-btn" id="nav-admin" onclick="showTab('admin')" style="display:none">
+      <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      <span>Admin</span>
     </button>
   </div>
 
@@ -2198,6 +2238,8 @@ function applyPastedConfig() {
     } catch(e) {}
   }
 })();
+
+const ADMIN_EMAIL = 'shayno3@gmail.com';
 
 /* ================================================================
    STATE
@@ -3510,8 +3552,96 @@ function removeInterest(idx, mode) {
 }
 
 /* ================================================================
-   MAIN APP ENTRY
+   ADMIN PANEL
 ================================================================ */
+function _updateAdminTab() {
+  const btn = document.getElementById('nav-admin');
+  if (!btn) return;
+  const isAdmin = auth.currentUser?.email === ADMIN_EMAIL;
+  btn.style.display = isAdmin ? '' : 'none';
+}
+
+async function renderAdminPanel() {
+  if (!db) return;
+  if (auth.currentUser?.email !== ADMIN_EMAIL) return;
+  const panel = document.getElementById('adminPanel');
+  if (!panel) return;
+  panel.innerHTML = '<div class="admin-loading">⭐ Loading admin data…</div>';
+
+  try {
+    const [usersSnap] = await Promise.all([
+      db.collection('users').get()
+    ]);
+
+    const users    = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const total    = users.length;
+    const now      = Date.now();
+    const online   = users.filter(u => u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000).length;
+    const premium  = users.filter(u => u.premium).length;
+    const newToday = users.filter(u => {
+      if (!u.createdAt) return false;
+      const ms = u.createdAt.toMillis?.() || u.createdAt;
+      return (now - ms) < 24 * 60 * 60 * 1000;
+    }).length;
+
+    // Sort: online first, then newest
+    const sorted = [...users].sort((a, b) => {
+      const ao = a.lastSeen ? (now - (a.lastSeen.toMillis?.() || 0)) : Infinity;
+      const bo = b.lastSeen ? (now - (b.lastSeen.toMillis?.() || 0)) : Infinity;
+      return ao - bo;
+    });
+
+    const rows = sorted.slice(0, 30).map(u => {
+      const isOnline = u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000;
+      const photo    = u.photos?.[0] ? `<img class="admin-user-av" src="${u.photos[0]}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><span class="admin-user-av" style="display:none">${(u.name||'?')[0]}</span>` : `<span class="admin-user-av">${(u.name||'?')[0]}</span>`;
+      return `<div class="admin-user-row">
+        ${photo}
+        <div style="flex:1;min-width:0">
+          <div class="admin-user-name">${u.name || 'Unknown'}${u.age ? ', '+u.age : ''}</div>
+          <div class="admin-user-meta">${u.email || u.id.slice(0,12)+'…'}</div>
+        </div>
+        ${isOnline ? '<span class="admin-badge online">Online</span>' : ''}
+        ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>' : ''}
+      </div>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div class="admin-header">
+        <div class="admin-header-icon">⭐</div>
+        <div>
+          <div class="admin-header-title">Admin Dashboard</div>
+          <div class="admin-header-sub">Spark — ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+        </div>
+      </div>
+      <div class="admin-stat-grid">
+        <div class="admin-stat-card">
+          <div class="admin-stat-val">${total}</div>
+          <div class="admin-stat-label">Total Users</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-val green">${online}</div>
+          <div class="admin-stat-label">Online Now</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-val gold">${premium}</div>
+          <div class="admin-stat-label">Premium</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-val blue">${newToday}</div>
+          <div class="admin-stat-label">New Today</div>
+        </div>
+      </div>
+      <div>
+        <div class="admin-section-title">Recent Users (${Math.min(sorted.length,30)} of ${total})</div>
+        <div class="admin-user-list">${rows}</div>
+      </div>
+      <button class="admin-refresh-btn" onclick="renderAdminPanel()">↻ Refresh</button>
+    `;
+  } catch (e) {
+    panel.innerHTML = `<div class="admin-loading">⚠️ Error loading data: ${e.message}</div>`;
+  }
+}
+
 async function enterMainApp() {
   showView('main');
   showTab('discover');
@@ -3526,6 +3656,8 @@ async function enterMainApp() {
   silentGeolocate();
   // Non-blocking — asks for push permission (or silently refreshes token if already granted).
   initPushNotifications().catch(() => {});
+  // Show/hide admin star tab based on logged-in email
+  _updateAdminTab();
 }
 
 /* ================================================================
@@ -3574,6 +3706,7 @@ function showTab(tab) {
     if (tab === 'messages')  { renderConversations(); clearUnread(); S.newMatchMsgs.clear(); updateBadges(); }
     if (tab === 'profile')   renderMyProfile();
     if (tab === 'explore')   renderNearby();
+    if (tab === 'admin')     renderAdminPanel();
     if (typeof _navFocus === 'function') setTimeout(_navFocus, 120);
   });
 }
