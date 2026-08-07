@@ -400,6 +400,23 @@ html, body {
 .chat-input:focus { border-color: var(--primary); }
 .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--gradient-btn); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; transition: transform 0.15s; }
 .send-btn:active { transform: scale(0.9); }
+.chat-pill-bar { display:flex; gap:0.45rem; padding:0.5rem 0.7rem 0.35rem; background:var(--bg-card); border-top:1px solid var(--border); overflow-x:auto; flex-shrink:0; scrollbar-width:none; touch-action:pan-x; -webkit-overflow-scrolling:touch; }
+.chat-pill-bar::-webkit-scrollbar { display:none; }
+.chat-pill { display:flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.07); border:1.5px solid rgba(255,255,255,0.1); border-radius:22px; padding:0.42rem 0.8rem; color:var(--text); font-size:0.81rem; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:background 0.15s, transform 0.1s, border-color 0.15s; letter-spacing:0.01em; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+.chat-pill:active { transform:scale(0.92); }
+.chat-pill.pill-active { background:var(--gradient-btn); color:#fff; border-color:transparent; }
+.chat-pill-bar + .chat-input-bar { border-top:none; }
+.chat-mic-shortcut { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:none; cursor:pointer; font-size:1rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; }
+.chat-mic-shortcut.recording { background:var(--gradient-btn); }
+.chat-emoji-picker { display:flex; flex-wrap:wrap; gap:0.28rem; padding:0.55rem 0.75rem; background:var(--bg-card); flex-shrink:0; max-height:130px; overflow-y:auto; }
+.chat-emoji-btn { background:none; border:none; font-size:1.3rem; cursor:pointer; line-height:1; padding:2px; border-radius:6px; transition:transform 0.1s; }
+.chat-emoji-btn:active { transform:scale(1.3); }
+.chat-vk { background:var(--bg-card); padding:0.35rem 0.25rem 0.4rem; flex-shrink:0; }
+.chat-vk-row { display:flex; justify-content:center; gap:0.2rem; margin-bottom:0.2rem; }
+.chat-vk-key { min-width:27px; height:31px; background:rgba(255,255,255,0.1); border:none; border-radius:6px; color:var(--text); font-size:0.77rem; font-weight:600; cursor:pointer; padding:0 3px; flex:0 0 auto; transition:background 0.1s, transform 0.1s; }
+.chat-vk-key:active { background:var(--primary); color:#fff; transform:scale(0.87); }
+.chat-vk-wide { flex:1; max-width:52px; }
+.chat-vk-space { flex:3; max-width:130px; }
 
 /* ---- PROFILE TAB ---- */
 .profile-scroll { overflow: visible; padding: 0.5rem 1rem 1.5rem; }
@@ -1735,7 +1752,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="header-icon-btn chat-more-btn" onclick="openChatMenu()" title="More options" id="chatMoreBtn">⋮</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-pill-bar" id="chatPillBar">
+        <button class="chat-pill" id="chatDictatePill" onclick="chatToggleDictate('chatInput',this)">🎤 Dictate</button>
+        <button class="chat-pill" onclick="chatHandwrite('chatInput')">✍️ Handwrite</button>
+        <button class="chat-pill" id="chatEmojiPill" onclick="chatToggleEmoji('chatInput',this)">😊 Emoji</button>
+        <button class="chat-pill" id="chatListenPill" onclick="chatListen(this)">🎙 Listen</button>
+        <button class="chat-pill" id="chatVkPill" onclick="chatToggleVKPill('chatInput',this)">⌨️ VK</button>
+      </div>
       <div class="chat-input-bar">
+        <button class="chat-mic-shortcut" id="chatMicBtn" onclick="chatToggleDictate('chatInput',document.getElementById('chatDictatePill'))">🎤</button>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="send-btn" onclick="sendMsg()">
@@ -1787,7 +1812,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         </div>
       </div>
       <div class="chat-messages" id="inlineChatMessages"></div>
+      <div class="chat-pill-bar" id="inlineChatPillBar">
+        <button class="chat-pill" id="inlineDictatePill" onclick="chatToggleDictate('inlineChatInput',this)">🎤 Dictate</button>
+        <button class="chat-pill" onclick="chatHandwrite('inlineChatInput')">✍️ Handwrite</button>
+        <button class="chat-pill" id="inlineEmojiPill" onclick="chatToggleEmoji('inlineChatInput',this)">😊 Emoji</button>
+        <button class="chat-pill" id="inlineListenPill" onclick="chatListen(this)">🎙 Listen</button>
+        <button class="chat-pill" id="inlineVkPill" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️ VK</button>
+      </div>
       <div class="chat-input-bar">
+        <button class="chat-mic-shortcut" id="inlineMicBtn" onclick="chatToggleDictate('inlineChatInput',document.getElementById('inlineDictatePill'))">🎤</button>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
         <button class="send-btn" onclick="sendInlineMsg()">
@@ -5025,6 +5058,113 @@ function scrollChatToBottom(containerId = 'chatMessages') {
     const c = document.getElementById(containerId);
     if (c) c.scrollTop = c.scrollHeight;
   }, 60);
+}
+
+/* ================================================================
+   CHAT INPUT PILLS  (Dictate · Handwrite · Emoji · Listen · VK)
+   Glasses-compatible: touch-action:manipulation on buttons,
+   touch-action:pan-x on the pill bar, no .focus() on buttons.
+================================================================ */
+let _chatDictRecog = null;
+
+function chatToggleDictate(inputId, btn) {
+  const inp    = document.getElementById(inputId);
+  const micBtn = inp ? inp.closest('.panel,.inline-chat-sheet')?.querySelector('.chat-mic-shortcut') : null;
+  if (_chatDictRecog) {
+    _chatDictRecog.stop(); _chatDictRecog = null;
+    if (btn) btn.classList.remove('pill-active');
+    if (micBtn) micBtn.classList.remove('recording');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast('Speech recognition not supported in this browser'); return; }
+  _chatDictRecog = new SR();
+  _chatDictRecog.continuous = true; _chatDictRecog.interimResults = true; _chatDictRecog.lang = 'en-US';
+  let baseText = inp ? inp.value : '';
+  _chatDictRecog.onresult = e => {
+    let final = baseText, interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) { final += e.results[i][0].transcript; baseText = final; }
+      else interim += e.results[i][0].transcript;
+    }
+    if (inp) inp.value = final + interim;
+  };
+  _chatDictRecog.onerror = _chatDictRecog.onend = () => {
+    if (btn) btn.classList.remove('pill-active');
+    if (micBtn) micBtn.classList.remove('recording');
+    _chatDictRecog = null;
+  };
+  _chatDictRecog.start();
+  if (btn) btn.classList.add('pill-active');
+  if (micBtn) micBtn.classList.add('recording');
+}
+
+function chatHandwrite(inputId) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  inp.setAttribute('inputmode', 'text');
+  const orig = inp.placeholder;
+  inp.placeholder = '✍️ Use handwriting input…';
+  inp.focus();
+  setTimeout(() => { inp.placeholder = orig; }, 3000);
+}
+
+const _CHAT_EMOJIS = ['😀','😂','🥰','😍','🤩','😎','😊','🙃','😘','😜','🤗','😏','❤️','🔥','✨','💫','💕','💯','👍','🙌','🎉','🥳','😅','🤣','😭','😢','😤','🤯','💀','🫶','💪','🫠','🤭','🫣','😁','🤝','🥺','😩','🫡','💃','🕺','🍕','🎵','🎸','🌙','⭐','🌹','🦋','✈️','🏖️','🎂','🍾'];
+
+function chatToggleEmoji(inputId, btn) {
+  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  if (!pillBar) return;
+  const wrap = pillBar.parentElement;
+  let picker = wrap.querySelector('.chat-emoji-picker');
+  if (picker) { picker.remove(); if (btn) btn.classList.remove('pill-active'); return; }
+  if (btn) btn.classList.add('pill-active');
+  picker = document.createElement('div');
+  picker.className = 'chat-emoji-picker';
+  _CHAT_EMOJIS.forEach(em => {
+    const b = document.createElement('button');
+    b.className = 'chat-emoji-btn'; b.textContent = em;
+    b.style.touchAction = 'manipulation';
+    b.onclick = () => {
+      const inp = document.getElementById(inputId);
+      if (!inp) return;
+      const pos = (typeof inp.selectionStart === 'number') ? inp.selectionStart : inp.value.length;
+      inp.value = inp.value.slice(0, pos) + em + inp.value.slice(pos);
+      inp.focus();
+      try { inp.setSelectionRange(pos + em.length, pos + em.length); } catch(e) {}
+    };
+    picker.appendChild(b);
+  });
+  wrap.insertBefore(picker, pillBar);
+}
+
+function chatListen(btn) {
+  if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn) btn.classList.remove('pill-active'); return; }
+  const panel = btn ? btn.closest('.panel,.inline-chat-sheet') : null;
+  const msgs  = [...(panel ? panel.querySelectorAll('.msg') : [])].map(m => m.textContent.trim()).filter(Boolean);
+  if (!msgs.length) { toast('No messages to read'); return; }
+  const utt = new SpeechSynthesisUtterance(msgs.slice(-4).join('. '));
+  utt.rate = 0.95; utt.pitch = 1;
+  utt.onstart  = () => { if (btn) btn.classList.add('pill-active'); };
+  utt.onend    = utt.onerror = () => { if (btn) btn.classList.remove('pill-active'); };
+  speechSynthesis.speak(utt);
+}
+
+function chatToggleVKPill(inputId, btn) {
+  // Hooks into the app's existing VK system (openVK / closeVK)
+  const inp = document.getElementById(inputId);
+  if (typeof VK !== 'undefined') {
+    if (VK.open) {
+      closeVK();
+      if (btn) btn.classList.remove('pill-active');
+    } else {
+      if (inp) VK.target = inp;
+      openVK(inp || undefined);
+      if (btn) btn.classList.add('pill-active');
+    }
+  } else {
+    // Fallback: just focus the input (OS keyboard)
+    if (inp) inp.focus();
+  }
 }
 
 async function sendMsg() {
