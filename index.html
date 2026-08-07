@@ -475,6 +475,7 @@ html, body {
 .chat-pill { display:flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.07); border:1.5px solid rgba(255,255,255,0.1); border-radius:22px; padding:0.42rem 0.8rem; color:var(--text); font-size:0.81rem; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:background 0.15s, transform 0.1s, border-color 0.15s; letter-spacing:0.01em; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
 .chat-pill:active { transform:scale(0.92); }
 .chat-pill.pill-active { background:var(--gradient-btn); color:#fff; border-color:transparent; }
+.chat-pill.recording { background:var(--gradient-btn); color:#fff; border-color:transparent; animation:pulse 1.2s ease-in-out infinite; }
 .chat-pill-bar + .chat-input-bar { border-top:none; }
 .chat-mic-shortcut { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:none; cursor:pointer; font-size:1rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; }
 .chat-mic-shortcut.recording { background:var(--gradient-btn); }
@@ -1878,7 +1879,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-pill-bar" id="chatPillBar">
         <button class="chat-pill" id="chatDictatePill" onclick="chatToggleDictate('chatInput',this)">🎤 Dictate</button>
-        <button class="chat-pill" onclick="chatHandwrite('chatInput')">✍️ Handwrite</button>
+        <button class="chat-pill" onclick="chatHandwrite('chatInput',this)">✍️ Handwrite</button>
+        <button class="chat-pill" id="chatVoiceNotePill" onclick="_chatVoiceNotePill(this,'chatVoiceBtn','chatMessages')">🎙 Voice Note</button>
         <button class="chat-pill" id="chatEmojiPill" onclick="chatToggleEmoji('chatInput',this)">😊 Emoji</button>
         <button class="chat-pill" id="chatListenPill" onclick="chatListen(this)">🎙 Listen</button>
         <button class="chat-pill" id="chatVkPill" onclick="chatToggleVKPill('chatInput',this)">⌨️ VK</button>
@@ -1943,7 +1945,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="chat-messages" id="inlineChatMessages"></div>
       <div class="chat-pill-bar" id="inlineChatPillBar">
         <button class="chat-pill" id="inlineDictatePill" onclick="chatToggleDictate('inlineChatInput',this)">🎤 Dictate</button>
-        <button class="chat-pill" onclick="chatHandwrite('inlineChatInput')">✍️ Handwrite</button>
+        <button class="chat-pill" onclick="chatHandwrite('inlineChatInput',this)">✍️ Handwrite</button>
+        <button class="chat-pill" id="inlineVoiceNotePill" onclick="_chatVoiceNotePill(this,'inlineVoiceBtn','inlineChatMessages')">🎙 Voice Note</button>
         <button class="chat-pill" id="inlineEmojiPill" onclick="chatToggleEmoji('inlineChatInput',this)">😊 Emoji</button>
         <button class="chat-pill" id="inlineListenPill" onclick="chatListen(this)">🎙 Listen</button>
         <button class="chat-pill" id="inlineVkPill" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️ VK</button>
@@ -5585,6 +5588,33 @@ function scrollChatToBottom(containerId = 'chatMessages') {
    touch-action:pan-x on the pill bar, no .focus() on buttons.
 ================================================================ */
 let _chatDictRecog = null;
+let _voiceNotePill = null;
+
+/* Close every open pill panel in this pill bar and stop any active sessions */
+function _chatClosePills(pillBar) {
+  if (!pillBar) return;
+  const wrap = pillBar.parentElement;
+  wrap.querySelector('.chat-emoji-picker')?.remove();
+  wrap.querySelector('.chat-vk-local')?.remove();
+  if (_chatDictRecog) { try { _chatDictRecog.stop(); } catch(e){} _chatDictRecog = null; }
+  if (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking) speechSynthesis.cancel();
+  if (_voiceRec && _voiceRec.state === 'recording') { try { _voiceRec.stop(); } catch(e){} }
+  pillBar.querySelectorAll('.chat-pill').forEach(p => p.classList.remove('pill-active', 'recording'));
+  wrap.querySelector('.chat-mic-shortcut')?.classList.remove('recording');
+  if (_voiceNotePill) { _voiceNotePill.classList.remove('pill-active'); _voiceNotePill = null; }
+}
+
+/* Voice Note pill wrapper — delegates to chatToggleVoiceNote circle button */
+function _chatVoiceNotePill(pill, circleBtnId, msgContainerId) {
+  const wasRecording = _voiceRec && _voiceRec.state === 'recording';
+  if (wasRecording) { try { _voiceRec.stop(); } catch(e){} return; }
+  const pillBar = pill ? pill.closest('.chat-pill-bar') : null;
+  _chatClosePills(pillBar);
+  pill.classList.add('pill-active');
+  _voiceNotePill = pill;
+  const circleBtn = document.getElementById(circleBtnId);
+  chatToggleVoiceNote(circleBtn || pill, msgContainerId);
+}
 
 function chatToggleDictate(inputId, btn) {
   const inp    = document.getElementById(inputId);
@@ -5595,6 +5625,8 @@ function chatToggleDictate(inputId, btn) {
     if (micBtn) micBtn.classList.remove('recording');
     return;
   }
+  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  _chatClosePills(pillBar);
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { toast('Speech recognition not supported in this browser'); return; }
   _chatDictRecog = new SR();
@@ -5618,7 +5650,9 @@ function chatToggleDictate(inputId, btn) {
   if (micBtn) micBtn.classList.add('recording');
 }
 
-function chatHandwrite(inputId) {
+function chatHandwrite(inputId, btn) {
+  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  _chatClosePills(pillBar);
   const inp = document.getElementById(inputId);
   if (!inp) return;
   inp.setAttribute('inputmode', 'text');
@@ -5635,7 +5669,8 @@ function chatToggleEmoji(inputId, btn) {
   if (!pillBar) return;
   const wrap = pillBar.parentElement;
   let picker = wrap.querySelector('.chat-emoji-picker');
-  if (picker) { picker.remove(); if (btn) btn.classList.remove('pill-active'); return; }
+  if (picker) { _chatClosePills(pillBar); return; }
+  _chatClosePills(pillBar);
   if (btn) btn.classList.add('pill-active');
   picker = document.createElement('div');
   picker.className = 'chat-emoji-picker';
@@ -5658,6 +5693,8 @@ function chatToggleEmoji(inputId, btn) {
 
 function chatListen(btn) {
   if (speechSynthesis.speaking) { speechSynthesis.cancel(); if (btn) btn.classList.remove('pill-active'); return; }
+  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  _chatClosePills(pillBar);
   const panel = btn ? btn.closest('.panel,.inline-chat-sheet') : null;
   const msgs  = [...(panel ? panel.querySelectorAll('.msg') : [])].map(m => m.textContent.trim()).filter(Boolean);
   if (!msgs.length) { toast('No messages to read'); return; }
@@ -5669,21 +5706,84 @@ function chatListen(btn) {
 }
 
 function chatToggleVKPill(inputId, btn) {
-  // Hooks into the app's existing VK system (openVK / closeVK)
+  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  if (!pillBar) return;
+  const wrap = pillBar.parentElement;
+  let existing = wrap.querySelector('.chat-vk-local');
+  if (existing) { _chatClosePills(pillBar); return; }
+  _chatClosePills(pillBar);
+  if (btn) btn.classList.add('pill-active');
+
   const inp = document.getElementById(inputId);
-  if (typeof VK !== 'undefined') {
-    if (VK.open) {
-      closeVK();
-      if (btn) btn.classList.remove('pill-active');
-    } else {
-      if (inp) VK.target = inp;
-      openVK(inp || undefined);
-      if (btn) btn.classList.add('pill-active');
-    }
-  } else {
-    // Fallback: just focus the input (OS keyboard)
-    if (inp) inp.focus();
+  const rows = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['⇧','z','x','c','v','b','n','m','⌫'],
+    ['123','space','return']
+  ];
+  let caps = false, numMode = false;
+  const numRows = [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['-','/','.',',','?','!','\'','"','(',')',],
+    ['#+=','@','$','&','*','_',';',':','⌫'],
+    ['ABC','space','return']
+  ];
+  const sym2Rows = [
+    ['[',']','{','}','#','%','^','*','+','='],
+    ['_','\\','|','~','<','>','€','£','¥','·'],
+    ['123','.',',','?','!','\'','⌫'],
+    ['ABC','space','return']
+  ];
+  let symMode = false;
+
+  const vk = document.createElement('div');
+  vk.className = 'chat-vk-local';
+  vk.style.cssText = 'background:var(--bg-elevated);border-top:1px solid var(--border);padding:0.4rem 0.25rem 0.5rem;user-select:none;';
+
+  function buildKeys() {
+    vk.innerHTML = '';
+    const activeRows = numMode ? (symMode ? sym2Rows : numRows) : rows;
+    activeRows.forEach(row => {
+      const rowDiv = document.createElement('div');
+      rowDiv.style.cssText = 'display:flex;justify-content:center;gap:0.2rem;margin-bottom:0.2rem;';
+      row.forEach(k => {
+        const kb = document.createElement('button');
+        kb.style.cssText = 'background:var(--bg-input,#333);color:var(--text);border:none;border-radius:6px;padding:0.45rem 0;font-size:0.9rem;min-width:2.2rem;flex:1;max-width:' + (k === 'space' ? '8rem' : k.length > 1 ? '3.5rem' : '2.8rem') + ';cursor:pointer;touch-action:manipulation;';
+        kb.textContent = k === 'space' ? ' ' : (caps && !numMode ? k.toUpperCase() : k);
+        if (k === 'space') kb.textContent = '⎵';
+        kb.setAttribute('data-key', k);
+        kb.onclick = () => {
+          if (!inp) return;
+          const pos = (typeof inp.selectionStart === 'number') ? inp.selectionStart : inp.value.length;
+          if (k === '⌫') {
+            if (pos > 0) { inp.value = inp.value.slice(0, pos - 1) + inp.value.slice(pos); try { inp.setSelectionRange(pos-1,pos-1); } catch(e){} }
+          } else if (k === 'return') {
+            _chatClosePills(pillBar);
+          } else if (k === 'space') {
+            inp.value = inp.value.slice(0, pos) + ' ' + inp.value.slice(pos);
+            try { inp.setSelectionRange(pos+1,pos+1); } catch(e){}
+          } else if (k === '⇧') {
+            caps = !caps; buildKeys();
+          } else if (k === '123') {
+            numMode = true; symMode = false; buildKeys();
+          } else if (k === 'ABC') {
+            numMode = false; symMode = false; buildKeys();
+          } else if (k === '#+=') {
+            symMode = true; buildKeys();
+          } else {
+            const ch = caps && !numMode ? k.toUpperCase() : k;
+            inp.value = inp.value.slice(0, pos) + ch + inp.value.slice(pos);
+            try { inp.setSelectionRange(pos+1,pos+1); } catch(e){}
+            if (caps && k !== '⇧') { caps = false; buildKeys(); }
+          }
+        };
+        rowDiv.appendChild(kb);
+      });
+      vk.appendChild(rowDiv);
+    });
   }
+  buildKeys();
+  wrap.insertBefore(vk, pillBar);
 }
 
 /* ── Voice Note Recording ── */
@@ -5707,6 +5807,7 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
       clearInterval(_voiceTimerInt);
       btn.classList.remove('recording');
       btn.textContent = '🎙';
+      if (_voiceNotePill) { _voiceNotePill.classList.remove('pill-active'); _voiceNotePill = null; }
       const dur = _voiceSecs;
       if (!S.activeMatchId || !db) return;
       btn.disabled = true;
