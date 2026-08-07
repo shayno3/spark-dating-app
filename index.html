@@ -408,6 +408,11 @@ html, body {
 .chat-pill-bar + .chat-input-bar { border-top:none; }
 .chat-mic-shortcut { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:none; cursor:pointer; font-size:1rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; }
 .chat-mic-shortcut.recording { background:var(--gradient-btn); }
+.voice-note-btn { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:1.5px solid rgba(255,255,255,0.15); cursor:pointer; font-size:0.85rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; color:var(--text); font-weight:700; }
+.voice-note-btn.recording { background:var(--gradient-btn); border-color:transparent; animation:pulse 1s ease-in-out infinite; color:#fff; }
+.msg-voice { display:flex; align-items:center; gap:0.5rem; padding:0.15rem 0; min-width:160px; }
+.msg-voice audio { flex:1; height:28px; min-width:100px; accent-color:#e11d8f; }
+.msg-voice-dur { font-size:0.68rem; opacity:0.75; white-space:nowrap; flex-shrink:0; }
 .chat-emoji-picker { display:flex; flex-wrap:wrap; gap:0.28rem; padding:0.55rem 0.75rem; background:var(--bg-card); flex-shrink:0; max-height:130px; overflow-y:auto; }
 .chat-emoji-btn { background:none; border:none; font-size:1.3rem; cursor:pointer; line-height:1; padding:2px; border-radius:6px; transition:transform 0.1s; }
 .chat-emoji-btn:active { transform:scale(1.3); }
@@ -1776,6 +1781,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="chat-input-bar">
         <button class="chat-mic-shortcut" id="chatMicBtn" onclick="chatToggleDictate('chatInput',document.getElementById('chatDictatePill'))">🎤</button>
+        <button class="voice-note-btn" id="chatVoiceBtn" onclick="chatToggleVoiceNote(this,'chatMessages')">🎙</button>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="send-btn" onclick="sendMsg()">
@@ -1840,6 +1846,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="chat-input-bar">
         <button class="chat-mic-shortcut" id="inlineMicBtn" onclick="chatToggleDictate('inlineChatInput',document.getElementById('inlineDictatePill'))">🎤</button>
+        <button class="voice-note-btn" id="inlineVoiceBtn" onclick="chatToggleVoiceNote(this,'inlineChatMessages')">🎙</button>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
         <button class="send-btn" onclick="sendInlineMsg()">
@@ -4625,6 +4632,30 @@ async function openBillingPortal() {
 ================================================================ */
 let _nearbyLiked = new Set(); // track who we've liked from this tab this session
 
+function renderExploreCard(u, matchedUids, grid) {
+  const photo        = u.photos?.[0] ? photoSrc(u.photos[0]) || u.photos[0] : avatar(u.name || '?');
+  const isMatch      = matchedUids.has(u.id);
+  const alreadyLiked = _nearbyLiked.has(u.id) || S.seen.has(u.id);
+  const distStr      = u._distance !== null ? approxDist(u._distance) : '';
+  const card = document.createElement('div');
+  card.className = 'nearby-card';
+  card.tabIndex = 0;
+  card.innerHTML = `
+    ${isMatch ? '<div class="nearby-matched-badge">💕 Matched</div>' : ''}
+    <img class="nearby-card-img" src="${photo}" alt="${u.name || ''}" onerror="this.src='${avatar(u.name||'?')}'">
+    <div class="nearby-card-body">
+      <div class="nearby-card-name">${u.name || 'User'}${u.age ? ', ' + u.age : ''}</div>
+      <div class="nearby-card-sub">${u.online ? '<span class="nearby-online-dot"></span>Online' : distStr || (u.bio ? u.bio.slice(0,35) + (u.bio.length>35?'…':'') : '')}</div>
+      ${!isMatch ? `<button class="nearby-like-btn${alreadyLiked?' liked':''}" onclick="nearbyLike('${u.id}',this)">${alreadyLiked ? '✓ Liked' : '♥ Like'}</button>` : `<button class="nearby-like-btn liked" onclick="openMatchProfile('${u.id}')">💬 Message</button>`}
+    </div>`;
+  if (!isMatch) {
+    card.querySelector('.nearby-card-img').onclick = () => openNearbyDetail(u);
+  } else {
+    card.querySelector('.nearby-card-img').onclick = () => openMatchProfile(u.id);
+  }
+  grid.appendChild(card);
+}
+
 async function renderNearby() {
   const grid      = document.getElementById('nearbyGrid');
   const cityLine  = document.getElementById('nearbyCityLine');
@@ -4636,9 +4667,36 @@ async function renderNearby() {
   const hasGPS  = !!S.location?.lat;
 
   if (!hasGPS && !myCity) {
-    cityLine.textContent = '📍 No location set';
-    countLine.textContent = 'Allow location access to see people nearby';
-    grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">📍</div><div class="nearby-empty-title">Location not available</div><div style="font-size:0.85rem">Allow location in your browser, or add your city in Profile → Edit Profile.</div></div>`;
+    if (navigator.geolocation) {
+      cityLine.textContent = '📍 Getting your location…';
+      countLine.textContent = '';
+      grid.innerHTML = `<div class="nearby-loading">📍 Requesting location access…</div>`;
+      navigator.geolocation.getCurrentPosition(
+        async pos => {
+          const lat = pos.coords.latitude, lng = pos.coords.longitude;
+          S.location = { lat, lng, city: '', region: '' };
+          try {
+            const { city, region } = await reverseGeocode(lat, lng);
+            S.location.city = city; S.location.region = region;
+            if (S.user && db) {
+              db.collection('users').doc(S.user.id)
+                .update({ lat, lng, locationCity: city }).catch(() => {});
+            }
+          } catch(e) {}
+          renderNearby();
+        },
+        () => {
+          cityLine.textContent = '📍 No location set';
+          countLine.textContent = '';
+          grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">📍</div><div class="nearby-empty-title">Location not available</div><div style="font-size:0.85rem">Allow location in your browser, or add your city in Profile → Edit Profile.</div></div>`;
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+      );
+    } else {
+      cityLine.textContent = '📍 No location set';
+      countLine.textContent = '';
+      grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">📍</div><div class="nearby-empty-title">Location not available</div><div style="font-size:0.85rem">Add your city in Profile → Edit Profile.</div></div>`;
+    }
     return;
   }
 
@@ -4702,43 +4760,40 @@ async function renderNearby() {
     grid.innerHTML = '';
 
     if (nearby.length === 0) {
-      grid.innerHTML = `<div class="nearby-empty">
-        <div class="nearby-empty-icon">🏙️</div>
-        <div class="nearby-empty-title">No one nearby yet</div>
-        <div style="font-size:0.85rem;color:var(--text-muted)">Be the first in the area!<br>Invite friends to join Spark.</div>
-      </div>`;
+      // Fallback: show all users on Spark so the tab is never empty
+      let allSnap = snap; // if hasGPS, snap already has everyone
+      if (!hasGPS) {
+        try { allSnap = await db.collection('users').get(); } catch(e) { allSnap = snap; }
+      }
+      const seekFilter = u => {
+        if (S.user.seeking && S.user.seeking !== 'Everyone') {
+          const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
+          if (u.gender !== wantGender) return false;
+        }
+        return true;
+      };
+      const fallback = allSnap.docs
+        .filter(d => {
+          if (d.id === myUid) return false;
+          const u = d.data();
+          return !u.invisible && seekFilter(u);
+        })
+        .map(d => ({ id: d.id, ...d.data(), _distance: null }))
+        .sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
+
+      if (fallback.length === 0) {
+        grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">🏙️</div><div class="nearby-empty-title">No one nearby yet</div><div style="font-size:0.85rem;color:var(--text-muted)">Be the first in the area!<br>Invite friends to join Spark.</div></div>`;
+        return;
+      }
+      countLine.textContent = `Showing all ${fallback.length} people on Spark`;
+      const matchedUidsF = new Set(S.matches.map(m => m.uid));
+      fallback.forEach(u => renderExploreCard(u, matchedUidsF, grid));
       return;
     }
 
     const matchedUids = new Set(S.matches.map(m => m.uid));
 
-    nearby.forEach(u => {
-      const photo   = u.photos?.[0] ? photoSrc(u.photos[0]) || u.photos[0] : avatar(u.name || '?');
-      const isMatch = matchedUids.has(u.id);
-      const alreadyLiked = _nearbyLiked.has(u.id) || S.seen.has(u.id);
-      const distStr = u._distance !== null ? approxDist(u._distance) : '';
-
-      const card = document.createElement('div');
-      card.className = 'nearby-card';
-      card.tabIndex = 0; // make focusable for glasses arrow-key navigation + scroll
-      card.innerHTML = `
-        ${isMatch ? '<div class="nearby-matched-badge">💕 Matched</div>' : ''}
-        <img class="nearby-card-img" src="${photo}" alt="${u.name || ''}" onerror="this.src='${avatar(u.name||'?')}'">
-        <div class="nearby-card-body">
-          <div class="nearby-card-name">${u.name || 'User'}${u.age ? ', ' + u.age : ''}</div>
-          <div class="nearby-card-sub">${u.online ? '<span class="nearby-online-dot"></span>Online' : distStr || (u.bio ? u.bio.slice(0,35) + (u.bio.length>35?'…':'') : '')}</div>
-          ${!isMatch ? `<button class="nearby-like-btn${alreadyLiked?' liked':''}" onclick="nearbyLike('${u.id}',this)">${alreadyLiked ? '✓ Liked' : '♥ Like'}</button>` : `<button class="nearby-like-btn liked" onclick="openMatchProfile('${u.id}')">💬 Message</button>`}
-        </div>`;
-
-      if (!isMatch) {
-        // Tap photo to open detail view
-        card.querySelector('.nearby-card-img').onclick = () => openNearbyDetail(u);
-      } else {
-        card.querySelector('.nearby-card-img').onclick = () => openMatchProfile(u.id);
-      }
-
-      grid.appendChild(card);
-    });
+    nearby.forEach(u => renderExploreCard(u, matchedUids, grid));
 
   } catch(err) {
     console.warn('renderNearby error:', err);
@@ -5083,9 +5138,12 @@ function renderChatMessages(containerId = 'chatMessages') {
         seenHtml = '<div class="msg-seen">Seen ✓</div>';
       }
     }
+    const msgContent = msg.type === 'voiceNote' && msg.audioUrl
+      ? `<div class="msg-voice"><span>🎙</span><audio src="${escHtml(msg.audioUrl)}" controls preload="none"></audio>${msg.duration ? `<span class="msg-voice-dur">${msg.duration}s</span>` : ''}</div>`
+      : escHtml(msg.text || '');
     return `
       <div>
-        <div class="msg ${isSent?'sent':'recv'}">${escHtml(msg.text)}</div>
+        <div class="msg ${isSent?'sent':'recv'}">${msgContent}</div>
         <div class="msg-time ${isSent?'r':''}">${fmtTime(msg.time)}</div>
         ${seenHtml}
       </div>`;
@@ -5210,6 +5268,71 @@ function chatToggleVKPill(inputId, btn) {
   } else {
     // Fallback: just focus the input (OS keyboard)
     if (inp) inp.focus();
+  }
+}
+
+/* ── Voice Note Recording ── */
+let _voiceRec = null, _voiceChunks = [], _voiceTimerInt = null, _voiceSecs = 0;
+async function chatToggleVoiceNote(btn, msgContainerId) {
+  // Stop if already recording
+  if (_voiceRec && _voiceRec.state === 'recording') {
+    _voiceRec.stop();
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) { toast('Microphone not supported'); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _voiceChunks = []; _voiceSecs = 0;
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+                   : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4' : '';
+    _voiceRec = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    _voiceRec.ondataavailable = e => { if (e.data.size > 0) _voiceChunks.push(e.data); };
+    _voiceRec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(_voiceTimerInt);
+      btn.classList.remove('recording');
+      btn.textContent = '🎙';
+      const dur = _voiceSecs;
+      if (!S.activeMatchId || !db) return;
+      btn.disabled = true;
+      toast('Sending voice note…');
+      try {
+        const usedMime = _voiceRec.mimeType || mimeType || 'audio/webm';
+        const ext = usedMime.includes('mp4') || usedMime.includes('m4a') ? 'm4a' : 'webm';
+        const blob = new Blob(_voiceChunks, { type: usedMime });
+        let audioUrl;
+        if (storage) {
+          const ref = storage.ref(`voice/${S.user.id}/${Date.now()}.${ext}`);
+          await ref.put(blob, { contentType: usedMime });
+          audioUrl = await ref.getDownloadURL();
+        } else {
+          audioUrl = await new Promise(res => {
+            const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob);
+          });
+        }
+        await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
+          from: S.user.id,
+          type: 'voiceNote',
+          audioUrl,
+          duration: dur,
+          ts: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(e) {
+        console.error('Voice note send error:', e);
+        toast('Failed to send voice note');
+      }
+      btn.disabled = false;
+    };
+    _voiceRec.start(100);
+    btn.classList.add('recording');
+    btn.textContent = '0s';
+    _voiceTimerInt = setInterval(() => {
+      _voiceSecs++;
+      btn.textContent = _voiceSecs < 60 ? `${_voiceSecs}s` : `${Math.floor(_voiceSecs/60)}:${String(_voiceSecs%60).padStart(2,'0')}`;
+      if (_voiceSecs >= 120) _voiceRec.stop(); // 2-min max
+    }, 1000);
+  } catch(e) {
+    toast('Microphone access denied');
   }
 }
 
