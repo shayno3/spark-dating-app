@@ -238,9 +238,60 @@
     .data-table th:nth-child(3),
     .data-table td:nth-child(3) { display: none; }
   }
+
+  /* ── PIN LOCK SCREEN ── */
+  #pinScreen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; text-align: center; padding: 2rem; gap: 1rem;
+  }
+  .pin-logo {
+    font-size: 2.8rem; font-weight: 900;
+    background: linear-gradient(135deg,#E91E8C,#9C27B0);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 0.25rem;
+  }
+  .pin-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+  .pin-sub { font-size: 0.8rem; color: var(--text-muted); }
+  .pin-form {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.75rem; width: 100%; max-width: 300px; margin-top: 0.5rem;
+  }
+  .pin-input {
+    width: 100%; background: var(--bg-card); border: 1.5px solid var(--border);
+    border-radius: 12px; color: var(--text); font-size: 1.1rem;
+    padding: 0.75rem 1rem; text-align: center; letter-spacing: 0.1em;
+    outline: none; transition: border-color 0.2s;
+  }
+  .pin-input:focus { border-color: var(--primary); }
+  .pin-input.pin-error { border-color: var(--danger); animation: pinShake 0.35s ease; }
+  @keyframes pinShake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(8px)}
+  }
+  .pin-btn {
+    width: 100%; background: linear-gradient(135deg,#E91E8C,#9C27B0);
+    border: none; color: #fff; font-size: 0.95rem; font-weight: 800;
+    padding: 0.8rem; border-radius: 12px; cursor: pointer; transition: opacity 0.15s;
+  }
+  .pin-btn:active { opacity: 0.8; }
+  .pin-err-msg { font-size: 0.8rem; color: var(--danger); min-height: 1.1rem; }
+  .pin-lock-icon { font-size: 2.2rem; margin-bottom: 0.25rem; }
 </style>
 </head>
 <body>
+
+<!-- PIN LOCK SCREEN (first layer — before Google auth) -->
+<div id="pinScreen">
+  <div class="pin-lock-icon">🔐</div>
+  <div class="pin-logo">⚡ Spark</div>
+  <div class="pin-title">Admin Panel</div>
+  <div class="pin-sub">Enter the access password to continue</div>
+  <div class="pin-form">
+    <input class="pin-input" id="pinInput" type="password" placeholder="Password" autocomplete="off"
+      onkeydown="if(event.key==='Enter')checkPin()">
+    <div class="pin-err-msg" id="pinErrMsg"></div>
+    <button class="pin-btn" onclick="checkPin()">Unlock →</button>
+  </div>
+</div>
 
 <!-- SIGN-IN SCREEN -->
 <div id="signInScreen" style="display:none; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; gap:1.25rem; text-align:center; padding:2rem;">
@@ -335,6 +386,46 @@
 
 <script>
 /* ================================================================
+   PIN LOCK — password is SHA-256 hashed (see ADMIN_PIN_HASH below).
+   To change: open browser console on this page and run:
+     crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourNewPassword'))
+       .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+   Then paste the resulting hash into ADMIN_PIN_HASH below.
+================================================================ */
+const ADMIN_PIN_HASH = 'fe0cbecc76abe68d57d1968d5362e21c066ce1cdaef48188186a6a8fb40af86c';
+const PIN_SESSION_KEY = 'spark_admin_unlocked';
+
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkPin() {
+  const input  = document.getElementById('pinInput');
+  const errMsg = document.getElementById('pinErrMsg');
+  const val    = input.value;
+  if (!val) { errMsg.textContent = 'Enter the password'; return; }
+  const hash = await sha256hex(val);
+  if (hash === ADMIN_PIN_HASH) {
+    sessionStorage.setItem(PIN_SESSION_KEY, '1');
+    document.getElementById('pinScreen').style.display = 'none';
+    // Re-trigger auth check now that pin is passed
+    const user = auth.currentUser;
+    if (user) handleAuthedUser(user);
+    else document.getElementById('signInScreen').style.display = 'flex';
+  } else {
+    errMsg.textContent = 'Incorrect password';
+    input.classList.add('pin-error');
+    input.value = '';
+    setTimeout(() => input.classList.remove('pin-error'), 400);
+  }
+}
+
+function isPinUnlocked() {
+  return sessionStorage.getItem(PIN_SESSION_KEY) === '1';
+}
+
+/* ================================================================
    ADMIN CONFIG — add your Firebase UID(s) here
 ================================================================ */
 const ADMIN_UIDS = [
@@ -367,11 +458,7 @@ let currentTab = 'reports';
 /* ================================================================
    AUTH GATE
 ================================================================ */
-auth.onAuthStateChanged(async user => {
-  if (!user) {
-    document.getElementById('signInScreen').style.display = 'flex';
-    return;
-  }
+function handleAuthedUser(user) {
   document.getElementById('signInScreen').style.display = 'none';
   const uid = user.uid;
   document.getElementById('myUidBox').textContent = uid;
@@ -383,7 +470,23 @@ auth.onAuthStateChanged(async user => {
   }
 
   document.getElementById('dashboard').style.display = 'block';
-  await Promise.all([loadUsers(), loadReports()]);
+  Promise.all([loadUsers(), loadReports()]);
+}
+
+auth.onAuthStateChanged(async user => {
+  // Always check pin first — if not unlocked, show pin screen and stop
+  if (!isPinUnlocked()) {
+    document.getElementById('pinScreen').style.display = 'flex';
+    document.getElementById('signInScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'none';
+    return;
+  }
+  if (!user) {
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('signInScreen').style.display = 'flex';
+    return;
+  }
+  handleAuthedUser(user);
 });
 
 function signInWithGoogle() {
