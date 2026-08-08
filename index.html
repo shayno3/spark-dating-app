@@ -2661,7 +2661,7 @@ function silentGeolocate() {
       updateFilterCounts();   // re-count nearby with real GPS coords
     },
     () => { /* denied or unavailable — silent fallback */ },
-    { timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    { timeout: 10000, maximumAge: 60000 }  // M6: 1-min cache — ensures relocated users get a fresh fix
   );
 }
 
@@ -4452,13 +4452,13 @@ function renderDiscover() {
   stack.innerHTML = '';
 
   if (prospects.length === 0) {
-    // Empty state: revert to original positioned sizing so absolute-fill works
+    // M8: friendly empty state instead of a blank card stack
     stack.classList.remove('grid-mode');
     stack.innerHTML = `<div class="empty-state" style="position:absolute;inset:0">
-      <div class="empty-icon">😢</div>
-      <div class="empty-title">All caught up!</div>
-      <div class="empty-desc">No more profiles right now. Check back soon or<br>invite friends to join Spark!</div>
-      <button class="btn-primary" style="max-width:220px;margin-top:1rem" onclick="resetSeen()">Refresh 🔄</button>
+      <div class="empty-icon">🌟</div>
+      <div class="empty-title">You've seen everyone nearby!</div>
+      <div class="empty-desc">Check back later — new people join every day.<br>In the meantime, invite friends to Spark!</div>
+      <button class="btn-primary" style="max-width:220px;margin-top:1rem" onclick="resetSeen()">Start Over 🔄</button>
     </div>`;
     if (actionRow) actionRow.style.display = 'none';
     if (hint)      hint.style.display = 'none';
@@ -5688,7 +5688,8 @@ function renderConversations() {
   const matchesRow  = document.getElementById('msgMatchesRow');
   const matchesBar  = document.getElementById('msgMatchesBar');
   const likedMeCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
-  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0));
+  const _blocked    = new Set(S.user.blockedUsers || []);  // M5: block filter
+  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0) && !_blocked.has(m.uid));
   if (matchesRow) {
     let rowHtml = '';
     if (likedMeCount > 0) {
@@ -5714,7 +5715,7 @@ function renderConversations() {
   }
 
   // ── Conversations with messages ──
-  const withMsgs = S.matches.filter(m => S.messages[m.matchId]?.length > 0);
+  const withMsgs = S.matches.filter(m => S.messages[m.matchId]?.length > 0 && !_blocked.has(m.uid));  // M5
   if (withMsgs.length === 0) {
     list.innerHTML = `<div class="empty-state" style="padding-top:1.5rem">
       <div class="empty-icon">💬</div>
@@ -5845,6 +5846,8 @@ async function sendInlineMsg() {
   const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
   if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
+  // M5: block guard
+  if ((S.user.blockedUsers||[]).includes(S.activeChatId)) { toast('You have blocked this user'); return; }
   const btn     = document.getElementById('inlineSendBtn');
   const matchId = S.activeMatchId;
   if (btn) btn.disabled = true;
@@ -6505,6 +6508,8 @@ function voiceDiscardPreview() {
 
 async function voiceSendPreview() {
   if (!_voiceBlob || !S.activeMatchId || !db) return;
+  // M5: block guard
+  if ((S.user.blockedUsers||[]).includes(S.activeChatId)) { toast('You have blocked this user'); voiceDiscardPreview(); return; }
   if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
   document.getElementById('voicePreviewSheet').classList.remove('open');
   _voiceChatInputsShow();
@@ -6550,6 +6555,8 @@ async function sendMsg() {
   const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
   if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
+  // M5: block guard — prevent sending to a user you've blocked
+  if ((S.user.blockedUsers||[]).includes(S.activeChatId)) { toast('You have blocked this user'); return; }
   const btn     = document.getElementById('chatSendBtn');
   const matchId = S.activeMatchId;
   if (btn) btn.disabled = true;
@@ -7270,7 +7277,9 @@ function voiceBio(textareaId, btnId) {
 const VOICE = {
   active: false, recognition: null,
   synth: window.speechSynthesis, speaking: false,
-  listening: false, helpVisible: false, voices: []
+  listening: false, helpVisible: false, voices: [],
+  lastActivityAt: 0,   // M7: timestamp of last recognition event
+  watchdog: null       // M7: interval that detects silent disconnection
 };
 
 if (VOICE.synth) {
@@ -7305,16 +7314,20 @@ function initRecognition() {
   rec.continuous = true; rec.interimResults = false;
   rec.lang = 'en-US'; rec.maxAlternatives = 3;
   rec.onresult = (e) => {
+    VOICE.lastActivityAt = Date.now();  // M7
+    _glassesShowConnected();            // M7: clear any disconnect banner
     const result     = e.results[e.results.length - 1];
     const transcript = result[0].transcript.trim().toLowerCase();
     processVoiceCommand(transcript);
   };
   rec.onerror = (e) => {
+    VOICE.lastActivityAt = Date.now();  // M7: even errors count as activity
     if (e.error === 'no-speech' || e.error === 'aborted') return;
     if (e.error === 'not-allowed') { toast('Microphone access denied'); toggleGlassesMode(false); return; }
     console.warn('Speech recognition error:', e.error);
   };
   rec.onend = () => {
+    VOICE.lastActivityAt = Date.now();  // M7
     if (VOICE.active) setTimeout(() => { if (VOICE.active) { try { rec.start(); } catch(err) {} } }, 200);
   };
   VOICE.recognition = rec;
@@ -7443,6 +7456,21 @@ function announceCardOnReveal() {
   setTimeout(() => speak(announceCurrentCard()), 350);
 }
 
+// M7: helpers to show/hide the glasses-disconnected banner
+function _glassesShowDisconnected() {
+  const bar = document.getElementById('voiceStatusBar');
+  const txt = document.getElementById('voiceStatusText');
+  const dot = document.getElementById('voiceStatusDot');
+  if (txt) txt.textContent = '🕶️ Glasses disconnected — reconnecting…';
+  if (dot) dot.className = 'v-dot';
+  if (bar) bar.style.background = 'rgba(180,30,30,0.85)';
+}
+function _glassesShowConnected() {
+  const bar = document.getElementById('voiceStatusBar');
+  if (bar) bar.style.background = '';
+  updateVoiceUI();
+}
+
 function toggleGlassesMode(force) {
   const newState = force !== undefined ? force : !VOICE.active;
   VOICE.active = newState;
@@ -7452,21 +7480,36 @@ function toggleGlassesMode(force) {
   const micBtn = document.getElementById('micTapBtn');
   if (newState) {
     if (!VOICE.recognition && !initRecognition()) { VOICE.active = false; return; }
+    VOICE.lastActivityAt = Date.now();  // M7: reset before starting
     try { VOICE.recognition.start(); VOICE.listening = true; } catch(e) {}
     btn?.classList.add('glasses-active');
     if (bar) bar.style.display = 'flex';
     appEl?.classList.add('glasses-mode');
     if (micBtn) micBtn.classList.add('visible');
     updateVoiceUI();
+    // M7: watchdog — detect when recognition silently dies
+    if (VOICE.watchdog) clearInterval(VOICE.watchdog);
+    VOICE.watchdog = setInterval(() => {
+      if (!VOICE.active) { clearInterval(VOICE.watchdog); VOICE.watchdog = null; return; }
+      if (Date.now() - VOICE.lastActivityAt > 10000) {
+        _glassesShowDisconnected();
+        // Attempt to restart recognition
+        try { VOICE.recognition?.stop(); } catch(e) {}
+        setTimeout(() => {
+          if (VOICE.active) { try { VOICE.recognition?.start(); } catch(e) {} }
+        }, 500);
+      }
+    }, 5000);
     const uid = currentCardId();
     speak(uid ? `Glasses mode on. ${announceCurrentCard()}` : 'Glasses mode activated. Go to Discover to start swiping. Say "help" for commands.', true);
     toast('🕶️ Glasses Mode ON');
   } else {
+    if (VOICE.watchdog) { clearInterval(VOICE.watchdog); VOICE.watchdog = null; }  // M7
     stopSpeaking();
     try { VOICE.recognition?.stop(); } catch(e) {}
     VOICE.listening = false;
     btn?.classList.remove('glasses-active');
-    if (bar) bar.style.display = 'none';
+    if (bar) { bar.style.display = 'none'; bar.style.background = ''; }  // M7: reset banner style
     appEl?.classList.remove('glasses-mode');
     if (micBtn) micBtn.classList.remove('visible');
     toast('🕶️ Glasses Mode OFF');
