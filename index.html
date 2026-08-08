@@ -271,10 +271,17 @@ html, body {
 .admin-action-btn.ban      { background: rgba(251,146,60,0.12);  color: #fb923c;  border: 1px solid rgba(251,146,60,0.25); }
 .admin-action-btn.ban.active { background: rgba(34,197,94,0.12); color: #22c55e; border-color: rgba(34,197,94,0.25); }
 .admin-action-btn.delete   { background: rgba(239,68,68,0.1);    color: #f87171;  border: 1px solid rgba(239,68,68,0.25); }
-.admin-msg-compose { display: flex; flex-direction: column; gap: 0.5rem; }
-.admin-msg-compose textarea { background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 0.65rem 0.85rem; color: var(--text); font-size: 0.88rem; resize: none; font-family: inherit; min-height: 80px; outline: none; }
-.admin-msg-compose textarea:focus { border-color: #f59e0b; }
-.admin-msg-send { background: linear-gradient(135deg,#f59e0b,#f97316); color: white; border: none; border-radius: 12px; padding: 0.7rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; touch-action: manipulation; }
+/* ---- ADMIN COMPOSE MODAL ---- */
+.admin-compose-modal { position: fixed; inset: 0; z-index: 9500; background: rgba(0,0,0,0.7); display: flex; align-items: flex-start; justify-content: center; padding-top: 18vh; opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+.admin-compose-modal.open { opacity: 1; pointer-events: all; }
+.admin-compose-card { background: var(--bg-card); border-radius: 20px; width: calc(100% - 2rem); max-width: 420px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+.admin-compose-title { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.admin-compose-name { font-size: 1rem; font-weight: 800; margin-top: -0.35rem; }
+.admin-compose-ta { width: 100%; box-sizing: border-box; background: var(--bg); border: 1.5px solid var(--border); border-radius: 14px; padding: 0.75rem 0.9rem; color: var(--text); font-size: 0.92rem; resize: none; font-family: inherit; min-height: 90px; outline: none; }
+.admin-compose-ta:focus { border-color: #f59e0b; }
+.admin-compose-btns { display: flex; gap: 0.6rem; }
+.admin-compose-cancel { flex: 1; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.18); color: var(--text); border-radius: 12px; padding: 0.7rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; touch-action: manipulation; }
+.admin-compose-send { flex: 2; background: linear-gradient(135deg,#f59e0b,#f97316); color: white; border: none; border-radius: 12px; padding: 0.7rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; touch-action: manipulation; }
 .admin-user-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
 .admin-info-item { background: var(--bg); border-radius: 10px; padding: 0.5rem 0.65rem; }
 .admin-info-key { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; }
@@ -1852,6 +1859,21 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <div class="tab-content" id="tab-admin">
       <div class="admin-panel" id="adminPanel">
         <div class="admin-loading">⭐ Loading admin data…</div>
+      </div>
+    </div>
+
+    <!-- ── ADMIN COMPOSE MODAL ── -->
+    <div class="admin-compose-modal" id="adminComposeModal" onclick="if(event.target===this)adminCloseCompose()">
+      <div class="admin-compose-card">
+        <div>
+          <div class="admin-compose-title">Send Message to</div>
+          <div class="admin-compose-name" id="adminComposeName"></div>
+        </div>
+        <textarea class="admin-compose-ta" id="adminComposeTa" placeholder="Type your message…" rows="4"></textarea>
+        <div class="admin-compose-btns">
+          <button class="admin-compose-cancel" style="touch-action:manipulation" onclick="adminCloseCompose()">Cancel</button>
+          <button class="admin-compose-send" style="touch-action:manipulation" onclick="adminSendMessage()">Send ✉️</button>
+        </div>
       </div>
     </div>
 
@@ -3853,20 +3875,14 @@ async function openAdminUser(uid) {
     <div>
       <div class="admin-detail-section-label">Actions</div>
       <div class="admin-action-grid">
-        <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
+        <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}','${(u.name||'User').replace(/'/g,&quot;\\\\&apos;&quot;)}')"><span class="aab-icon">💬</span>Send Message</button>
         <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}','${u.email||''}')"><span class="aab-icon">🔑</span>Reset Password</button>
         <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
         <button class="admin-action-btn delete" style="grid-column:span 2" onclick="adminDeleteAccount('${uid}','${u.name||'this user'}')"><span class="aab-icon">🗑</span>Delete Account</button>
       </div>
     </div>
-    <div id="adminMsgCompose-${uid}" style="display:none">
-      <div class="admin-detail-section-label">Send Message to ${u.name || 'User'}</div>
-      <div class="admin-msg-compose">
-        <textarea id="adminMsgText-${uid}" placeholder="Type your message…" rows="3"></textarea>
-        <button class="admin-msg-send" style="touch-action:manipulation" onclick="event.stopPropagation(); adminSendMessage('${uid}','${u.name||'User'}')">Send ✉️</button>
-      </div>
-    </div>
+    <!-- compose is now handled by the global adminComposeModal -->
   `;
 
   panel.classList.add('open');
@@ -3877,18 +3893,31 @@ function closeAdminDetail(e) {
   document.getElementById('adminDetailPanel')?.classList.remove('open');
 }
 
-function adminOpenMessage(uid) {
-  const div = document.getElementById('adminMsgCompose-' + uid);
-  if (!div) return;
-  const isHidden = div.style.display === 'none' || div.style.display === '';
-  div.style.display = isHidden ? 'block' : 'none';
-  if (div.style.display === 'block') {
-    setTimeout(() => document.getElementById('adminMsgText-' + uid)?.scrollIntoView({behavior:'smooth',block:'end'}), 100);
-  }
+let _adminComposeUid = null;
+let _adminComposeName = '';
+
+function adminOpenMessage(uid, name) {
+  _adminComposeUid = uid;
+  _adminComposeName = name || 'User';
+  const modal = document.getElementById('adminComposeModal');
+  const nameEl = document.getElementById('adminComposeName');
+  const ta = document.getElementById('adminComposeTa');
+  if (!modal || !ta) return;
+  if (nameEl) nameEl.textContent = _adminComposeName;
+  ta.value = '';
+  modal.classList.add('open');
+  setTimeout(() => ta.focus(), 120);
 }
 
-async function adminSendMessage(uid, name) {
-  const ta = document.getElementById('adminMsgText-' + uid);
+function adminCloseCompose() {
+  document.getElementById('adminComposeModal')?.classList.remove('open');
+  _adminComposeUid = null;
+}
+
+async function adminSendMessage() {
+  const uid = _adminComposeUid;
+  const name = _adminComposeName;
+  const ta = document.getElementById('adminComposeTa');
   const text = ta?.value?.trim();
   if (!text) { toast('Please type a message first'); return; }
   if (!db || !S.user?.id) return;
@@ -3912,7 +3941,7 @@ async function adminSendMessage(uid, name) {
     });
     ta.value = '';
     toast(`✉️ Message sent to ${name}`);
-    document.getElementById('adminMsgCompose-' + uid).style.display = 'none';
+    adminCloseCompose();
   } catch (e) {
     toast('⚠️ Send failed: ' + e.message);
   }
