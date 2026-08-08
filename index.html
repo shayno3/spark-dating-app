@@ -5185,9 +5185,11 @@ async function renderNearby() {
     return;
   }
 
-  cityLine.textContent = hasGPS
-    ? `📍 ${S.location.city || 'Your area'} · Within ${S.radius} km`
-    : `📍 ${myCity}${myState ? ', ' + myState : ''}`;
+  cityLine.textContent = myCity
+    ? `📍 ${myCity}${myState ? ', ' + myState : ''}`
+    : hasGPS
+      ? `📍 ${S.location.city || 'Your area'} · Within ${S.radius} km`
+      : '📍 No location set';
   countLine.textContent = '';
   grid.innerHTML = `<div class="nearby-loading">🔍 Finding people nearby…</div>`;
 
@@ -5218,14 +5220,17 @@ async function renderNearby() {
           const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
           if (u.gender !== wantGender) return false;
         }
-        // GPS-based: filter by radius distance
-        if (hasGPS && u.lat) {
-          return haversine(S.location.lat, S.location.lng, u.lat, u.lng) <= S.radius;
-        }
-        // Fallback: city match
+        // Primary filter: same city + state
         const uc = (u.city  || '').toLowerCase().trim();
         const us = (u.state || '').toLowerCase().trim();
-        return uc === myLower && (!stLower || us === stLower);
+        if (myLower && uc === myLower) {
+          return !stLower || us === stLower;
+        }
+        // Fallback: GPS radius when user has no city set
+        if (!myLower && hasGPS && u.lat) {
+          return haversine(S.location.lat, S.location.lng, u.lat, u.lng) <= S.radius;
+        }
+        return false;
       })
       .map(d => {
         const u = { id: d.id, ...d.data() };
@@ -5238,9 +5243,7 @@ async function renderNearby() {
       });
 
     countLine.textContent = nearby.length === 0 ? '' :
-      hasGPS
-        ? `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} within ${S.radius} km`
-        : `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} in your city`;
+      `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} in ${myCity || 'your area'}`;
 
     grid.innerHTML = '';
 
@@ -5883,15 +5886,21 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
         const usedMime = _voiceRec.mimeType || mimeType || 'audio/webm';
         const ext = usedMime.includes('mp4') || usedMime.includes('m4a') ? 'm4a' : 'webm';
         const blob = new Blob(_voiceChunks, { type: usedMime });
+        const toBase64 = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
         let audioUrl;
         if (storage) {
-          const ref = storage.ref(`voice/${S.user.id}/${Date.now()}.${ext}`);
-          await ref.put(blob, { contentType: usedMime });
-          audioUrl = await ref.getDownloadURL();
+          try {
+            const ref = storage.ref(`voice/${S.user.id}/${Date.now()}.${ext}`);
+            await ref.put(blob, { contentType: usedMime });
+            audioUrl = await ref.getDownloadURL();
+          } catch(storageErr) {
+            console.warn('Storage upload failed, using base64 fallback:', storageErr);
+            if (blob.size > 700000) { toast('Voice note too long — please keep it under 30 s'); btn.disabled = false; return; }
+            audioUrl = await toBase64(blob);
+          }
         } else {
-          audioUrl = await new Promise(res => {
-            const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob);
-          });
+          if (blob.size > 700000) { toast('Voice note too long — please keep it under 30 s'); btn.disabled = false; return; }
+          audioUrl = await toBase64(blob);
         }
         await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
           from: S.user.id,
