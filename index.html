@@ -337,6 +337,14 @@ html, body {
 /* ---- DISCOVER GRID ---- */
 .card-stack.grid-mode { height: auto; max-width: none; position: static; }
 .discover-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; padding: 0.5rem 0 1rem; width: 100%; }
+/* Discover list-mode */
+.discover-grid.list-mode { display: flex; flex-direction: column; gap: 0; padding: 0 0 1rem; }
+.discover-grid.list-mode .disc-card { display: flex; flex-direction: row; align-items: center; gap: 0.75rem; border-radius: 0; border-bottom: 1px solid var(--border); padding: 0.6rem 1rem; }
+.discover-grid.list-mode .disc-card:first-child { border-top: 1px solid var(--border); }
+.discover-grid.list-mode .disc-card-img { width: 58px; height: 58px; aspect-ratio: 1; border-radius: 10px; object-fit: cover; object-position: top; }
+.discover-grid.list-mode .disc-card-body { flex: 1; padding: 0; }
+.discover-grid.list-mode .disc-card-name { font-size: 0.95rem; }
+.discover-grid.list-mode .disc-boosted-badge { position: static; display: inline-block; margin-left: 6px; font-size: 0.6rem; }
 .disc-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.18s; position: relative; }
 .disc-card:active { transform: scale(0.97); }
 .disc-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; object-position: top; display: block; }
@@ -393,11 +401,25 @@ html, body {
 /* "New" chip liked-count badge */
 .new-chip-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: #fff; font-size: 0.6rem; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px; margin-left: 3px; vertical-align: middle; line-height: 1; }
 
+/* ---- VIEW TOGGLE BUTTON ---- */
+.view-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1rem 0; flex-shrink: 0; }
+.view-toggle-title { font-size: 1.25rem; font-weight: 900; letter-spacing: -0.3px; }
+.view-toggle-btn { background: var(--bg-card); border: 1.5px solid rgba(255,255,255,0.12); border-radius: 10px; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.18s; flex-shrink: 0; }
+.view-toggle-btn:hover, .view-toggle-btn.active { background: rgba(108,99,255,0.18); border-color: var(--primary); color: var(--primary); }
+
 /* ---- MATCHES TAB ---- */
 .tab-scroll { overflow: visible; padding: 0.75rem 1rem 1rem; }
 .tab-title { font-size: 1.25rem; font-weight: 900; padding: 0.9rem 1rem 0; letter-spacing: -0.3px; flex-shrink: 0; }
 .tab-sub { font-size: 0.82rem; color: var(--text-muted); padding: 0.2rem 1rem 0.5rem; flex-shrink: 0; }
 .matches-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; }
+
+/* Matches list-mode */
+.matches-list .match-card { display: flex; flex-direction: row; align-items: center; border-radius: 14px; background: var(--bg-card); gap: 0.75rem; padding: 0.6rem; }
+.matches-list .match-card-img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+.matches-list .match-card-body { flex: 1; }
+.matches-list .match-card-name { font-size: 0.95rem; }
+.matches-list .match-card-loc { font-size: 0.78rem; }
+.matches-list .match-card-online-dot { position: static; width: 8px; height: 8px; margin-left: 4px; display: inline-block; border: none; }
 .liked-me-section { padding: 0 1rem 0.5rem; }
 .liked-me-title { font-size: 0.85rem; font-weight: 800; color: var(--primary); margin-bottom: 0.6rem; letter-spacing: 0.02em; }
 .liked-me-row { display: flex; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.5rem; scrollbar-width: none; }
@@ -457,7 +479,8 @@ html, body {
 .skeleton-line.short { width: 60%; }
 
 /* ---- NEARBY TAB ---- */
-.nearby-header { padding: 1rem 1rem 0.5rem; }
+.nearby-header { padding: 0.75rem 1rem 0.25rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.nearby-header-text { flex: 1; min-width: 0; }
 .nearby-city-line { font-size: 1rem; font-weight: 800; color: var(--primary); }
 .nearby-count { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
 .nearby-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; padding: 0.5rem 1rem 1rem; }
@@ -475,6 +498,27 @@ html, body {
 .nearby-empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
 .nearby-empty-title { font-weight: 800; font-size: 1.1rem; color: var(--text); margin-bottom: 0.4rem; }
 .nearby-loading { grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted); }
+
+/* Explore list-mode overrides */
+.nearby-grid.list-mode { display: flex; flex-direction: column; gap: 0; padding: 0 0 1rem; }
+.nearby-grid.list-mode .nearby-card { display: flex; flex-direction: row; align-items: center; gap: 0.75rem; border-radius: 0; border-bottom: 1px solid var(--border); padding: 0.6rem 1rem; }
+.nearby-grid.list-mode .nearby-card:first-child { border-top: 1px solid var(--border); }
+.nearby-grid.list-mode .nearby-card-img { width: 58px; height: 58px; aspect-ratio: 1; border-radius: 10px; object-fit: cover; }
+.nearby-grid.list-mode .nearby-card-body { flex: 1; padding: 0; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.nearby-grid.list-mode .nearby-card-name { font-size: 0.95rem; flex: 1; }
+.nearby-grid.list-mode .nearby-like-btn { width: auto; margin-top: 0; padding: 0.3rem 0.9rem; font-size: 0.78rem; border-radius: 20px; flex-shrink: 0; }
+.nearby-grid.list-mode .nearby-matched-badge { position: static; font-size: 0.68rem; padding: 2px 7px; }
+
+/* Messages grid-mode */
+.conv-list.grid-mode { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.875rem; padding: 0.5rem 1rem 1rem; }
+.conv-list.grid-mode .conv-item { flex-direction: column; align-items: center; text-align: center; border-bottom: none; border-radius: 16px; background: var(--bg-card); gap: 0.4rem; padding: 0.75rem 0.5rem; }
+.conv-list.grid-mode .conv-av { width: 72px; height: 72px; }
+.conv-list.grid-mode .conv-info { width: 100%; }
+.conv-list.grid-mode .conv-name { font-size: 0.88rem; }
+.conv-list.grid-mode .conv-preview { font-size: 0.74rem; }
+.conv-list.grid-mode .conv-meta { display: none; }
+.conv-list.grid-mode .conv-online-dot { bottom: -2px; right: -2px; }
+.conv-list.grid-mode .empty-state { grid-column: 1 / -1; }
 
 /* ---- MESSAGES TAB ---- */
 .msg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem 0.35rem; }
@@ -1495,7 +1539,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 .vk-key.vk-space { max-width: 180px; font-size: 0.75rem; letter-spacing: 0.04em; }
 .vk-key.vk-action { background: rgba(233,30,140,0.18); border-color: rgba(233,30,140,0.35); color: var(--primary); }
 
-/* Toggle button — fixed, bottom-left, above nav */
+/* Toggle button — fixed, bottom-left, above nav.
+   Hidden by default; shown only when a chat panel is open
+   (via .vk-btn-visible set by openChat / closeChat). */
 #vkToggleBtn {
   position: fixed;
   bottom: 100px;
@@ -1508,12 +1554,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   color: var(--text-muted);
   font-size: 1.2rem;
   cursor: pointer;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 500;
   transition: all 0.2s;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+#vkToggleBtn.vk-btn-visible {
+  display: flex;
 }
 #vkToggleBtn.vk-on {
   background: rgba(108,99,255,0.85);
@@ -1858,6 +1907,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <!-- ── DISCOVER TAB ── -->
     <div class="tab-content active" id="tab-discover">
       <div class="discover-wrap">
+        <div class="view-toggle-row" style="padding-top:0.6rem;padding-bottom:0.4rem">
+          <div class="view-toggle-title">Discover ✨</div>
+          <button id="viewToggle_discover" class="view-toggle-btn" title="Toggle grid / list view"
+            onclick="setViewMode('discover', S.viewMode.discover==='grid'?'list':'grid')">☰</button>
+        </div>
         <div class="filter-bar">
           <button id="chipAll"    class="filter-chip active" onclick="setFilter('all',this)">All 🌎</button>
           <button id="chipNearby" class="filter-chip" onclick="setFilter('nearby',this)">Nearby 📍</button>
@@ -1913,7 +1967,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
     <!-- ── MATCHES TAB ── -->
     <div class="tab-content" id="tab-matches">
-      <div class="tab-title">Matches 💕</div>
+      <div class="view-toggle-row">
+        <div class="view-toggle-title">Matches 💕</div>
+        <button id="viewToggle_matches" class="view-toggle-btn" title="Toggle grid / list view"
+          onclick="setViewMode('matches', S.viewMode.matches==='grid'?'list':'grid')">☰</button>
+      </div>
       <div class="tab-sub">People who liked you back</div>
       <div id="likedMeSection" class="liked-me-section" style="display:none">
         <div class="liked-me-title">❤️ <span id="likedMeCount">0</span> people liked you</div>
@@ -1926,6 +1984,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
     <!-- ── MESSAGES TAB ── -->
     <div class="tab-content" id="tab-messages">
+      <div class="view-toggle-row" style="padding-bottom:0.4rem">
+        <div class="view-toggle-title">Messages 💬</div>
+        <button id="viewToggle_messages" class="view-toggle-btn" title="Toggle list / grid view"
+          onclick="setViewMode('messages', S.viewMode.messages==='list'?'grid':'list')">⊞</button>
+      </div>
       <div class="msg-section-bar" id="msgMatchesBar" style="display:none">
         <span class="msg-section-label">New Matches</span>
       </div>
@@ -1944,8 +2007,12 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <!-- ── EXPLORE TAB ── -->
     <div class="tab-content" id="tab-explore">
       <div class="nearby-header">
-        <div class="nearby-city-line" id="nearbyCityLine">📍 Loading…</div>
-        <div class="nearby-count" id="nearbyCount"></div>
+        <div class="nearby-header-text">
+          <div class="nearby-city-line" id="nearbyCityLine">📍 Loading…</div>
+          <div class="nearby-count" id="nearbyCount"></div>
+        </div>
+        <button id="viewToggle_explore" class="view-toggle-btn" title="Toggle grid / list view"
+          onclick="setViewMode('explore', S.viewMode.explore==='grid'?'list':'grid')">☰</button>
       </div>
       <div class="nearby-grid" id="nearbyGrid"></div>
     </div>
@@ -2505,7 +2572,13 @@ const S = {
   chatMode:     'panel',   // 'panel' = full-screen chatPanel, 'inline' = inline chat sheet
   profilesCursor:      null,  // H2: last Firestore doc for profile pagination
   profilesLoadingMore: false, // H2: prevents duplicate page fetches
-  _matchesInitialized: false  // true after first matches snapshot — prevents overlay on initial load
+  _matchesInitialized: false, // true after first matches snapshot — prevents overlay on initial load
+  viewMode: (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('spark_viewMode') || '{}');
+      return { discover: 'grid', matches: 'grid', messages: 'list', explore: 'grid', ...saved };
+    } catch { return { discover: 'grid', matches: 'grid', messages: 'list', explore: 'grid' }; }
+  })()
 };
 
 /* ================================================================
@@ -4181,6 +4254,7 @@ async function adminResetPin(uid) {
 
 async function enterMainApp() {
   showView('main');
+  initViewToggleIcons(); // sync toggle button icons with saved view preferences
   showTab('discover');
   // Load profiles in background — app shows immediately rather than waiting for
   // Firestore to return all user docs (glasses are especially sensitive to this delay)
@@ -4464,6 +4538,35 @@ function buildDiscCard(user) {
   return card;
 }
 
+/* ================================================================
+   VIEW MODE — grid / list toggle for Discover, Matches, Messages, Explore
+================================================================ */
+function setViewMode(tab, mode) {
+  S.viewMode[tab] = mode;
+  try { localStorage.setItem('spark_viewMode', JSON.stringify(S.viewMode)); } catch(e) {}
+  // Update toggle button icon: shows the icon you'd switch TO
+  _updateViewToggleIcon(tab, mode);
+  // Re-render the affected tab
+  if (tab === 'discover')  renderDiscover();
+  if (tab === 'matches')   renderMatches();
+  if (tab === 'messages')  renderConversations();
+  if (tab === 'explore')   renderNearby();
+}
+
+function _updateViewToggleIcon(tab, mode) {
+  const btn = document.getElementById(`viewToggle_${tab}`);
+  if (!btn) return;
+  // Icon shows what you'll switch TO: in grid → show list icon (☰); in list → show grid icon (⊞)
+  btn.textContent = mode === 'grid' ? '☰' : '⊞';
+  btn.title = mode === 'grid' ? 'Switch to list view' : 'Switch to grid view';
+}
+
+function initViewToggleIcons() {
+  ['discover', 'matches', 'messages', 'explore'].forEach(tab => {
+    _updateViewToggleIcon(tab, S.viewMode[tab]);
+  });
+}
+
 function renderDiscover() {
   const stack     = document.getElementById('cardStack');
   const actionRow = document.getElementById('actionRow');
@@ -4493,13 +4596,14 @@ function renderDiscover() {
     return;
   }
 
-  // Grid mode — hide swipe action row and hint
+  // Grid/list mode — hide swipe action row and hint
   if (actionRow) actionRow.style.display = 'none';
   if (hint)      hint.style.display = 'none';
 
   stack.classList.add('grid-mode');
   const grid = document.createElement('div');
-  grid.className = 'discover-grid';
+  const isListMode = S.viewMode.discover === 'list';
+  grid.className = 'discover-grid' + (isListMode ? ' list-mode' : '');
   prospects.forEach(user => grid.appendChild(buildDiscCard(user)));
   stack.appendChild(grid);
 }
@@ -5132,8 +5236,11 @@ function renderMatches() {
     return;
   }
 
+  const isListMode = S.viewMode.matches === 'list';
+  grid.className = isListMode ? 'matches-list' : 'matches-grid';
+
   if (S.matches.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+    grid.innerHTML = `<div class="empty-state"${isListMode ? '' : ' style="grid-column:1/-1"'}>
       <div class="empty-icon">💕</div>
       <div class="empty-title">No matches yet</div>
       <div class="empty-desc">Start swiping to find your match!</div>
@@ -5149,7 +5256,7 @@ function renderMatches() {
     card.tabIndex = 0;
     card.innerHTML = `
       <img class="match-card-img" src="${photo}" alt="${escHtml(m.name)}" onerror="this.src='${avatar(m.name||'?')}'">
-      ${m.online ? '<div class="match-card-online-dot"></div>' : ''}
+      ${m.online && !isListMode ? '<div class="match-card-online-dot"></div>' : ''}
       <div class="match-card-body">
         <div class="match-card-name">${escHtml(m.name)}${m.online ? ' <span class="online-dot"></span>' : ''}</div>
         <div class="match-card-loc">📍 ${escHtml(m.city || '')}, ${escHtml(m.state || '')}</div>
@@ -5540,6 +5647,7 @@ async function renderNearby() {
     countLine.textContent = nearby.length === 0 ? '' :
       `${nearby.length} ${nearby.length === 1 ? 'person' : 'people'} in ${myCity || 'your area'}`;
 
+    grid.className = 'nearby-grid' + (S.viewMode.explore === 'list' ? ' list-mode' : '');
     grid.innerHTML = '';
 
     if (nearby.length === 0) {
@@ -5753,9 +5861,11 @@ function renderConversations() {
   }
 
   // ── Conversations with messages ──
+  const isGridMode = S.viewMode.messages === 'grid';
+  list.className = 'conv-list' + (isGridMode ? ' grid-mode' : '');
   const withMsgs = S.matches.filter(m => S.messages[m.matchId]?.length > 0 && !_blocked.has(m.uid));  // M5
   if (withMsgs.length === 0) {
-    list.innerHTML = `<div class="empty-state" style="padding-top:1.5rem">
+    list.innerHTML = `<div class="empty-state" style="padding-top:1.5rem${isGridMode ? ';grid-column:1/-1' : ''}">
       <div class="empty-icon">💬</div>
       <div class="empty-title">No messages yet</div>
       <div class="empty-desc">Tap a match above to say hello!</div>
@@ -5833,6 +5943,7 @@ function openChat(uid) {
   }
 
   document.getElementById('chatPanel').classList.add('open');
+  document.getElementById('vkToggleBtn')?.classList.add('vk-btn-visible');
   _navRefresh();
   subscribeToMessages(match.matchId, uid);
   markChatRead(match.matchId);
@@ -5841,6 +5952,8 @@ function openChat(uid) {
 
 function closeChat() {
   document.getElementById('chatPanel').classList.remove('open');
+  document.getElementById('vkToggleBtn')?.classList.remove('vk-btn-visible');
+  closeVK();
   _navRefresh();
   if (S.listeners.messages)  { S.listeners.messages();  S.listeners.messages  = null; }
   if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
@@ -5864,6 +5977,7 @@ function openInlineChat(uid) {
   avEl.onerror = function(){ this.src = avatar(match.name||'?'); };
   document.getElementById('inlineChatName').textContent = match.name || '';
   document.getElementById('inlineChatSheet').classList.add('open');
+  document.getElementById('vkToggleBtn')?.classList.add('vk-btn-visible');
 
   subscribeToMessages(match.matchId, uid);
   markChatRead(match.matchId);
@@ -5872,6 +5986,8 @@ function openInlineChat(uid) {
 
 function closeInlineChat() {
   document.getElementById('inlineChatSheet').classList.remove('open');
+  document.getElementById('vkToggleBtn')?.classList.remove('vk-btn-visible');
+  closeVK();
   if (S.listeners.messages)  { S.listeners.messages();  S.listeners.messages  = null; }
   if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
   S.activeChatId  = null;
@@ -8133,18 +8249,22 @@ function _vkGetTarget() {
   return el || null;
 }
 
-// Auto-open VK when any input/textarea is focused
+// Auto-open VK when a vk-input element is focused.
+// Only elements explicitly marked with class "vk-input" trigger auto-open —
+// this prevents plain textareas (admin compose, etc.) and hidden modals
+// from popping the keyboard when _navFocus() programmatically focuses them.
 document.addEventListener('focusin', e => {
-  if (e.target.matches('input:not([type=file]):not([type=checkbox]):not([type=range]), textarea')) {
-    if (e.target.hasAttribute('readonly')) return; // VK-inputs open via onclick only; skip on scroll focus
-    VK.target = e.target;
-    if (!VK.open) openVK(e.target);
-    else _vkScrollTargetIntoView(); // keyboard stays open — just bring the new field into view
-    // Show/hide email row based on field type
-    const isEmail = e.target.type === 'email' || e.target.id === 'smsPhone';
-    const emailRow = document.getElementById('vkEmailRow');
-    if (emailRow) emailRow.style.display = isEmail ? '' : 'none';
-  }
+  const el = e.target;
+  if (!el.matches('input:not([type=file]):not([type=checkbox]):not([type=range]), textarea')) return;
+  if (el.hasAttribute('readonly')) return;
+  if (!el.classList.contains('vk-input')) return; // only explicit vk-input fields auto-open VK
+  VK.target = el;
+  if (!VK.open) openVK(el);
+  else _vkScrollTargetIntoView(); // keyboard stays open — just bring the new field into view
+  // Show/hide email row based on field type
+  const isEmail = el.type === 'email' || el.id === 'smsPhone';
+  const emailRow = document.getElementById('vkEmailRow');
+  if (emailRow) emailRow.style.display = isEmail ? '' : 'none';
 }, true);
 
 // Prevent VK panel from stealing focus away from the target input
