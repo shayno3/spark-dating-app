@@ -5883,13 +5883,15 @@ function subscribeToMessages(matchId, uid) {
     .orderBy('ts')
     .onSnapshot(snap => {
       S.messages[matchId] = snap.docs.map(d => ({
-        id:       d.id,
-        from:     d.data().from,
-        text:     d.data().text,
-        type:     d.data().type,
-        audioUrl: d.data().audioUrl,
-        duration: d.data().duration,
-        time:     d.data().ts?.toDate() || new Date()
+        id:         d.id,
+        from:       d.data().from,
+        text:       d.data().text,
+        type:       d.data().type,
+        audioUrl:   d.data().audioUrl,
+        duration:   d.data().duration,
+        waveform:   d.data().waveform   || null,   // M2: real waveform data
+        listenedAt: d.data()['listenedAt_' + uid] || null,  // M4: heard receipt
+        time:       d.data().ts?.toDate() || new Date()
       }));
       if (S.activeChatId === uid) {
         const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
@@ -6024,6 +6026,12 @@ function renderChatMessages(containerId = 'chatMessages') {
     if (msgs[i].from === myUid) { lastSentIdx = i; break; }
   }
 
+  // M4: also find the last sent VOICE NOTE (for "Heard" receipt)
+  let lastSentVoiceIdx = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].from === myUid && msgs[i].type === 'voiceNote') { lastSentVoiceIdx = i; break; }
+  }
+
   // Check if the other person has read past my last sent message
   const theirReadAt = S.matchReadAt[matchId] || null;
   const lastSentMsg = lastSentIdx >= 0 ? msgs[lastSentIdx] : null;
@@ -6033,13 +6041,16 @@ function renderChatMessages(containerId = 'chatMessages') {
   container.innerHTML = msgs.map((msg, i) => {
     const isSent = msg.from === myUid;
     let seenHtml = '';
-    if (i === lastSentIdx && lastSentMsg) {
+    if (i === lastSentVoiceIdx && msg.listenedAt) {
+      // M4: voice note heard receipt (available to all users)
+      seenHtml = '<div class="msg-seen">Heard 🎙</div>';
+    } else if (i === lastSentIdx && lastSentMsg) {
       if (S.isPremium && theySaw) {
         seenHtml = '<div class="msg-seen">Seen ✓</div>';
       }
     }
     const msgContent = msg.type === 'voiceNote' && msg.audioUrl
-      ? renderVoicePlayer(msg.audioUrl, msg.duration)
+      ? renderVoicePlayer(msg.audioUrl, msg.duration, msg.waveform, msg.id, msg.from)  // M2+M4
       : escHtml(msg.text || '');
     // Date separator
     const msgDate = msg.time ? new Date(msg.time) : null;
@@ -6285,16 +6296,33 @@ function chatToggleVKPill(inputId, btn) {
 
 /* ── Voice Note Recording (redesigned: recording overlay + preview before send) ── */
 const VP_BARS = [28,52,75,48,88,38,65,32,80,58,42,72,55,90,38,68,33,82,50,72,38,77,55,85];
+
+// M2: real waveform captured via AnalyserNode during recording
+let _voiceWaveData = [], _voiceAudioCtx = null, _voiceWaveInt = null;
+
+// Build 24 waveform bar divs from an amplitude array (or fall back to VP_BARS).
+function _buildWaveBars(data) {
+  var src   = (data && data.length >= 4) ? data : VP_BARS;
+  var count = 24, n = src.length, out = [];
+  for (var i = 0; i < count; i++) {
+    var idx = Math.round(i * (n - 1) / Math.max(count - 1, 1));
+    out.push(src[Math.min(idx, n - 1)]);
+  }
+  return out.map(function(h) { return '<div class="vp-bar" style="height:' + h + '%"></div>'; }).join('');
+}
+
 let _voiceRec = null, _voiceChunks = [], _voiceTimerInt = null, _voiceSecs = 0;
 let _voiceBlob = null, _voicePreviewAudio = null, _voiceRecBtn = null;
 
-function renderVoicePlayer(audioUrl, durationSecs) {
+function renderVoicePlayer(audioUrl, durationSecs, waveData, msgId, fromUid) {
   const dur = durationSecs || 0;
   const mm = Math.floor(dur / 60);
   const ss = String(dur % 60).padStart(2, '0');
   const durLabel = dur ? mm + ':' + ss : '';
-  const bars = VP_BARS.map(function(h) { return '<div class="vp-bar" style="height:' + h + '%"></div>'; }).join('');
-  return '<div class="msg-voice-player" data-src="' + escHtml(audioUrl) + '" data-dur="' + dur + '">' +
+  const bars = _buildWaveBars(waveData);  // M2: real waveform, falls back to VP_BARS
+  const midAttr = msgId  ? ' data-msgid="' + escHtml(msgId)  + '"' : '';
+  const fromAttr = fromUid ? ' data-from="' + escHtml(fromUid) + '"' : '';
+  return '<div class="msg-voice-player" data-src="' + escHtml(audioUrl) + '" data-dur="' + dur + '"' + midAttr + fromAttr + '>' +
     '<button class="vp-play-btn" onclick="voicePlayerToggle(this.parentElement)" style="touch-action:manipulation">▶</button>' +
     '<div class="vp-waveform">' + bars + '</div>' +
     '<span class="vp-duration">' + durLabel + '</span>' +
@@ -6328,6 +6356,15 @@ function voicePlayerToggle(playerEl) {
         const d2 = parseFloat(playerEl.dataset.dur) || 0;
         durEl.textContent = d2 ? Math.floor(d2 / 60) + ':' + String(d2 % 60).padStart(2, '0') : '';
       }
+      // M4: write listenedAt when finishing a RECEIVED voice note
+      const fromUid = playerEl.dataset.from;
+      const msgId   = playerEl.dataset.msgid;
+      const myUid2  = S.user?.id;
+      if (db && fromUid && msgId && myUid2 && fromUid !== myUid2 && S.activeMatchId) {
+        db.collection('messages').doc(S.activeMatchId).collection('msgs').doc(msgId)
+          .update({ ['listenedAt_' + myUid2]: firebase.firestore.FieldValue.serverTimestamp() })
+          .catch(function() {});
+      }
     });
   }
   const audio = playerEl._audio;
@@ -6354,7 +6391,25 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
   _voiceRecBtn = btn;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    _voiceChunks = []; _voiceSecs = 0;
+    _voiceChunks = []; _voiceSecs = 0; _voiceWaveData = [];
+
+    // M2: capture real amplitude via AnalyserNode (gracefully skip if unavailable)
+    _voiceAudioCtx = null; _voiceWaveInt = null;
+    try {
+      _voiceAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const _analyser = _voiceAudioCtx.createAnalyser();
+      _analyser.fftSize = 256;
+      _voiceAudioCtx.createMediaStreamSource(stream).connect(_analyser);
+      const _waveArr = new Uint8Array(_analyser.frequencyBinCount);
+      _voiceWaveInt = setInterval(function() {
+        _analyser.getByteTimeDomainData(_waveArr);
+        let sum = 0;
+        for (let i = 0; i < _waveArr.length; i++) { const v = _waveArr[i] - 128; sum += v * v; }
+        const rms = Math.sqrt(sum / _waveArr.length);
+        _voiceWaveData.push(Math.max(10, Math.min(90, Math.round(rms * 2.2 + 12))));
+      }, 200);
+    } catch(e) { /* AudioContext unavailable — waveform stays decorative */ }
+
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
                    : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4' : '';
     _voiceRec = new MediaRecorder(stream, mimeType ? { mimeType } : {});
@@ -6362,6 +6417,8 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
     _voiceRec.onstop = function() {
       stream.getTracks().forEach(function(t) { t.stop(); });
       clearInterval(_voiceTimerInt);
+      clearInterval(_voiceWaveInt); _voiceWaveInt = null;
+      if (_voiceAudioCtx) { _voiceAudioCtx.close().catch(function(){}); _voiceAudioCtx = null; }
       if (_voiceRecBtn) { _voiceRecBtn.classList.remove('recording'); _voiceRecBtn.textContent = '🎙'; }
       if (_voiceNotePill) { _voiceNotePill.classList.remove('pill-active'); _voiceNotePill = null; }
       const usedMime = _voiceRec.mimeType || mimeType || 'audio/webm';
@@ -6383,7 +6440,8 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
       const label = mm + ':' + ss;
       if (timerEl) timerEl.textContent = label;
       if (_voiceRecBtn) _voiceRecBtn.textContent = label;
-      if (_voiceSecs >= 120) voiceStopRecording();
+      if (_voiceSecs === 50) toast('⏱ 10 seconds remaining');
+      if (_voiceSecs >= 60) voiceStopRecording();
     }, 1000);
   } catch(e) { toast('Microphone access denied'); }
 }
@@ -6408,7 +6466,7 @@ function voiceShowPreview() {
   const waveEl = document.getElementById('voicePreviewWave');
   const playBtn = document.getElementById('voicePreviewPlayBtn');
   if (durEl) durEl.textContent = durLabel;
-  if (waveEl) waveEl.innerHTML = VP_BARS.map(function(h) { return '<div class="vp-bar" style="height:' + h + '%"></div>'; }).join('');
+  if (waveEl) waveEl.innerHTML = _buildWaveBars(_voiceWaveData);  // M2: real waveform
   if (playBtn) playBtn.textContent = '▶';
   if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
   const objUrl = URL.createObjectURL(_voiceBlob);
@@ -6478,6 +6536,7 @@ async function voiceSendPreview() {
       type: 'voiceNote',
       audioUrl: audioUrl,
       duration: dur,
+      waveform: _voiceWaveData.slice(),  // M2: real amplitude data
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {

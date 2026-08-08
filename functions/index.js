@@ -328,6 +328,7 @@ exports.onNewMessage = onDocumentCreated('messages/{matchId}/msgs/{msgId}', asyn
 
   const senderUid = data.from;
   const text      = data.text || '';
+  const type      = data.type || '';
   const matchId   = event.params.matchId;
 
   // Look up the match to find the recipient.
@@ -342,12 +343,15 @@ exports.onNewMessage = onDocumentCreated('messages/{matchId}/msgs/{msgId}', asyn
   const senderSnap = await db.collection('users').doc(senderUid).get();
   const senderName = senderSnap.data()?.name || 'Your match';
 
-  const preview = text.length > 60 ? text.slice(0, 57) + '…' : text;
+  // M3: correct preview for voice notes
+  const preview = type === 'voiceNote'
+    ? '🎙 Voice note'
+    : text.length > 60 ? text.slice(0, 57) + '…' : text;
 
   await sendAndPrune(recipient, {
     notification: {
       title: `💬 ${senderName}`,
-      body:  preview || '(photo)',
+      body:  preview || '🎙 Voice note',
     },
     data: { type: 'message', matchId, url: '/' },
     webpush: {
