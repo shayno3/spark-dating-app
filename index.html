@@ -5790,10 +5790,13 @@ function subscribeToMessages(matchId, uid) {
     .orderBy('ts')
     .onSnapshot(snap => {
       S.messages[matchId] = snap.docs.map(d => ({
-        id:   d.id,
-        from: d.data().from,
-        text: d.data().text,
-        time: d.data().ts?.toDate() || new Date()
+        id:       d.id,
+        from:     d.data().from,
+        text:     d.data().text,
+        type:     d.data().type,
+        audioUrl: d.data().audioUrl,
+        duration: d.data().duration,
+        time:     d.data().ts?.toDate() || new Date()
       }));
       if (S.activeChatId === uid) {
         const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
@@ -5803,7 +5806,8 @@ function subscribeToMessages(matchId, uid) {
       } else {
         S.unread[uid] = true;
         updateBadges();
-        if (tab === 'tab-messages') renderConversations();
+        const activeTab = document.querySelector('.tab-content.active')?.id;
+        if (activeTab === 'tab-messages') renderConversations();
       }
     }, e => console.warn('messages listener:', e));
 }
