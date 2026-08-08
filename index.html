@@ -2474,6 +2474,7 @@ const S = {
   newMatchMsgs: new Set(),  // UIDs matched since last Messages tab visit — drives Messages badge
   messages:     {},         // matchId → [{id, from, text, time}]
   unread:       {},         // uid → bool
+  pendingMsgs:  [],         // H1: [{matchId, text, attempts, nextRetry}] — unsent message queue
   pendingMatchId: null,
   activeChatId:  null,      // UID of person being chatted with
   activeMatchId: null,      // Firestore match doc ID
@@ -2493,7 +2494,9 @@ const S = {
   matchReadAt:  {},         // matchId → Date — when the other person last read this chat
   listeners:    {},         // Firestore unsubscribe fns
   chatMode:     'panel',   // 'panel' = full-screen chatPanel, 'inline' = inline chat sheet
-  _matchesInitialized: false // true after first matches snapshot — prevents overlay on initial load
+  profilesCursor:      null,  // H2: last Firestore doc for profile pagination
+  profilesLoadingMore: false, // H2: prevents duplicate page fetches
+  _matchesInitialized: false  // true after first matches snapshot — prevents overlay on initial load
 };
 
 /* ================================================================
@@ -4269,24 +4272,55 @@ async function savePrivacySetting(field, value) {
 ================================================================ */
 function loadProfiles() {
   if (!db) return;
-  // Unsubscribe any previous listener before starting a new one
+  // Cancel any previous listener (legacy path or refresh)
   if (S.listeners.profiles) { S.listeners.profiles(); S.listeners.profiles = null; }
+  S.profilesCursor      = null;
+  S.profilesLoadingMore = false;
 
-  S.listeners.profiles = db.collection('users').onSnapshot(snap => {
-    const now = Date.now();
-    S.profiles = snap.docs
-      .filter(d => d.id !== S.user?.id)
+  // H2: paginated one-time fetch — limit(50) prevents loading every user on startup.
+  // Auto-fetches next pages as the card stack runs low (see renderDiscover).
+  db.collection('users').limit(50).get()
+    .then(snap => {
+      const now = Date.now();
+      S.profiles = snap.docs
+        .filter(d => d.id !== S.user?.id)
+        .map(d => {
+          const data     = d.data();
+          const lastSeen = data.lastSeen?.toDate?.();
+          return { id: d.id, ...data, online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
+        });
+      // Store cursor only if a full page came back (more pages may exist)
+      S.profilesCursor = snap.docs.length === 50 ? snap.docs[snap.docs.length - 1] : null;
+      renderDiscover();
+      updateFilterCounts();
+    })
+    .catch(e => console.warn('loadProfiles error:', e));
+}
+
+async function loadMoreProfiles() {
+  if (!db || !S.profilesCursor || S.profilesLoadingMore) return;
+  S.profilesLoadingMore = true;
+  try {
+    const snap = await db.collection('users')
+      .startAfter(S.profilesCursor).limit(50).get();
+    const now  = Date.now();
+    const existing = new Set(S.profiles.map(p => p.id));
+    const fresh = snap.docs
+      .filter(d => d.id !== S.user?.id && !existing.has(d.id))
       .map(d => {
         const data     = d.data();
         const lastSeen = data.lastSeen?.toDate?.();
-        const online   = !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000);
-        return { id: d.id, ...data, online };
+        return { id: d.id, ...data, online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
       });
+    S.profiles.push(...fresh);
+    S.profilesCursor = snap.docs.length === 50 ? snap.docs[snap.docs.length - 1] : null;
     renderDiscover();
     updateFilterCounts();
-  }, e => {
-    console.warn('loadProfiles error:', e);
-  });
+  } catch(e) {
+    console.warn('loadMoreProfiles error:', e);
+  } finally {
+    S.profilesLoadingMore = false;
+  }
 }
 
 function getProspects() {
@@ -4409,6 +4443,12 @@ function renderDiscover() {
   if (!stack) return;
 
   const prospects = getProspects();
+
+  // H2: silently pre-fetch next page when the unseen stack is running low
+  if (prospects.length < 8 && S.profilesCursor && !S.profilesLoadingMore) {
+    loadMoreProfiles();
+  }
+
   stack.innerHTML = '';
 
   if (prospects.length === 0) {
@@ -5764,23 +5804,26 @@ async function sendInlineMsg() {
   const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
   if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
-  const btn = document.getElementById('inlineSendBtn');
+  const btn     = document.getElementById('inlineSendBtn');
+  const matchId = S.activeMatchId;
   if (btn) btn.disabled = true;
   input.value = '';
   try {
-    await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
+    await db.collection('messages').doc(matchId).collection('msgs').add({
       from: S.user.id,
       text,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
     // Keep conversation list preview current
-    db.collection('matches').doc(S.activeMatchId).update({
+    db.collection('matches').doc(matchId).update({
       lastMsg: text,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => {});
   } catch(e) {
-    input.value = text;
-    toast('Failed to send — check your connection');
+    // H1: queue for retry instead of just restoring to input
+    S.pendingMsgs.push({ matchId, text, attempts: 1, nextRetry: Date.now() + 3000 });
+    renderActiveChatPending();
+    toast('⚠️ Queued — will retry when back online');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -5843,6 +5886,82 @@ function subscribeToMatchDoc(matchId, otherUid) {
       }
     }, () => {});
 }
+
+/* ================================================================
+   H1 — PENDING MESSAGE QUEUE (retry on reconnect)
+================================================================ */
+function renderActiveChatPending() {
+  const matchId = S.activeMatchId;
+  if (!matchId) return;
+  const cid       = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
+  const container = document.getElementById(cid);
+  if (!container) return;
+  // Clear old pending renders
+  container.querySelectorAll('.msg-pending').forEach(el => el.remove());
+  // Append any pending messages for this chat
+  S.pendingMsgs.filter(pm => pm.matchId === matchId).forEach((pm, _, arr) => {
+    const idx = S.pendingMsgs.indexOf(pm);
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-pending';
+    wrap.innerHTML = `<div class="msg sent" style="opacity:0.55;border:1.5px solid #ef5350">${escHtml(pm.text)}</div>
+      <div class="msg-time r" style="color:#ef5350;font-size:0.72rem">
+        ⚠️ Failed &nbsp;·&nbsp;
+        <button onclick="retryMsg(${idx})" style="color:#ef5350;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-size:0.72rem">Retry</button>
+      </div>`;
+    container.appendChild(wrap);
+  });
+}
+
+async function retryMsg(idx) {
+  const pm = S.pendingMsgs[idx];
+  if (!pm || !db) return;
+  S.pendingMsgs.splice(idx, 1);
+  renderActiveChatPending();
+  try {
+    await db.collection('messages').doc(pm.matchId).collection('msgs').add({
+      from: S.user?.id, text: pm.text, ts: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    db.collection('matches').doc(pm.matchId).update({
+      lastMsg: pm.text, lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => {});
+  } catch(e) {
+    pm.attempts = (pm.attempts || 1) + 1;
+    S.pendingMsgs.push(pm);
+    renderActiveChatPending();
+    toast('Still failing — check your connection');
+  }
+}
+
+function drainPendingMsgs() {
+  if (!db || !S.user?.id || S.pendingMsgs.length === 0) return;
+  const now   = Date.now();
+  const retry = S.pendingMsgs.filter(pm => !pm.nextRetry || pm.nextRetry <= now);
+  retry.forEach(pm => {
+    const idx = S.pendingMsgs.indexOf(pm);
+    if (idx >= 0) S.pendingMsgs.splice(idx, 1);
+    db.collection('messages').doc(pm.matchId).collection('msgs').add({
+      from: S.user.id, text: pm.text, ts: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      db.collection('matches').doc(pm.matchId).update({
+        lastMsg: pm.text, lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+    }).catch(e => {
+      pm.attempts = (pm.attempts || 1) + 1;
+      pm.nextRetry = Date.now() + Math.min(30000, 1000 * Math.pow(2, pm.attempts));
+      S.pendingMsgs.push(pm);
+      renderActiveChatPending();
+    });
+  });
+  if (retry.length > 0) renderActiveChatPending();
+}
+
+// Auto-drain pending queue when the device comes back online
+window.addEventListener('online', () => {
+  if (S.pendingMsgs.length > 0) {
+    toast('Back online — retrying unsent messages…');
+    drainPendingMsgs();
+  }
+});
 
 function renderChatMessages(containerId = 'chatMessages') {
   const matchId   = S.activeMatchId;
@@ -5907,6 +6026,9 @@ function renderChatMessages(containerId = 'chatMessages') {
     </div>`;
     container.innerHTML = banner + container.innerHTML;
   }
+
+  // H1: always append pending (failed) messages at the very bottom
+  renderActiveChatPending();
 }
 
 function scrollChatToBottom(containerId = 'chatMessages') {
@@ -6328,23 +6450,26 @@ async function sendMsg() {
   const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
   if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
-  const btn = document.getElementById('chatSendBtn');
+  const btn     = document.getElementById('chatSendBtn');
+  const matchId = S.activeMatchId;
   if (btn) btn.disabled = true;
   input.value = '';
   try {
-    await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
+    await db.collection('messages').doc(matchId).collection('msgs').add({
       from: S.user.id,
       text,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
     // Keep conversation list preview current
-    db.collection('matches').doc(S.activeMatchId).update({
+    db.collection('matches').doc(matchId).update({
       lastMsg: text,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => {});
   } catch(e) {
-    input.value = text; // restore on error
-    toast('Failed to send — check your connection');
+    // H1: queue for retry instead of just restoring to input
+    S.pendingMsgs.push({ matchId, text, attempts: 1, nextRetry: Date.now() + 3000 });
+    renderActiveChatPending();
+    toast('⚠️ Queued — will retry when back online');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -7937,6 +8062,25 @@ async function confirmDeleteAccount() {
           throw authErr;
         }
       }
+    }
+
+    // H3/H4: Delete Storage files (photos, voice notes, verifications)
+    // so deleted users' files don't persist after account removal.
+    if (storage) {
+      const deleteStorageFolder = async (path) => {
+        try {
+          const result = await storage.ref(path).listAll();
+          await Promise.all([
+            ...result.items.map(ref => ref.delete().catch(() => {})),
+            ...result.prefixes.map(prefix => deleteStorageFolder(prefix.fullPath))
+          ]);
+        } catch(e) { console.warn('Storage folder delete:', path, e); }
+      };
+      await Promise.all([
+        deleteStorageFolder('photos/' + uid),
+        deleteStorageFolder('voice/' + uid),
+        deleteStorageFolder('verifications/' + uid),
+      ]);
     }
 
     // Helper: accumulate deletes across multiple batches (Firestore max = 500/batch)
