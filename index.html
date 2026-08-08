@@ -3896,8 +3896,9 @@ async function adminSendMessage(uid, name) {
   const matchId = [S.user.id, uid].sort().join('_');
   try {
     // Ensure a match document exists so the user can find this conversation
+    // Field name must be 'uids' — that's what subscribeToMatches queries on
     await db.collection('matches').doc(matchId).set({
-      users: [S.user.id, uid],
+      uids: [S.user.id, uid],
       lastMsg: text,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp(),
       adminCreated: true,
@@ -4428,10 +4429,21 @@ async function recordLike(targetUid, action) {
       action,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Check if they already liked me back — read from MY OWN received index
-    // (avoids cross-user reads that fail under Firestore security rules)
-    const theirLike = await db.collection('likes').doc(myUid).collection('received').doc(targetUid).get();
-    if (theirLike.exists) {
+    // Check for mutual like — two strategies so rules never block match creation:
+    // 1. Read my own received collection (works if cross-user writes succeeded)
+    // 2. Fall back to reading their sent collection (works when rules allow reading others' sent docs)
+    let mutual = false;
+    try {
+      const myReceived = await db.collection('likes').doc(myUid).collection('received').doc(targetUid).get();
+      if (myReceived.exists) mutual = true;
+    } catch(_) {}
+    if (!mutual) {
+      try {
+        const theirSent = await db.collection('likes').doc(targetUid).collection('sent').doc(myUid).get();
+        if (theirSent.exists) mutual = true;
+      } catch(_) {}
+    }
+    if (mutual) {
       await createMatch(myUid, targetUid);
     }
   } catch(e) {
@@ -5646,11 +5658,12 @@ function renderChatMessages(containerId = 'chatMessages') {
       </div>`;
   }).join('');
 
-  // Non-premium upsell banner — shown once at the bottom if they have sent messages
+  // Non-premium upsell banner — shown at the TOP so it never overlaps recent messages
   if (!S.isPremium && lastSentIdx >= 0) {
-    container.innerHTML += `<div class="msg-seen-banner" onclick="upgradeToPremium()">
+    const banner = `<div class="msg-seen-banner" onclick="upgradeToPremium()" style="margin-bottom:0.75rem">
       🔒 See when your messages are read — Go Premium
     </div>`;
+    container.innerHTML = banner + container.innerHTML;
   }
 }
 
