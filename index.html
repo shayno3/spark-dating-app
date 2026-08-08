@@ -445,16 +445,49 @@ html, body {
 .nearby-loading { grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted); }
 
 /* ---- MESSAGES TAB ---- */
+.msg-section-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem 0.35rem; }
+.msg-section-label { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+
+/* New-matches horizontal scroll row */
+.msg-matches-row { display: flex; gap: 0.75rem; padding: 0.5rem 1rem 0.85rem; overflow-x: auto; scrollbar-width: none; }
+.msg-matches-row::-webkit-scrollbar { display: none; }
+.msg-match-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; flex-shrink: 0; cursor: pointer; }
+.msg-match-av { width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 2.5px solid var(--primary); }
+.msg-match-av.no-msg { border-color: rgba(255,255,255,0.25); }
+.msg-match-name { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); max-width: 62px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-likes-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; flex-shrink: 0; cursor: pointer; }
+.msg-likes-av { width: 58px; height: 58px; border-radius: 50%; background: var(--gradient-btn); display: flex; align-items: center; justify-content: center; position: relative; border: 2.5px solid transparent; }
+.msg-likes-count { position: absolute; bottom: -4px; right: -4px; background: #ef4444; color: white; font-size: 0.65rem; font-weight: 800; border-radius: 10px; padding: 1px 5px; min-width: 18px; text-align: center; border: 2px solid var(--bg); }
+.msg-likes-icon { font-size: 1.5rem; }
+.msg-likes-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); }
+
+/* Conversation list */
 .conv-list { overflow: visible; }
-.conv-item { display: flex; gap: 0.875rem; padding: 0.875rem 1rem; border-radius: 12px; cursor: pointer; align-items: center; transition: background 0.15s; margin: 0 0.5rem; }
-.conv-item:hover { background: var(--bg-card); }
-.conv-av { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--border); }
+.conv-item { display: flex; gap: 1rem; padding: 0.85rem 1rem; cursor: pointer; align-items: center; transition: background 0.12s; border-bottom: 1px solid var(--border); }
+.conv-item:active { background: var(--bg-card); }
+.conv-av-wrap { position: relative; flex-shrink: 0; }
+.conv-av { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+.conv-online-dot { position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--success); border: 2px solid var(--bg); }
 .conv-info { flex: 1; min-width: 0; }
-.conv-name { font-weight: 800; font-size: 0.95rem; margin-bottom: 0.18rem; }
-.conv-preview { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.conv-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-.conv-time { font-size: 0.73rem; color: var(--text-muted); }
-.unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+.conv-name { font-weight: 800; font-size: 0.97rem; margin-bottom: 0.2rem; }
+.conv-preview { font-size: 0.83rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-preview.unread { color: var(--text); font-weight: 600; }
+.conv-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.conv-time { font-size: 0.72rem; color: var(--text-muted); }
+.unread-badge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--primary); color: white; font-size: 0.68rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+/* Chat profile card */
+.chat-profile-card { display: flex; align-items: center; gap: 0.85rem; padding: 0.75rem 1rem; background: var(--bg-card); border-bottom: 1px solid var(--border); flex-shrink: 0; cursor: pointer; }
+.chat-profile-card:active { background: rgba(255,255,255,0.05); }
+.chat-profile-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+.chat-profile-info { flex: 1; min-width: 0; }
+.chat-profile-nameage { font-size: 1rem; font-weight: 800; margin-bottom: 0.15rem; }
+.chat-profile-loc { font-size: 0.77rem; color: var(--text-muted); margin-bottom: 0.1rem; }
+.chat-profile-date { font-size: 0.73rem; color: var(--text-muted); }
+.chat-profile-chevron { color: var(--text-muted); font-size: 1.2rem; flex-shrink: 0; }
+
+/* Date separator */
+.msg-date-sep { text-align: center; font-size: 0.72rem; color: var(--text-muted); font-weight: 600; margin: 0.5rem 0; letter-spacing: 0.03em; }
 
 /* ---- CHAT VIEW ---- */
 .panel { display: none; flex-direction: column; position: absolute; inset: 0; background: var(--bg); z-index: 100; }
@@ -1837,7 +1870,13 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
     <!-- ── MESSAGES TAB ── -->
     <div class="tab-content" id="tab-messages">
-      <div class="tab-title">Messages 💬</div>
+      <div class="msg-section-bar" id="msgMatchesBar" style="display:none">
+        <span class="msg-section-label">New Matches</span>
+      </div>
+      <div class="msg-matches-row" id="msgMatchesRow"></div>
+      <div class="msg-section-bar">
+        <span class="msg-section-label">Messages</span>
+      </div>
       <div class="conv-list" id="convList"></div>
     </div>
 
@@ -1905,6 +1944,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         </div>
         <button class="header-icon-btn" onclick="viewChatProfile()" title="View Profile">👤</button>
         <button class="header-icon-btn chat-more-btn" onclick="openChatMenu()" title="More options" id="chatMoreBtn">⋮</button>
+      </div>
+      <div class="chat-profile-card" id="chatProfileCard" onclick="viewChatProfile()" style="display:none">
+        <img class="chat-profile-thumb" id="chatProfileThumb" src="" alt="">
+        <div class="chat-profile-info">
+          <div class="chat-profile-nameage" id="chatProfileNameAge"></div>
+          <div class="chat-profile-loc" id="chatProfileLoc"></div>
+          <div class="chat-profile-date" id="chatProfileDate"></div>
+        </div>
+        <span class="chat-profile-chevron">›</span>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-pill-bar" id="chatPillBar">
@@ -5476,31 +5524,75 @@ function closeMatchProfile() {
 function renderConversations() {
   const list = document.getElementById('convList');
   if (!list) return;
-  if (S.matches.length === 0) {
-    list.innerHTML = `<div class="empty-state">
+
+  // ── New Matches Row (matches with zero messages) ──
+  const matchesRow  = document.getElementById('msgMatchesRow');
+  const matchesBar  = document.getElementById('msgMatchesBar');
+  const likedMeCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
+  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0));
+  if (matchesRow) {
+    let rowHtml = '';
+    if (likedMeCount > 0) {
+      rowHtml += `<div class="msg-likes-wrap" onclick="loadLikedMe();showTab('matches')">
+        <div class="msg-likes-av">
+          <span class="msg-likes-icon">❤️</span>
+          <span class="msg-likes-count">${likedMeCount}</span>
+        </div>
+        <div class="msg-likes-label">Likes</div>
+      </div>`;
+    }
+    newMatches.forEach(m => {
+      const photo = (m.photos?.[0]) || avatar(m.name || '?');
+      rowHtml += `<div class="msg-match-wrap" onclick="openChat('${m.uid}')">
+        <img class="msg-match-av no-msg" src="${photo}" alt="${escHtml(m.name||'')}" onerror="this.src='${avatar(m.name||'?')}'">
+        <div class="msg-match-name">${escHtml(m.name||'')}</div>
+      </div>`;
+    });
+    matchesRow.innerHTML = rowHtml;
+    const showRow = likedMeCount > 0 || newMatches.length > 0;
+    matchesRow.style.display = showRow ? 'flex' : 'none';
+    if (matchesBar) matchesBar.style.display = showRow ? 'flex' : 'none';
+  }
+
+  // ── Conversations with messages ──
+  const withMsgs = S.matches.filter(m => S.messages[m.matchId]?.length > 0);
+  if (withMsgs.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding-top:1.5rem">
       <div class="empty-icon">💬</div>
       <div class="empty-title">No messages yet</div>
-      <div class="empty-desc">Match with someone to start chatting!</div>
+      <div class="empty-desc">Tap a match above to say hello!</div>
     </div>`;
     return;
   }
   list.innerHTML = '';
-  S.matches.forEach(m => {
+  // Sort by most recent message
+  const sorted = [...withMsgs].sort((a, b) => {
+    const ta = S.messages[a.matchId]?.at(-1)?.time || 0;
+    const tb = S.messages[b.matchId]?.at(-1)?.time || 0;
+    return new Date(tb) - new Date(ta);
+  });
+  sorted.forEach(m => {
     const msgs = S.messages[m.matchId] || [];
     const last = msgs[msgs.length - 1];
     const photo = (m.photos?.[0]) || avatar(m.name || '?');
-    const item  = document.createElement('div');
+    const isUnread = !!S.unread[m.uid];
+    const preview = last
+      ? (last.type === 'voiceNote' ? '🎙 Voice note' : escHtml(last.text || ''))
+      : 'You matched! Say hello 👋';
+    const item = document.createElement('div');
     item.className = 'conv-item';
-    item.tabIndex = 0;
     item.innerHTML = `
-      <img class="conv-av" src="${photo}" alt="${m.name}" onerror="this.src='${avatar(m.name||'?')}'">
+      <div class="conv-av-wrap">
+        <img class="conv-av" src="${photo}" alt="${escHtml(m.name||'')}" onerror="this.src='${avatar(m.name||'?')}'">
+        ${m.online ? '<div class="conv-online-dot"></div>' : ''}
+      </div>
       <div class="conv-info">
-        <div class="conv-name">${m.name}</div>
-        <div class="conv-preview">${last ? escHtml(last.text) : 'You matched! Say hello 👋'}</div>
+        <div class="conv-name">${escHtml(m.name||'')}</div>
+        <div class="conv-preview${isUnread ? ' unread' : ''}">${preview}</div>
       </div>
       <div class="conv-meta">
         ${last ? `<div class="conv-time">${fmtTime(last.time)}</div>` : ''}
-        ${S.unread[m.uid] ? '<div class="unread-dot"></div>' : ''}
+        ${isUnread ? '<div class="unread-badge">●</div>' : ''}
       </div>`;
     item.onclick = () => openChat(m.uid);
     list.appendChild(item);
@@ -5524,6 +5616,24 @@ function openChat(uid) {
   document.getElementById('chatAv').src = photo;
   document.getElementById('chatAv').onerror = function(){ this.src = avatar(match.name||'?'); };
   document.getElementById('chatHeadName').textContent = match.name || '';
+
+  // ── Profile card ──
+  const card = document.getElementById('chatProfileCard');
+  if (card) {
+    const thumb = document.getElementById('chatProfileThumb');
+    if (thumb) { thumb.src = photo; thumb.onerror = function(){ this.src = avatar(match.name||'?'); }; }
+    const nameAge = [match.name, match.age].filter(Boolean).join(', ');
+    const el = id => document.getElementById(id);
+    if (el('chatProfileNameAge')) el('chatProfileNameAge').textContent = nameAge;
+    if (el('chatProfileLoc')) el('chatProfileLoc').textContent =
+      [match.city, match.state].filter(Boolean).join(', ') || '';
+    if (el('chatProfileDate') && match.matchedAt) {
+      const d = new Date(match.matchedAt);
+      el('chatProfileDate').textContent = 'Matched ' + d.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
+    }
+    card.style.display = 'flex';
+  }
+
   document.getElementById('chatPanel').classList.add('open');
   _navRefresh();
   subscribeToMessages(match.matchId, uid);
@@ -5668,6 +5778,7 @@ function renderChatMessages(containerId = 'chatMessages') {
   const lastSentMsg = lastSentIdx >= 0 ? msgs[lastSentIdx] : null;
   const theySaw     = theirReadAt && lastSentMsg && theirReadAt > lastSentMsg.time;
 
+  let lastDateStr = '';
   container.innerHTML = msgs.map((msg, i) => {
     const isSent = msg.from === myUid;
     let seenHtml = '';
@@ -5679,8 +5790,19 @@ function renderChatMessages(containerId = 'chatMessages') {
     const msgContent = msg.type === 'voiceNote' && msg.audioUrl
       ? `<div class="msg-voice"><span>🎙</span><audio src="${escHtml(msg.audioUrl)}" controls preload="none"></audio>${msg.duration ? `<span class="msg-voice-dur">${msg.duration}s</span>` : ''}</div>`
       : escHtml(msg.text || '');
-    return `
-      <div>
+    // Date separator
+    const msgDate = msg.time ? new Date(msg.time) : null;
+    let dateSep = '';
+    if (msgDate) {
+      const now = new Date();
+      const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+      let dateLabel;
+      if (msgDate.toDateString() === now.toDateString()) dateLabel = 'Today';
+      else if (msgDate.toDateString() === yesterday.toDateString()) dateLabel = 'Yesterday';
+      else dateLabel = msgDate.toLocaleDateString(undefined, {month:'short', day:'numeric', year: msgDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined});
+      if (dateLabel !== lastDateStr) { dateSep = `<div class="msg-date-sep">${dateLabel}</div>`; lastDateStr = dateLabel; }
+    }
+    return `${dateSep}<div>
         <div class="msg ${isSent?'sent':'recv'}">${msgContent}</div>
         <div class="msg-time ${isSent?'r':''}">${fmtTime(msg.time)}</div>
         ${seenHtml}
