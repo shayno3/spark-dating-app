@@ -546,7 +546,7 @@ html, body {
 .voice-rec-hint { color:var(--text-muted); font-size:0.82rem; }
 .voice-rec-stop-btn { background:rgba(255,255,255,0.1); border:1.5px solid rgba(255,255,255,0.18); border-radius:50px; padding:0.65rem 2rem; color:var(--text); cursor:pointer; touch-action:manipulation; font-size:0.9rem; font-weight:600; margin-top:0.25rem; }
 /* Voice preview sheet */
-.voice-preview-sheet { position:fixed; bottom:0; left:0; right:0; background:var(--bg-card); border-radius:20px 20px 0 0; padding:1.25rem 1.25rem 2.25rem; display:flex; flex-direction:column; gap:0.85rem; z-index:8500; transform:translateY(100%); transition:transform 0.28s cubic-bezier(0.4,0,0.2,1); pointer-events:none; box-shadow:0 -8px 40px rgba(0,0,0,0.5); }
+.voice-preview-sheet { position:fixed; bottom:0; left:0; right:0; background:var(--bg-card); border-radius:20px 20px 0 0; padding:1.25rem 1.25rem 1.25rem; padding-bottom:max(3.5rem, calc(env(safe-area-inset-bottom, 0px) + 3rem)); display:flex; flex-direction:column; gap:0.85rem; z-index:8500; transform:translateY(100%); transition:transform 0.28s cubic-bezier(0.4,0,0.2,1); pointer-events:none; box-shadow:0 -8px 40px rgba(0,0,0,0.5); }
 .voice-preview-sheet.open { transform:translateY(0); pointer-events:all; }
 .voice-preview-title { font-size:0.8rem; color:var(--text-muted); text-align:center; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; }
 .voice-preview-player { display:flex; align-items:center; gap:0.75rem; background:rgba(255,255,255,0.06); border-radius:40px; padding:0.7rem 1rem; }
@@ -6185,8 +6185,16 @@ function voiceStopRecording() {
   if (_voiceRec && _voiceRec.state === 'recording') _voiceRec.stop();
 }
 
+function _voiceChatInputsHide() {
+  document.querySelectorAll('#chatPanel .chat-input-bar, #chatPanel .chat-pill-bar, #inlineChatPanel .chat-input-bar, #inlineChatPanel .chat-pill-bar').forEach(function(el) { el.style.visibility = 'hidden'; });
+}
+function _voiceChatInputsShow() {
+  document.querySelectorAll('#chatPanel .chat-input-bar, #chatPanel .chat-pill-bar, #inlineChatPanel .chat-input-bar, #inlineChatPanel .chat-pill-bar').forEach(function(el) { el.style.visibility = ''; });
+}
+
 function voiceShowPreview() {
   if (!_voiceBlob) return;
+  _voiceChatInputsHide();
   const dur = _voiceSecs;
   const durLabel = Math.floor(dur / 60) + ':' + String(dur % 60).padStart(2, '0');
   const durEl = document.getElementById('voicePreviewDur');
@@ -6226,6 +6234,7 @@ function voiceDiscardPreview() {
   if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
   _voiceBlob = null;
   document.getElementById('voicePreviewSheet').classList.remove('open');
+  _voiceChatInputsShow();
   toast('Voice note discarded');
 }
 
@@ -6233,6 +6242,7 @@ async function voiceSendPreview() {
   if (!_voiceBlob || !S.activeMatchId || !db) return;
   if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
   document.getElementById('voicePreviewSheet').classList.remove('open');
+  _voiceChatInputsShow();
   const dur = _voiceSecs;
   const blob = _voiceBlob;
   _voiceBlob = null;
