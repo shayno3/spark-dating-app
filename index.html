@@ -528,9 +528,33 @@ html, body {
 .chat-mic-shortcut.recording { background:var(--gradient-btn); }
 .voice-note-btn { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:1.5px solid rgba(255,255,255,0.15); cursor:pointer; font-size:0.85rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; color:var(--text); font-weight:700; }
 .voice-note-btn.recording { background:var(--gradient-btn); border-color:transparent; animation:pulse 1s ease-in-out infinite; color:#fff; }
-.msg-voice { display:flex; align-items:center; gap:0.5rem; padding:0.15rem 0; min-width:160px; }
-.msg-voice audio { flex:1; height:28px; min-width:100px; accent-color:#e11d8f; }
-.msg-voice-dur { font-size:0.68rem; opacity:0.75; white-space:nowrap; flex-shrink:0; }
+/* Custom voice player in message thread */
+.msg-voice-player { display:flex; align-items:center; gap:0.55rem; min-width:180px; max-width:230px; padding:0.05rem 0; }
+.vp-play-btn { width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; font-size:0.9rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; touch-action:manipulation; background:rgba(255,255,255,0.22); color:#fff; }
+.vp-waveform { flex:1; height:28px; display:flex; align-items:center; gap:2px; overflow:hidden; }
+.vp-bar { width:3px; border-radius:3px; background:rgba(255,255,255,0.28); flex-shrink:0; transition:background 0.08s; }
+.vp-bar.filled { background:#fff; }
+.msg.recv .vp-play-btn { background:rgba(255,255,255,0.12); }
+.msg.recv .vp-bar { background:rgba(255,255,255,0.18); }
+.msg.recv .vp-bar.filled { background:#e11d8f; }
+.vp-duration { font-size:0.68rem; opacity:0.8; white-space:nowrap; flex-shrink:0; min-width:28px; text-align:right; }
+/* Voice recording overlay */
+.voice-rec-overlay { position:fixed; bottom:0; left:0; right:0; background:var(--bg-card); border-radius:20px 20px 0 0; padding:1.75rem 1.5rem 2.5rem; display:flex; flex-direction:column; align-items:center; gap:0.85rem; z-index:8500; transform:translateY(100%); transition:transform 0.28s cubic-bezier(0.4,0,0.2,1); pointer-events:none; box-shadow:0 -8px 40px rgba(0,0,0,0.5); }
+.voice-rec-overlay.open { transform:translateY(0); pointer-events:all; }
+.voice-rec-pulse-ring { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#e11d8f,#7b2ff7); display:flex; align-items:center; justify-content:center; font-size:2rem; animation:pulse 1.1s ease-in-out infinite; }
+.voice-rec-timer { font-size:2.4rem; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:0.03em; }
+.voice-rec-hint { color:var(--text-muted); font-size:0.82rem; }
+.voice-rec-stop-btn { background:rgba(255,255,255,0.1); border:1.5px solid rgba(255,255,255,0.18); border-radius:50px; padding:0.65rem 2rem; color:var(--text); cursor:pointer; touch-action:manipulation; font-size:0.9rem; font-weight:600; margin-top:0.25rem; }
+/* Voice preview sheet */
+.voice-preview-sheet { position:fixed; bottom:0; left:0; right:0; background:var(--bg-card); border-radius:20px 20px 0 0; padding:1.25rem 1.25rem 2.25rem; display:flex; flex-direction:column; gap:0.85rem; z-index:8500; transform:translateY(100%); transition:transform 0.28s cubic-bezier(0.4,0,0.2,1); pointer-events:none; box-shadow:0 -8px 40px rgba(0,0,0,0.5); }
+.voice-preview-sheet.open { transform:translateY(0); pointer-events:all; }
+.voice-preview-title { font-size:0.8rem; color:var(--text-muted); text-align:center; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; }
+.voice-preview-player { display:flex; align-items:center; gap:0.75rem; background:rgba(255,255,255,0.06); border-radius:40px; padding:0.7rem 1rem; }
+.voice-preview-play { width:42px; height:42px; border-radius:50%; background:var(--gradient-btn); border:none; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; touch-action:manipulation; flex-shrink:0; color:#fff; }
+.voice-preview-dur { font-size:0.8rem; opacity:0.8; flex-shrink:0; min-width:30px; }
+.voice-preview-btns { display:flex; gap:0.75rem; }
+.voice-preview-discard { flex:1; background:rgba(255,255,255,0.1); border:none; border-radius:40px; padding:0.8rem; color:var(--text); cursor:pointer; touch-action:manipulation; font-size:0.9rem; }
+.voice-preview-send-btn { flex:1; background:var(--gradient-btn); border:none; border-radius:40px; padding:0.8rem; color:#fff; cursor:pointer; touch-action:manipulation; font-size:0.9rem; font-weight:700; }
 .chat-emoji-picker { display:flex; flex-wrap:wrap; gap:0.28rem; padding:0.55rem 0.75rem; background:var(--bg-card); flex-shrink:0; max-height:130px; overflow-y:auto; }
 .chat-emoji-btn { background:none; border:none; font-size:1.3rem; cursor:pointer; line-height:1; padding:2px; border-radius:6px; transition:transform 0.1s; }
 .chat-emoji-btn:active { transform:scale(1.3); }
@@ -1913,6 +1937,28 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <button class="admin-compose-cancel" style="touch-action:manipulation" onclick="adminCloseCompose()">Cancel</button>
           <button class="admin-compose-send" style="touch-action:manipulation" onclick="adminSendMessage()">Send ✉️</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ── VOICE RECORDING OVERLAY ── -->
+    <div class="voice-rec-overlay" id="voiceRecOverlay">
+      <div class="voice-rec-pulse-ring">🎙</div>
+      <div class="voice-rec-timer" id="voiceRecTimer">0:00</div>
+      <div class="voice-rec-hint">Recording… tap stop when done</div>
+      <button class="voice-rec-stop-btn" onclick="voiceStopRecording()" style="touch-action:manipulation">&#9632; Stop</button>
+    </div>
+
+    <!-- ── VOICE PREVIEW SHEET ── -->
+    <div class="voice-preview-sheet" id="voicePreviewSheet">
+      <div class="voice-preview-title">Voice Note Preview</div>
+      <div class="voice-preview-player">
+        <button class="voice-preview-play" id="voicePreviewPlayBtn" onclick="voicePreviewToggle()" style="touch-action:manipulation">&#9654;</button>
+        <div class="vp-waveform" id="voicePreviewWave"></div>
+        <span class="voice-preview-dur" id="voicePreviewDur">0:00</span>
+      </div>
+      <div class="voice-preview-btns">
+        <button class="voice-preview-discard" onclick="voiceDiscardPreview()" style="touch-action:manipulation">&#128465; Discard</button>
+        <button class="voice-preview-send-btn" onclick="voiceSendPreview()" style="touch-action:manipulation">Send 🎙</button>
       </div>
     </div>
 
@@ -5789,7 +5835,7 @@ function renderChatMessages(containerId = 'chatMessages') {
       }
     }
     const msgContent = msg.type === 'voiceNote' && msg.audioUrl
-      ? `<div class="msg-voice"><span>🎙</span><audio src="${escHtml(msg.audioUrl)}" controls preload="none"></audio>${msg.duration ? `<span class="msg-voice-dur">${msg.duration}s</span>` : ''}</div>`
+      ? renderVoicePlayer(msg.audioUrl, msg.duration)
       : escHtml(msg.text || '');
     // Date separator
     const msgDate = msg.time ? new Date(msg.time) : null;
@@ -6030,75 +6076,196 @@ function chatToggleVKPill(inputId, btn) {
   wrap.insertBefore(vk, pillBar);
 }
 
-/* ── Voice Note Recording ── */
+/* ── Voice Note Recording (redesigned: recording overlay + preview before send) ── */
+const VP_BARS = [28,52,75,48,88,38,65,32,80,58,42,72,55,90,38,68,33,82,50,72,38,77,55,85];
 let _voiceRec = null, _voiceChunks = [], _voiceTimerInt = null, _voiceSecs = 0;
-async function chatToggleVoiceNote(btn, msgContainerId) {
-  // Stop if already recording
-  if (_voiceRec && _voiceRec.state === 'recording') {
-    _voiceRec.stop();
-    return;
+let _voiceBlob = null, _voicePreviewAudio = null, _voiceRecBtn = null;
+
+function renderVoicePlayer(audioUrl, durationSecs) {
+  const dur = durationSecs || 0;
+  const mm = Math.floor(dur / 60);
+  const ss = String(dur % 60).padStart(2, '0');
+  const durLabel = dur ? mm + ':' + ss : '';
+  const bars = VP_BARS.map(function(h) { return '<div class="vp-bar" style="height:' + h + '%"></div>'; }).join('');
+  return '<div class="msg-voice-player" data-src="' + escHtml(audioUrl) + '" data-dur="' + dur + '">' +
+    '<button class="vp-play-btn" onclick="voicePlayerToggle(this.parentElement)" style="touch-action:manipulation">▶</button>' +
+    '<div class="vp-waveform">' + bars + '</div>' +
+    '<span class="vp-duration">' + durLabel + '</span>' +
+    '</div>';
+}
+
+function voicePlayerToggle(playerEl) {
+  if (!playerEl) return;
+  const src = playerEl.dataset.src;
+  if (!src) return;
+  if (!playerEl._audio) {
+    playerEl._audio = new Audio(src);
+    const bars = playerEl.querySelectorAll('.vp-bar');
+    const durEl = playerEl.querySelector('.vp-duration');
+    const dur = parseFloat(playerEl.dataset.dur) || 0;
+    playerEl._audio.addEventListener('timeupdate', function() {
+      const t = playerEl._audio.currentTime;
+      const total = playerEl._audio.duration || dur || 1;
+      const pct = t / total;
+      bars.forEach(function(b, i) { b.classList.toggle('filled', i / bars.length < pct); });
+      if (durEl) {
+        const rem = Math.max(0, Math.ceil(total - t));
+        durEl.textContent = Math.floor(rem / 60) + ':' + String(rem % 60).padStart(2, '0');
+      }
+    });
+    playerEl._audio.addEventListener('ended', function() {
+      const pb = playerEl.querySelector('.vp-play-btn');
+      if (pb) pb.textContent = '▶';
+      bars.forEach(function(b) { b.classList.remove('filled'); });
+      if (durEl) {
+        const d2 = parseFloat(playerEl.dataset.dur) || 0;
+        durEl.textContent = d2 ? Math.floor(d2 / 60) + ':' + String(d2 % 60).padStart(2, '0') : '';
+      }
+    });
   }
+  const audio = playerEl._audio;
+  const playBtn = playerEl.querySelector('.vp-play-btn');
+  if (audio.paused) {
+    document.querySelectorAll('.msg-voice-player').forEach(function(p) {
+      if (p !== playerEl && p._audio && !p._audio.paused) {
+        p._audio.pause();
+        const pb = p.querySelector('.vp-play-btn');
+        if (pb) pb.textContent = '▶';
+      }
+    });
+    audio.play().catch(function() { toast('Could not play audio'); });
+    if (playBtn) playBtn.textContent = '⏸';
+  } else {
+    audio.pause();
+    if (playBtn) playBtn.textContent = '▶';
+  }
+}
+
+async function chatToggleVoiceNote(btn, msgContainerId) {
+  if (_voiceRec && _voiceRec.state === 'recording') { voiceStopRecording(); return; }
   if (!navigator.mediaDevices?.getUserMedia) { toast('Microphone not supported'); return; }
+  _voiceRecBtn = btn;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     _voiceChunks = []; _voiceSecs = 0;
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
                    : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4' : '';
     _voiceRec = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-    _voiceRec.ondataavailable = e => { if (e.data.size > 0) _voiceChunks.push(e.data); };
-    _voiceRec.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
+    _voiceRec.ondataavailable = function(e) { if (e.data.size > 0) _voiceChunks.push(e.data); };
+    _voiceRec.onstop = function() {
+      stream.getTracks().forEach(function(t) { t.stop(); });
       clearInterval(_voiceTimerInt);
-      btn.classList.remove('recording');
-      btn.textContent = '🎙';
+      if (_voiceRecBtn) { _voiceRecBtn.classList.remove('recording'); _voiceRecBtn.textContent = '🎙'; }
       if (_voiceNotePill) { _voiceNotePill.classList.remove('pill-active'); _voiceNotePill = null; }
-      const dur = _voiceSecs;
-      if (!S.activeMatchId || !db) return;
-      btn.disabled = true;
-      toast('Sending voice note…');
-      try {
-        const usedMime = _voiceRec.mimeType || mimeType || 'audio/webm';
-        const ext = usedMime.includes('mp4') || usedMime.includes('m4a') ? 'm4a' : 'webm';
-        const blob = new Blob(_voiceChunks, { type: usedMime });
-        const toBase64 = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
-        let audioUrl;
-        if (storage) {
-          try {
-            const ref = storage.ref(`voice/${S.user.id}/${Date.now()}.${ext}`);
-            await ref.put(blob, { contentType: usedMime });
-            audioUrl = await ref.getDownloadURL();
-          } catch(storageErr) {
-            console.warn('Storage upload failed, using base64 fallback:', storageErr);
-            if (blob.size > 700000) { toast('Voice note too long — please keep it under 30 s'); btn.disabled = false; return; }
-            audioUrl = await toBase64(blob);
-          }
-        } else {
-          if (blob.size > 700000) { toast('Voice note too long — please keep it under 30 s'); btn.disabled = false; return; }
-          audioUrl = await toBase64(blob);
-        }
-        await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
-          from: S.user.id,
-          type: 'voiceNote',
-          audioUrl,
-          duration: dur,
-          ts: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      } catch(e) {
-        console.error('Voice note send error:', e);
-        toast('Failed to send voice note');
-      }
-      btn.disabled = false;
+      const usedMime = _voiceRec.mimeType || mimeType || 'audio/webm';
+      _voiceBlob = new Blob(_voiceChunks, { type: usedMime });
+      document.getElementById('voiceRecOverlay').classList.remove('open');
+      voiceShowPreview();
     };
     _voiceRec.start(100);
     btn.classList.add('recording');
-    btn.textContent = '0s';
-    _voiceTimerInt = setInterval(() => {
+    btn.textContent = '0:00';
+    const timerEl = document.getElementById('voiceRecTimer');
+    const overlay = document.getElementById('voiceRecOverlay');
+    if (timerEl) timerEl.textContent = '0:00';
+    if (overlay) overlay.classList.add('open');
+    _voiceTimerInt = setInterval(function() {
       _voiceSecs++;
-      btn.textContent = _voiceSecs < 60 ? `${_voiceSecs}s` : `${Math.floor(_voiceSecs/60)}:${String(_voiceSecs%60).padStart(2,'0')}`;
-      if (_voiceSecs >= 120) _voiceRec.stop(); // 2-min max
+      const mm = Math.floor(_voiceSecs / 60);
+      const ss = String(_voiceSecs % 60).padStart(2, '0');
+      const label = mm + ':' + ss;
+      if (timerEl) timerEl.textContent = label;
+      if (_voiceRecBtn) _voiceRecBtn.textContent = label;
+      if (_voiceSecs >= 120) voiceStopRecording();
     }, 1000);
+  } catch(e) { toast('Microphone access denied'); }
+}
+
+function voiceStopRecording() {
+  if (_voiceRec && _voiceRec.state === 'recording') _voiceRec.stop();
+}
+
+function voiceShowPreview() {
+  if (!_voiceBlob) return;
+  const dur = _voiceSecs;
+  const durLabel = Math.floor(dur / 60) + ':' + String(dur % 60).padStart(2, '0');
+  const durEl = document.getElementById('voicePreviewDur');
+  const waveEl = document.getElementById('voicePreviewWave');
+  const playBtn = document.getElementById('voicePreviewPlayBtn');
+  if (durEl) durEl.textContent = durLabel;
+  if (waveEl) waveEl.innerHTML = VP_BARS.map(function(h) { return '<div class="vp-bar" style="height:' + h + '%"></div>'; }).join('');
+  if (playBtn) playBtn.textContent = '▶';
+  if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
+  const objUrl = URL.createObjectURL(_voiceBlob);
+  _voicePreviewAudio = new Audio(objUrl);
+  const bars = waveEl ? waveEl.querySelectorAll('.vp-bar') : [];
+  _voicePreviewAudio.addEventListener('timeupdate', function() {
+    const pct = _voicePreviewAudio.currentTime / (dur || 1);
+    bars.forEach(function(b, i) { b.classList.toggle('filled', i / bars.length < pct); });
+  });
+  _voicePreviewAudio.addEventListener('ended', function() {
+    if (playBtn) playBtn.textContent = '▶';
+    bars.forEach(function(b) { b.classList.remove('filled'); });
+  });
+  document.getElementById('voicePreviewSheet').classList.add('open');
+}
+
+function voicePreviewToggle() {
+  if (!_voicePreviewAudio) return;
+  const playBtn = document.getElementById('voicePreviewPlayBtn');
+  if (_voicePreviewAudio.paused) {
+    _voicePreviewAudio.play().catch(function() {});
+    if (playBtn) playBtn.textContent = '⏸';
+  } else {
+    _voicePreviewAudio.pause();
+    if (playBtn) playBtn.textContent = '▶';
+  }
+}
+
+function voiceDiscardPreview() {
+  if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
+  _voiceBlob = null;
+  document.getElementById('voicePreviewSheet').classList.remove('open');
+  toast('Voice note discarded');
+}
+
+async function voiceSendPreview() {
+  if (!_voiceBlob || !S.activeMatchId || !db) return;
+  if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
+  document.getElementById('voicePreviewSheet').classList.remove('open');
+  const dur = _voiceSecs;
+  const blob = _voiceBlob;
+  _voiceBlob = null;
+  toast('Sending voice note…');
+  try {
+    const usedMime = blob.type || 'audio/webm';
+    const ext = usedMime.includes('mp4') || usedMime.includes('m4a') ? 'm4a' : 'webm';
+    const toBase64 = function(b) { return new Promise(function(res) { const r = new FileReader(); r.onload = function() { res(r.result); }; r.readAsDataURL(b); }); };
+    let audioUrl;
+    if (storage) {
+      try {
+        const ref = storage.ref('voice/' + S.user.id + '/' + Date.now() + '.' + ext);
+        await ref.put(blob, { contentType: usedMime });
+        audioUrl = await ref.getDownloadURL();
+      } catch(storageErr) {
+        console.warn('Storage upload failed, using base64 fallback:', storageErr);
+        if (blob.size > 700000) { toast('Voice note too long — please keep under 30s'); return; }
+        audioUrl = await toBase64(blob);
+      }
+    } else {
+      if (blob.size > 700000) { toast('Voice note too long — please keep under 30s'); return; }
+      audioUrl = await toBase64(blob);
+    }
+    await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
+      from: S.user.id,
+      type: 'voiceNote',
+      audioUrl: audioUrl,
+      duration: dur,
+      ts: firebase.firestore.FieldValue.serverTimestamp()
+    });
   } catch(e) {
-    toast('Microphone access denied');
+    console.error('Voice note send error:', e);
+    toast('Failed to send voice note');
   }
 }
 
