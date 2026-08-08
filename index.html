@@ -448,6 +448,14 @@ html, body {
 .match-card-loc { font-size: 0.77rem; color: var(--text-muted); margin-top: 2px; }
 .new-badge { display: inline-block; background: var(--gradient); color: white; font-size: 0.6rem; font-weight: 800; padding: 2px 7px; border-radius: 20px; margin-top: 4px; letter-spacing: 0.04em; }
 
+/* ---- L4: SHIMMER SKELETON for Matches tab ---- */
+@keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+.skeleton-card { background: var(--bg-card); border-radius: 16px; overflow: hidden; }
+.skeleton-img  { width: 100%; aspect-ratio: 3/4; background: linear-gradient(90deg, var(--bg-card) 25%, var(--border) 50%, var(--bg-card) 75%); background-size: 400px 100%; animation: shimmer 1.4s infinite; }
+.skeleton-body { padding: 0.7rem 0.8rem 0.8rem; }
+.skeleton-line { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--bg-card) 25%, var(--border) 50%, var(--bg-card) 75%); background-size: 400px 100%; animation: shimmer 1.4s infinite; margin-bottom: 6px; }
+.skeleton-line.short { width: 60%; }
+
 /* ---- NEARBY TAB ---- */
 .nearby-header { padding: 1rem 1rem 0.5rem; }
 .nearby-city-line { font-size: 1rem; font-weight: 800; color: var(--primary); }
@@ -1661,8 +1669,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   <div class="setup-step active" id="step1">
     <h2>About you 👋</h2>
     <p>Help us find great matches for you</p>
-    <label class="form-label">Your age</label>
-    <input type="text" inputmode="numeric" class="form-input" id="sAge" placeholder="e.g. 27">
+    <label class="form-label">Date of birth</label>
+    <input type="date" class="form-input" id="sDob" max="" style="color-scheme:dark">
     <label class="form-label">Gender</label>
     <div class="pill-group" id="genderGroup">
       <button class="pill-btn" onclick="selectPill('gender','Man',this)">👨 Man</button>
@@ -2488,6 +2496,7 @@ const S = {
   minAge:       18,         // age range filter — lower bound
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
+  likedMeViewed: new Set(), // L3: UIDs seen in WLY panel this session — excluded from badge count
   isPremium:    false,      // true once user has Spark Premium — unlocks Who Liked You full view
   superLikeUsedDate: null, // ISO date string (YYYY-MM-DD) of last super like — free users get 1/day
   lastSwiped:   null,       // { uid, action } — enables Rewind for premium users
@@ -2711,6 +2720,14 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           S.user = { id: firebaseUser.uid, name: firebaseUser.displayName || '' };
           showView('setup');
           updateProgress(1);
+          // L1: cap DOB picker at 18 years ago so under-18s can't proceed
+          (function() {
+            var el = document.getElementById('sDob');
+            if (!el) return;
+            var cutoff = new Date();
+            cutoff.setFullYear(cutoff.getFullYear() - 18);
+            el.max = cutoff.toISOString().split('T')[0];
+          })();
         }
       } else {
         // Unsubscribe all listeners
@@ -3299,7 +3316,7 @@ async function logout() {
     user: null, profiles: [], matches: [], matchIds: new Set(),
     newMatches: new Set(), newMatchMsgs: new Set(), messages: {}, unread: {},
     activeChatId: null, activeMatchId: null, pendingMatchId: null,
-    seen: new Set(), likedMe: [], _matchesInitialized: false
+    seen: new Set(), likedMe: [], likedMeViewed: new Set(), _matchesInitialized: false
   });
   S._pw = null; S._authEmail = null;
   await auth?.signOut();
@@ -3581,8 +3598,12 @@ function toggleHeightUnit() {
 
 function goStep(from) {
   if (from === 1) {
-    const age = parseInt(document.getElementById('sAge').value);
-    if (!age || age < 18 || age > 99) { toast('Please enter a valid age (18+)'); return; }
+    // L1: use DOB input for accurate, birthday-aware age calculation
+    const dobVal = document.getElementById('sDob').value;
+    const age    = dobVal ? calcAgeFromDob(dobVal) : null;
+    if (!dobVal)       { toast('Please enter your date of birth'); return; }
+    if (!age || age < 18) { toast('You must be at least 18 to join Spark'); return; }
+    if (age > 99)      { toast('Please enter a valid date of birth'); return; }
     if (!S.setup.gender)  { toast('Please select your gender'); return; }
     if (!S.setup.seeking) { toast('Please select who you\'re interested in'); return; }
     // Height (optional)
@@ -3595,7 +3616,8 @@ function goStep(from) {
       const inches = parseInt(document.getElementById('sHeightIn')?.value) || 0;
       if (ft && ft >= 1 && ft <= 9) heightStr = ft + '\'' + (inches < 10 ? '0' : '') + inches + '"';
     }
-    S.user.age = age; S.user.gender = S.setup.gender; S.user.seeking = S.setup.seeking;
+    S.user.age = age; S.user.dob = dobVal;
+    S.user.gender = S.setup.gender; S.user.seeking = S.setup.seeking;
     S.user.height = heightStr;
     S.user.zodiac = S.setup.zodiac || '';
     updateProgress(2);
@@ -3705,6 +3727,7 @@ async function finishSetup() {
   const profile = {
     name:      S.user.name || auth?.currentUser?.displayName || 'User',
     age:       S.user.age    || 18,
+    dob:       S.user.dob    || '',
     gender:    S.setup.gender  || S.user.gender  || '',
     seeking:   S.setup.seeking || S.user.seeking || 'Everyone',
     height:    S.user.height   || '',
@@ -4404,7 +4427,12 @@ function setFilter(f, btn) {
     if (ageBar)        ageBar.style.display = 'none';
     if (wlySection)    wlySection.style.display = '';
     // Load fresh likedMe data then render the WLY view
-    loadLikedMe().then(() => renderWhoLikedYou());
+    loadLikedMe().then(() => {
+      renderWhoLikedYou();
+      // L3: mark every currently visible liker as "seen" so the chip badge clears
+      (S.likedMe || []).forEach(u => S.likedMeViewed.add(u.uid));
+      updateBadges();
+    });
   } else {
     // Show normal card stack, hide WLY panel
     if (discoverInner) discoverInner.style.display = '';
@@ -5094,6 +5122,16 @@ function likeFromDetail() { closeDetail(); swipe('like'); }
 function renderMatches() {
   const grid = document.getElementById('matchesGrid');
   if (!grid) return;
+
+  // L4: show shimmer skeleton while awaiting the first Firestore snapshot
+  if (!S._matchesInitialized) {
+    const skel = Array.from({length: 4}, () =>
+      `<div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>`
+    ).join('');
+    grid.innerHTML = skel;
+    return;
+  }
+
   if (S.matches.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
       <div class="empty-icon">💕</div>
@@ -5110,11 +5148,11 @@ function renderMatches() {
     card.className = 'match-card';
     card.tabIndex = 0;
     card.innerHTML = `
-      <img class="match-card-img" src="${photo}" alt="${m.name}" onerror="this.src='${avatar(m.name||'?')}'">
+      <img class="match-card-img" src="${photo}" alt="${escHtml(m.name)}" onerror="this.src='${avatar(m.name||'?')}'">
       ${m.online ? '<div class="match-card-online-dot"></div>' : ''}
       <div class="match-card-body">
-        <div class="match-card-name">${m.name}${m.online ? ' <span class="online-dot"></span>' : ''}</div>
-        <div class="match-card-loc">📍 ${m.city || ''}, ${m.state || ''}</div>
+        <div class="match-card-name">${escHtml(m.name)}${m.online ? ' <span class="online-dot"></span>' : ''}</div>
+        <div class="match-card-loc">📍 ${escHtml(m.city || '')}, ${escHtml(m.state || '')}</div>
         ${isNew ? '<div class="new-badge">NEW MATCH ✨</div>' : ''}
       </div>`;
     card.onclick = () => openMatchProfile(m.uid);
@@ -7156,7 +7194,8 @@ function updateBadges() {
   // Update the "New ✨" chip with a live count badge of unmatched people who liked you
   const chipNew = document.getElementById('chipNew');
   if (chipNew) {
-    const wlyCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
+    // L3: only count likers the user hasn't seen in the WLY panel this session
+    const wlyCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid) && !S.likedMeViewed.has(u.uid)).length;
     const existing = chipNew.querySelector('.new-chip-badge');
     if (wlyCount > 0) {
       const badge = existing || document.createElement('span');
@@ -7189,9 +7228,23 @@ function fmtTime(d) {
   if (!d) return '';
   const dt  = new Date(d);
   const now = new Date();
+  // L5: pin to en-US locale so timestamps look identical on every user's device
   if (dt.toDateString() === now.toDateString())
-    return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return dt.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// L1: birthday-aware age calculation — correctly handles same-month/day edge cases
+function calcAgeFromDob(dob) {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  // Subtract 1 if their birthday this year hasn't happened yet
+  const hadBirthday = (today.getMonth() > birth.getMonth()) ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+  if (!hadBirthday) age--;
+  return age;
 }
 
 function escHtml(s) {
