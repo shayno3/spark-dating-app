@@ -302,7 +302,7 @@ html, body {
 .profile-card.current { z-index: 3; cursor: pointer; }
 .profile-card.next { z-index: 2; transform: scale(0.95) translateY(18px); opacity: 0.8; }
 .profile-card.third { z-index: 1; transform: scale(0.9) translateY(36px); opacity: 0.45; }
-.card-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-photo { width: 100%; height: 100%; object-fit: contain; background: #0a0a14; display: block; }
 .card-gradient { position: absolute; bottom: 0; left: 0; right: 0; height: 65%; background: linear-gradient(transparent, rgba(0,0,0,0.92)); pointer-events: none; }
 .card-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 1.25rem 1.25rem 1rem; }
 .card-name { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; display: flex; align-items: center; gap: 0.4rem; }
@@ -667,8 +667,8 @@ html, body {
 .edit-body { padding: 1rem 1.25rem 2.5rem; overflow: visible; }
 
 /* ---- PROFILE DETAIL PANEL ---- */
-.detail-photos { position: relative; height: 58vh; min-height: 300px; flex-shrink: 0; }
-.detail-photo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-photos { position: relative; height: 58vh; min-height: 300px; flex-shrink: 0; background: #0a0a14; }
+.detail-photo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .detail-back { position: absolute; top: 0.9rem; left: 0.9rem; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; backdrop-filter: blur(4px); }
 .detail-info { padding: 1.25rem; overflow: visible; }
 .detail-name-line { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
@@ -827,13 +827,13 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
   height: 55vh;
   min-height: 280px;
   flex-shrink: 0;
-  background: var(--bg-card);
+  background: #0a0a14;
   overflow: hidden;
 }
 .match-profile-photo-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
   transition: opacity 0.25s;
 }
