@@ -355,19 +355,43 @@ html, body {
 .fly-up    { animation: flyUp 0.38s ease-in forwards; }
 
 /* ---- MATCH OVERLAY ---- */
-.match-overlay { position: fixed; inset: 0; background: rgba(8,6,20,0.95); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; backdrop-filter: blur(6px); }
+.match-overlay { position: fixed; inset: 0; background: rgba(8,6,20,0.96); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; backdrop-filter: blur(8px); overflow: hidden; }
 .match-overlay.show { display: flex; }
-.match-big-emoji { font-size: 3.5rem; margin-bottom: 0.5rem; animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1); }
+/* Sparkle particles */
+.match-overlay::before, .match-overlay::after {
+  content: '✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧ ✦ ✧';
+  position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+  font-size: 1.1rem; color: #e11d8f; white-space: nowrap;
+  animation: sparkleRain 3s linear infinite; opacity: 0;
+  letter-spacing: 0.5rem;
+}
+.match-overlay::after {
+  color: #7b2ff7; animation-delay: 1.5s; font-size: 0.8rem;
+  letter-spacing: 1.2rem;
+}
+@keyframes sparkleRain {
+  0%   { transform: translateX(-50%) translateY(0);   opacity: 0; }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateX(-50%) translateY(110vh); opacity: 0; }
+}
+.match-content { display: flex; flex-direction: column; align-items: center; animation: matchSlideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+@keyframes matchSlideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.match-big-emoji { font-size: 3.5rem; margin-bottom: 0.5rem; animation: popIn 0.4s cubic-bezier(.34,1.56,.64,1) 0.1s both; }
 .match-title { font-size: 2.8rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px; }
 .match-sub { color: var(--text-muted); margin: 0.3rem 0 1.75rem; font-size: 0.95rem; }
-.match-avatars { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
-.match-av { width: 110px; height: 110px; border-radius: 50%; overflow: hidden; border: 3px solid; }
-.match-av:first-child { border-color: var(--primary); }
-.match-av:last-child { border-color: var(--secondary); }
-.match-av img { width: 100%; height: 100%; object-fit: cover; }
-.match-heart { font-size: 2rem; animation: pulse 1s ease-in-out infinite; }
+.match-avatars { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 2rem; }
+.match-av { width: 110px; height: 110px; border-radius: 50%; overflow: hidden; position: relative; }
+.match-av::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; z-index: -1; }
+.match-av:first-child::before { background: var(--gradient); animation: ringPulse 1.8s ease-in-out infinite; }
+.match-av:last-child::before  { background: linear-gradient(135deg,#7b2ff7,#e11d8f); animation: ringPulse 1.8s ease-in-out infinite 0.9s; }
+@keyframes ringPulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(225,29,143,0.5)} 50%{opacity:0.8;box-shadow:0 0 0 8px rgba(225,29,143,0)} }
+.match-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.match-heart { font-size: 2.2rem; animation: pulse 1s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(225,29,143,0.8)); }
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.25)} }
 @keyframes popIn { 0%{transform:scale(0);opacity:0} 100%{transform:scale(1);opacity:1} }
+/* "New" chip liked-count badge */
+.new-chip-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: #fff; font-size: 0.6rem; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px; margin-left: 3px; vertical-align: middle; line-height: 1; }
 
 /* ---- MATCHES TAB ---- */
 .tab-scroll { overflow: visible; padding: 0.75rem 1rem 1rem; }
@@ -2145,16 +2169,18 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
   <!-- MATCH OVERLAY -->
   <div class="match-overlay" id="matchOverlay">
-    <div class="match-big-emoji">🎉</div>
-    <div class="match-title">It's a Match!</div>
-    <div class="match-sub">You and <strong id="matchName"></strong> liked each other!</div>
-    <div class="match-avatars">
-      <div class="match-av"><img id="matchMyPhoto" src="" alt=""></div>
-      <div class="match-heart">💕</div>
-      <div class="match-av"><img id="matchTheirPhoto" src="" alt=""></div>
+    <div class="match-content">
+      <div class="match-big-emoji">🎉</div>
+      <div class="match-title">It's a Match!</div>
+      <div class="match-sub">You and <strong id="matchName"></strong> liked each other!</div>
+      <div class="match-avatars">
+        <div class="match-av"><img id="matchMyPhoto" src="" alt=""></div>
+        <div class="match-heart">💕</div>
+        <div class="match-av"><img id="matchTheirPhoto" src="" alt=""></div>
+      </div>
+      <button class="btn-primary" style="max-width:280px" onclick="goToMatchChat()">Send a Message 💬</button>
+      <button class="btn-outline" style="max-width:280px;margin-top:0.6rem" onclick="closeMatchOverlay()">Keep Swiping</button>
     </div>
-    <button class="btn-primary" style="max-width:280px" onclick="goToMatchChat()">Send a Message 💬</button>
-    <button class="btn-outline" style="max-width:280px;margin-top:0.6rem" onclick="closeMatchOverlay()">Keep Swiping</button>
   </div>
 
   <!-- Command Heard Feedback Banner -->
@@ -3270,7 +3296,7 @@ async function logout() {
     user: null, profiles: [], matches: [], matchIds: new Set(),
     newMatches: new Set(), newMatchMsgs: new Set(), messages: {}, unread: {},
     activeChatId: null, activeMatchId: null, pendingMatchId: null,
-    seen: new Set()
+    seen: new Set(), likedMe: [], _matchesInitialized: false
   });
   S._pw = null; S._authEmail = null;
   await auth?.signOut();
@@ -4134,6 +4160,7 @@ async function enterMainApp() {
   // Firestore to return all user docs (glasses are especially sensitive to this delay)
   loadProfiles();
   subscribeToMatches();
+  loadLikedMe().catch(() => {}); // populate WLY panel & badge count on startup
   updateBadges();
   startOnlineHeartbeat();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
@@ -4542,36 +4569,39 @@ async function recordLike(targetUid, action) {
       .catch(() => {});
   }
 
+  // Step 1: Write my sent like. If this fails something is badly wrong — abort.
   try {
-    // Write my like (sent index)
     await db.collection('likes').doc(myUid).collection('sent').doc(targetUid).set({
       action,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Write received index on their side so they can query who liked them
+  } catch(e) {
+    console.warn('recordLike: failed to write sent like:', e);
+    return;
+  }
+
+  // Step 2: Write received on their side so they see us in the "New ✨" tab.
+  // Best-effort — a failure here is non-fatal for mutual detection (we check our OWN received below).
+  // Rules allow this write: likes/{targetUid}/received/{myUid} requires auth.uid == myUid ✓
+  try {
     await db.collection('likes').doc(targetUid).collection('received').doc(myUid).set({
       action,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Check for mutual like — two strategies so rules never block match creation:
-    // 1. Read my own received collection (works if cross-user writes succeeded)
-    // 2. Fall back to reading their sent collection (works when rules allow reading others' sent docs)
-    let mutual = false;
-    try {
-      const myReceived = await db.collection('likes').doc(myUid).collection('received').doc(targetUid).get();
-      if (myReceived.exists) mutual = true;
-    } catch(_) {}
-    if (!mutual) {
-      try {
-        const theirSent = await db.collection('likes').doc(targetUid).collection('sent').doc(myUid).get();
-        if (theirSent.exists) mutual = true;
-      } catch(_) {}
-    }
-    if (mutual) {
+  } catch(e) {
+    console.warn('recordLike: cross-user received write failed (target may not see us in WLY):', e);
+    // Don't return — mutual check below still works.
+  }
+
+  // Step 3: Check for mutual like. Always runs regardless of Step 2 outcome.
+  // We can always read our OWN received list — no cross-user read needed.
+  try {
+    const myReceived = await db.collection('likes').doc(myUid).collection('received').doc(targetUid).get();
+    if (myReceived.exists) {
       await createMatch(myUid, targetUid);
     }
   } catch(e) {
-    console.warn('recordLike error:', e);
+    console.warn('recordLike: mutual check or createMatch failed:', e);
   }
 }
 
@@ -5032,6 +5062,7 @@ async function loadLikedMe() {
     }));
     S.likedMe = profiles.filter(Boolean);
     renderLikedMe();
+    updateBadges(); // refresh "New ✨" chip badge count
   } catch(e) {
     console.warn('loadLikedMe error:', e);
   }
@@ -6858,6 +6889,21 @@ function updateBadges() {
   const unread = Object.values(S.unread).filter(Boolean).length;
   // Messages badge fires for unread messages OR new matches waiting in Messages
   if (msgDot) msgDot.classList.toggle('active', unread > 0 || S.newMatchMsgs.size > 0);
+
+  // Update the "New ✨" chip with a live count badge of unmatched people who liked you
+  const chipNew = document.getElementById('chipNew');
+  if (chipNew) {
+    const wlyCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
+    const existing = chipNew.querySelector('.new-chip-badge');
+    if (wlyCount > 0) {
+      const badge = existing || document.createElement('span');
+      badge.className = 'new-chip-badge';
+      badge.textContent = wlyCount;
+      if (!existing) chipNew.appendChild(badge);
+    } else if (existing) {
+      existing.remove();
+    }
+  }
 }
 
 function avatar(name) {
