@@ -4563,19 +4563,26 @@ async function rewind() {
   renderDiscover();
 }
 
+// H6: swipe-in-progress lock — prevents the same card being actioned twice
+// during the 400ms fly-away animation (rapid taps, keyboard, glasses commands).
+let _swipeInProgress = false;
+
 async function swipe(action) {
+  if (_swipeInProgress) return; // H6: already animating
   const uid  = currentCardId();
   if (!uid) return;
   const card = document.querySelector('.profile-card.current');
   if (!card) return;
 
+  _swipeInProgress = true;
   logEv('swipe', { direction: action }); // 'like' | 'super' | 'pass'
 
-  // Super Like daily limit — free users get 1 per day
+  // Super Like daily limit — fast local check; recordLike does the server re-verify
   if (action === 'super' && !S.isPremium) {
     const today = new Date().toISOString().slice(0, 10);
     if (S.superLikeUsedDate === today) {
       toast('⭐ You\'ve used your free Super Like today!');
+      _swipeInProgress = false;
       setTimeout(() => upgradeToPremium(), 600);
       return;
     }
@@ -4593,20 +4600,54 @@ async function swipe(action) {
   S.seen.add(uid);
   S.lastSwiped = { uid, action };
   _updateRewindBtn();
-  setTimeout(renderDiscover, 400);
+  setTimeout(() => { _swipeInProgress = false; renderDiscover(); }, 400);
 }
+
+// H6: per-call timestamp throttle — caps Firestore like writes at 1 per 600ms
+// regardless of swipe path (buttons, drag, keyboard, glasses voice commands).
+let _lastLikeTs = 0;
 
 async function recordLike(targetUid, action) {
   const myUid = S.user?.id;
   if (!myUid || !db) return;
 
-  // Track super like usage for free users (1/day limit)
+  // H6: hard rate-limit — silently drop if called more than once every 600ms
+  const now = Date.now();
+  if (now - _lastLikeTs < 600) {
+    console.warn('recordLike: throttled (too rapid)');
+    return;
+  }
+  _lastLikeTs = now;
+
+  // H5: Super Like server verification — prevents reload/multi-session bypass.
+  // 1) Re-read superLikeUsedDate from Firestore (catches stale local state).
+  // 2) Write the new date as a required step; abort the super like if it fails.
+  // 3) Only update local state AFTER the Firestore write confirms.
   if (action === 'super' && !S.isPremium) {
     const today = new Date().toISOString().slice(0, 10);
-    S.superLikeUsedDate = today;
-    db.collection('users').doc(myUid)
-      .update({ superLikeUsedDate: today })
-      .catch(() => {});
+    try {
+      const userSnap = await db.collection('users').doc(myUid).get();
+      const serverDate = userSnap.data()?.superLikeUsedDate || null;
+      if (serverDate === today) {
+        toast('⭐ You\'ve already used your free Super Like today!');
+        setTimeout(() => upgradeToPremium(), 600);
+        return;
+      }
+    } catch(e) {
+      // If the read fails, fall through to local check as a safety net
+      if (S.superLikeUsedDate === today) {
+        toast('⭐ You\'ve already used your free Super Like today!');
+        return;
+      }
+    }
+    // Write is required — abort the super like if it fails
+    try {
+      await db.collection('users').doc(myUid).update({ superLikeUsedDate: today });
+      S.superLikeUsedDate = today; // set local ONLY after confirmed server write
+    } catch(e) {
+      toast('Could not verify Super Like quota — please try again');
+      return;
+    }
   }
 
   // Step 1: Write my sent like. If this fails something is badly wrong — abort.
@@ -7516,11 +7557,15 @@ function setStamps(show, h1, h2, opacity) {
 function hideStamps(...els) { els.forEach(el => { if (el) el.style.opacity = '0'; }); }
 
 async function completeSwipe(uid, action) {
-  // Enforce Super Like daily limit (also covered in onEnd for drag path)
+  if (_swipeInProgress) return; // H6: lock (drag path guard)
+  _swipeInProgress = true;
+
+  // Fast local Super Like check; recordLike does the authoritative server re-verify
   if (action === 'super' && !S.isPremium) {
     const today = new Date().toISOString().slice(0, 10);
     if (S.superLikeUsedDate === today) {
       toast('⭐ You\'ve used your free Super Like today!');
+      _swipeInProgress = false;
       setTimeout(() => upgradeToPremium(), 600);
       return;
     }
@@ -7532,7 +7577,7 @@ async function completeSwipe(uid, action) {
     if (VOICE.active) speak(action === 'super' ? `Super liked ${u?.name||''}!` : `Liked ${u?.name||''}!`);
     recordLike(uid, action);
   }
-  setTimeout(renderDiscover, 370);
+  setTimeout(() => { _swipeInProgress = false; renderDiscover(); }, 370);
 }
 
 /* ================================================================
