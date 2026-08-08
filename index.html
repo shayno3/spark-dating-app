@@ -3923,7 +3923,7 @@ async function openAdminUser(uid) {
     <div>
       <div class="admin-detail-section-label">Actions</div>
       <div class="admin-action-grid">
-        <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}','${(u.name||'User').replace(/'/g,&quot;\\\\&apos;&quot;)}')"><span class="aab-icon">💬</span>Send Message</button>
+        <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
         <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}','${u.email||''}')"><span class="aab-icon">🔑</span>Reset Password</button>
         <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
@@ -3944,9 +3944,10 @@ function closeAdminDetail(e) {
 let _adminComposeUid = null;
 let _adminComposeName = '';
 
-function adminOpenMessage(uid, name) {
+function adminOpenMessage(uid) {
+  const cached = (window._adminUsers || []).find(x => x.id === uid);
   _adminComposeUid = uid;
-  _adminComposeName = name || 'User';
+  _adminComposeName = cached?.name || 'User';
   const modal = document.getElementById('adminComposeModal');
   const nameEl = document.getElementById('adminComposeName');
   const ta = document.getElementById('adminComposeTa');
