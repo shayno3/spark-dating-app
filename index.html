@@ -3853,7 +3853,7 @@ async function openAdminUser(uid) {
     <div>
       <div class="admin-detail-section-label">Actions</div>
       <div class="admin-action-grid">
-        <button class="admin-action-btn message"   onclick="adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
+        <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
         <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}','${u.email||''}')"><span class="aab-icon">🔑</span>Reset Password</button>
         <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
@@ -3864,7 +3864,7 @@ async function openAdminUser(uid) {
       <div class="admin-detail-section-label">Send Message to ${u.name || 'User'}</div>
       <div class="admin-msg-compose">
         <textarea id="adminMsgText-${uid}" placeholder="Type your message…" rows="3"></textarea>
-        <button class="admin-msg-send" onclick="adminSendMessage('${uid}','${u.name||'User'}')">Send ✉️</button>
+        <button class="admin-msg-send" style="touch-action:manipulation" onclick="event.stopPropagation(); adminSendMessage('${uid}','${u.name||'User'}')">Send ✉️</button>
       </div>
     </div>
   `;
@@ -3880,8 +3880,9 @@ function closeAdminDetail(e) {
 function adminOpenMessage(uid) {
   const div = document.getElementById('adminMsgCompose-' + uid);
   if (!div) return;
-  div.style.display = div.style.display === 'none' ? '' : 'none';
-  if (div.style.display !== 'none') {
+  const isHidden = div.style.display === 'none' || div.style.display === '';
+  div.style.display = isHidden ? 'block' : 'none';
+  if (div.style.display === 'block') {
     setTimeout(() => document.getElementById('adminMsgText-' + uid)?.scrollIntoView({behavior:'smooth',block:'end'}), 100);
   }
 }
@@ -3894,10 +3895,18 @@ async function adminSendMessage(uid, name) {
 
   const matchId = [S.user.id, uid].sort().join('_');
   try {
-    await db.collection('matches').doc(matchId).collection('messages').add({
-      senderId: S.user.id,
+    // Ensure a match document exists so the user can find this conversation
+    await db.collection('matches').doc(matchId).set({
+      users: [S.user.id, uid],
+      lastMsg: text,
+      lastMsgTime: firebase.firestore.FieldValue.serverTimestamp(),
+      adminCreated: true,
+    }, { merge: true });
+    // Write to the correct messages path (same as regular chat)
+    await db.collection('messages').doc(matchId).collection('msgs').add({
+      from: S.user.id,
       text,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
       adminMessage: true,
     });
     ta.value = '';
