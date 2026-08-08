@@ -34,17 +34,23 @@ service cloud.firestore {
     }
 
     // ── Messages ──────────────────────────────────────────────────────────
+    // C4: Only users who are participants in the parent match may read/write
+    // messages. Uses a cross-document get() to check the matches/{matchId}.uids
+    // list so an outsider who guesses a matchId cannot read private chats.
     match /messages/{matchId}/msgs/{msgId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null
+        && request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.uids;
     }
 
     // ── Glasses Pairing ───────────────────────────────────────────────────
     // glassPair documents are read by the glasses BEFORE the user is signed
     // in (the glasses enter the code first, then use the encrypted record to
-    // authenticate). Reads must be allowed without auth.
-    // Only authenticated users may create/delete their own pairing record.
+    // authenticate). Single-document GET is allowed without auth so the glasses
+    // can fetch by known code. LIST (enumeration/querying) is blocked so codes
+    // cannot be scraped en-masse. Only authenticated users may create/delete.
     match /glassPair/{code} {
-      allow read:   if true;                        // glasses read pre-auth
+      allow get:    if true;                        // glasses fetch a specific code pre-auth
+      allow list:   if false;                       // C3: block enumeration of all codes
       allow create: if request.auth != null;        // phone writes after PIN setup
       allow delete: if request.auth != null;        // phone can reset the code
     }

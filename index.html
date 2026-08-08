@@ -2038,7 +2038,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="voice-note-btn" id="chatVoiceBtn" onclick="chatToggleVoiceNote(this,'chatMessages')">🎙</button>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
-        <button class="send-btn" onclick="sendMsg()">
+        <button class="send-btn" id="chatSendBtn" onclick="sendMsg()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
         </button>
       </div>
@@ -2104,7 +2104,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="voice-note-btn" id="inlineVoiceBtn" onclick="chatToggleVoiceNote(this,'inlineChatMessages')">🎙</button>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
-        <button class="send-btn" onclick="sendInlineMsg()">
+        <button class="send-btn" id="inlineSendBtn" onclick="sendInlineMsg()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
         </button>
       </div>
@@ -5763,17 +5763,26 @@ async function sendInlineMsg() {
   const input = document.getElementById('inlineChatInput');
   const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
+  if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
+  const btn = document.getElementById('inlineSendBtn');
+  if (btn) btn.disabled = true;
   input.value = '';
   try {
-    await db.collection('messages').doc(S.activeMatchId)
-      .collection('msgs').add({
-        from: S.user.id,
-        text,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
-      });
+    await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
+      from: S.user.id,
+      text,
+      ts: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Keep conversation list preview current
+    db.collection('matches').doc(S.activeMatchId).update({
+      lastMsg: text,
+      lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => {});
   } catch(e) {
     input.value = text;
-    toast('Failed to send — check connection');
+    toast('Failed to send — check your connection');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -6315,20 +6324,29 @@ async function voiceSendPreview() {
 }
 
 async function sendMsg() {
-  const input   = document.getElementById('chatInput');
-  const text    = input.value.trim();
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
+  if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
+  const btn = document.getElementById('chatSendBtn');
+  if (btn) btn.disabled = true;
   input.value = '';
   try {
-    await db.collection('messages').doc(S.activeMatchId)
-      .collection('msgs').add({
-        from: S.user.id,
-        text,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
-      });
+    await db.collection('messages').doc(S.activeMatchId).collection('msgs').add({
+      from: S.user.id,
+      text,
+      ts: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Keep conversation list preview current
+    db.collection('matches').doc(S.activeMatchId).update({
+      lastMsg: text,
+      lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => {});
   } catch(e) {
     input.value = text; // restore on error
-    toast('Failed to send — check connection');
+    toast('Failed to send — check your connection');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -6814,8 +6832,17 @@ async function saveProfile() {
   if (!uid) return;
   const name = document.getElementById('editNameIn').value.trim();
   const age  = parseInt(document.getElementById('editAgeIn').value);
-  if (!name)          { toast('Name is required'); return; }
-  if (!age || age < 18) { toast('Valid age required'); return; }
+  const bio  = document.getElementById('editBioIn').value.trim();
+  const city = document.getElementById('editCityIn').value.trim();
+
+  // Field validation
+  if (!name)              { toast('Name is required'); return; }
+  if (name.length < 2)    { toast('Name must be at least 2 characters'); return; }
+  if (name.length > 50)   { toast('Name must be 50 characters or less'); return; }
+  if (!age || age < 18)   { toast('Valid age required (18+)'); return; }
+  if (age > 100)          { toast('Please enter a valid age'); return; }
+  if (bio.length > 500)   { toast('Bio must be 500 characters or less (' + bio.length + '/500)'); return; }
+  if (city.length > 100)  { toast('City name is too long'); return; }
 
   const saveBtn = document.querySelector('.save-btn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
@@ -6841,9 +6868,9 @@ async function saveProfile() {
     intent:          document.getElementById('editIntentIn')?.value  || '',
     height:          document.getElementById('editHeightIn')?.value.trim()  || '',
     zodiac:          document.getElementById('editZodiacIn')?.value  || '',
-    city:            document.getElementById('editCityIn').value.trim(),
+    city,
     state:           document.getElementById('editStateDropdown').value,
-    bio:             document.getElementById('editBioIn').value.trim(),
+    bio,
     interests:       [...S.edit.interests],
     photos:          photoUrls,
     invisible:       document.getElementById('editInvisibleToggle')?.checked ?? false,
