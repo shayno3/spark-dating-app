@@ -2195,7 +2195,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
     <!-- ── VOICE RECORDING OVERLAY ── -->
     <div class="voice-rec-overlay" id="voiceRecOverlay">
-      <div class="voice-rec-pulse-ring">🎙</div>
+      <div class="voice-rec-pulse-ring">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="white"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg>
+      </div>
       <div class="voice-rec-timer" id="voiceRecTimer">0:00</div>
       <div class="voice-rec-hint">Recording… tap stop when done</div>
       <button class="voice-rec-stop-btn" onclick="voiceStopRecording()" style="touch-action:manipulation">&#9632; Stop</button>
@@ -2211,7 +2213,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="voice-preview-btns">
         <button class="voice-preview-discard" onclick="voiceDiscardPreview()" style="touch-action:manipulation">&#128465; Discard</button>
-        <button class="voice-preview-send-btn" onclick="voiceSendPreview()" style="touch-action:manipulation">Send 🎙</button>
+        <button class="voice-preview-send-btn" onclick="voiceSendPreview()" style="touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:0.45rem">Send <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
       </div>
     </div>
 
@@ -2255,16 +2257,16 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-pill-bar" id="chatPillBar">
-        <button class="chat-pill" id="chatDictatePill" onclick="chatToggleDictate('chatInput',this)">🎤 Dictate</button>
-        <button class="chat-pill" onclick="chatHandwrite('chatInput',this)">✍️ Handwrite</button>
-        <button class="chat-pill" id="chatVoiceNotePill" onclick="_chatVoiceNotePill(this,'chatVoiceBtn','chatMessages')">🎙 Voice Note</button>
-        <button class="chat-pill" id="chatEmojiPill" onclick="chatToggleEmoji('chatInput',this)">😊 Emoji</button>
-        <button class="chat-pill" id="chatListenPill" onclick="chatListen(this)">🎙 Listen</button>
-        <button class="chat-pill" id="chatVkPill" onclick="chatToggleVKPill('chatInput',this)">⌨️ VK</button>
+        <button class="chat-pill" id="chatDictatePill" title="Dictate" onclick="chatToggleDictate('chatInput',this)">🎤</button>
+        <button class="chat-pill" title="Handwrite" onclick="chatHandwrite('chatInput',this)">✍️</button>
+        <button class="chat-pill" id="chatVoiceNotePill" title="Voice Note" onclick="_chatVoiceNotePill(this,'chatVoiceBtn','chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
+        <button class="chat-pill" id="chatEmojiPill" title="Emoji" onclick="chatToggleEmoji('chatInput',this)">😊</button>
+        <button class="chat-pill" id="chatListenPill" title="Listen" onclick="chatListen(this)">🎧</button>
+        <button class="chat-pill" id="chatVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('chatInput',this)">⌨️</button>
       </div>
       <div class="chat-input-bar">
         <button class="chat-mic-shortcut" id="chatMicBtn" onclick="chatToggleDictate('chatInput',document.getElementById('chatDictatePill'))">🎤</button>
-        <button class="voice-note-btn" id="chatVoiceBtn" onclick="chatToggleVoiceNote(this,'chatMessages')">🎙</button>
+        <button class="voice-note-btn" id="chatVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="send-btn" id="chatSendBtn" onclick="sendMsg()">
@@ -2321,16 +2323,16 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="chat-messages" id="inlineChatMessages"></div>
       <div class="chat-pill-bar" id="inlineChatPillBar">
-        <button class="chat-pill" id="inlineDictatePill" onclick="chatToggleDictate('inlineChatInput',this)">🎤 Dictate</button>
-        <button class="chat-pill" onclick="chatHandwrite('inlineChatInput',this)">✍️ Handwrite</button>
-        <button class="chat-pill" id="inlineVoiceNotePill" onclick="_chatVoiceNotePill(this,'inlineVoiceBtn','inlineChatMessages')">🎙 Voice Note</button>
-        <button class="chat-pill" id="inlineEmojiPill" onclick="chatToggleEmoji('inlineChatInput',this)">😊 Emoji</button>
-        <button class="chat-pill" id="inlineListenPill" onclick="chatListen(this)">🎙 Listen</button>
-        <button class="chat-pill" id="inlineVkPill" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️ VK</button>
+        <button class="chat-pill" id="inlineDictatePill" title="Dictate" onclick="chatToggleDictate('inlineChatInput',this)">🎤</button>
+        <button class="chat-pill" title="Handwrite" onclick="chatHandwrite('inlineChatInput',this)">✍️</button>
+        <button class="chat-pill" id="inlineVoiceNotePill" title="Voice Note" onclick="_chatVoiceNotePill(this,'inlineVoiceBtn','inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
+        <button class="chat-pill" id="inlineEmojiPill" title="Emoji" onclick="chatToggleEmoji('inlineChatInput',this)">😊</button>
+        <button class="chat-pill" id="inlineListenPill" title="Listen" onclick="chatListen(this)">🎧</button>
+        <button class="chat-pill" id="inlineVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️</button>
       </div>
       <div class="chat-input-bar">
         <button class="chat-mic-shortcut" id="inlineMicBtn" onclick="chatToggleDictate('inlineChatInput',document.getElementById('inlineDictatePill'))">🎤</button>
-        <button class="voice-note-btn" id="inlineVoiceBtn" onclick="chatToggleVoiceNote(this,'inlineChatMessages')">🎙</button>
+        <button class="voice-note-btn" id="inlineVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
         <button class="send-btn" id="inlineSendBtn" onclick="sendInlineMsg()">
