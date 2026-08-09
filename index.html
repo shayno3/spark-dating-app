@@ -4321,7 +4321,11 @@ function showTab(tab) {
     if (tab === 'profile')   renderMyProfile();
     if (tab === 'explore')   renderNearby();
     if (tab === 'admin')     renderAdminPanel();
-    if (typeof _navFocus === 'function') setTimeout(_navFocus, 120);
+    // Keep highlight on the nav tab that was just tapped — don't jump to content
+    if (typeof _navSet === 'function') setTimeout(() => {
+      const navBtn = document.getElementById('nav-' + tab);
+      if (navBtn) _navSet(navBtn); else if (typeof _navFocus === 'function') _navFocus();
+    }, 120);
   });
 }
 
