@@ -4090,14 +4090,15 @@ async function renderAdminPanel() {
     const WEEK = 7 * DAY;
 
     window._adminUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const users = window._adminUsers;
+    const users   = window._adminUsers;
+    const active  = users.filter(u => !u.deleted); // exclude soft-deleted accounts
 
-    const total    = users.length;
-    const online   = users.filter(u => u.lastSeen && (now - (u.lastSeen?.toMillis?.() || u.lastSeen)) < 3 * 60 * 1000).length;
-    const premium  = users.filter(u => u.premium).length;
-    const newToday = users.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < DAY).length;
-    const newWeek  = users.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < WEEK).length;
-    const newYest  = users.filter(u => { const ms = u.createdAt?.toMillis?.() || u.createdAt; return ms && (now - ms) >= DAY && (now - ms) < 2*DAY; }).length;
+    const total    = active.length;
+    const online   = active.filter(u => u.lastSeen && (now - (u.lastSeen?.toMillis?.() || u.lastSeen)) < 3 * 60 * 1000).length;
+    const premium  = active.filter(u => u.premium).length;
+    const newToday = active.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < DAY).length;
+    const newWeek  = active.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < WEEK).length;
+    const newYest  = active.filter(u => { const ms = u.createdAt?.toMillis?.() || u.createdAt; return ms && (now - ms) >= DAY && (now - ms) < 2*DAY; }).length;
 
     panel.innerHTML = `
       <div class="admin-sticky-head">
@@ -4193,32 +4194,32 @@ async function renderAdminPanel() {
       const updated  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       // Detect new joins and deletions for activity feed
+      const prevMap = new Map((window._adminUsers||[]).map(u => [u.id, u]));
       updated.forEach(u => {
-        if (!prevIds.has(u.id)) {
+        const prev = prevMap.get(u.id);
+        if (!prev) {
+          // Brand new account
           _adminState.activity.unshift({ type:'join', text:`${u.name||'Someone'} joined Spark`, time:'Just now' });
           if (_adminState.activity.length > 10) _adminState.activity.pop();
-          // Flash the new row after render
           setTimeout(() => {
             const el = document.getElementById('adminrow-' + u.id);
             if (el) { el.classList.add('admin-new-flash'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
           }, 120);
-        }
-      });
-      const newIds = new Set(updated.map(u => u.id));
-      (window._adminUsers||[]).forEach(u => {
-        if (!newIds.has(u.id)) {
-          _adminState.activity.unshift({ type:'delete', text:`${u.name||'A user'}'s account was removed`, time:'Just now' });
+        } else if (!prev.deleted && u.deleted) {
+          // Account just soft-deleted
+          _adminState.activity.unshift({ type:'delete', text:`${prev.name||'A user'}'s account was removed`, time:'Just now' });
           if (_adminState.activity.length > 10) _adminState.activity.pop();
         }
       });
 
       window._adminUsers = updated;
 
-      // Refresh stats
-      const t  = updated.length;
-      const on = updated.filter(u => u.lastSeen && (now2-(u.lastSeen?.toMillis?.() || u.lastSeen))<180000).length;
-      const pr = updated.filter(u => u.premium).length;
-      const nt = updated.filter(u => u.createdAt && (now2-(u.createdAt?.toMillis?.() || u.createdAt))<86400000).length;
+      // Refresh stats — exclude soft-deleted accounts
+      const active2 = updated.filter(u => !u.deleted);
+      const t  = active2.length;
+      const on = active2.filter(u => u.lastSeen && (now2-(u.lastSeen?.toMillis?.() || u.lastSeen))<180000).length;
+      const pr = active2.filter(u => u.premium).length;
+      const nt = active2.filter(u => u.createdAt && (now2-(u.createdAt?.toMillis?.() || u.createdAt))<86400000).length;
       const sv = (id, val) => { const el=document.getElementById(id); if(el) el.childNodes[0].textContent=val; };
       const statAll = document.getElementById('aStatAll');
       if (statAll) statAll.querySelector('.admin-stat-val').textContent = t;
@@ -4294,7 +4295,7 @@ function adminRenderList() {
 
   const now   = Date.now();
   const DAY   = 86400000;
-  let users   = window._adminUsers || [];
+  let users   = (window._adminUsers || []).filter(u => !u.deleted); // hide soft-deleted accounts
 
   // Date range filter
   if (_adminState.dateRange === 'today')
