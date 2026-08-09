@@ -1005,6 +1005,27 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 .conv-confirm-ok.danger { background: linear-gradient(135deg,#ef4444,#dc2626); }
 .conv-confirm-ok.warn   { background: linear-gradient(135deg,#f59e0b,#d97706); }
 
+/* ---- HEIGHT DRUM PICKER ---- */
+.hp-wrap { background: var(--bg-card); border-radius: 14px; border: 1.5px solid var(--border); overflow: hidden; margin-bottom: 0.5rem; }
+.hp-unit-row { display: flex; border-bottom: 1px solid var(--border); }
+.hp-unit-btn { flex: 1; padding: 0.55rem; font-size: 0.8rem; font-weight: 800; border: none; background: none; color: var(--text-muted); cursor: pointer; touch-action: manipulation; transition: color 0.15s, background 0.15s; }
+.hp-unit-btn.active { color: var(--primary); background: rgba(233,30,140,0.08); }
+.hp-drums { display: flex; }
+.hp-drum-col { position: relative; }
+.hp-col { height: 176px; overflow: hidden; position: relative; cursor: grab; user-select: none; touch-action: none; }
+.hp-col:active { cursor: grabbing; }
+.hp-col-inner { will-change: transform; }
+.hp-item { height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 700; color: rgba(255,255,255,0.22); line-height: 1; }
+.hp-item.hp-near { color: rgba(255,255,255,0.58); }
+.hp-item.hp-sel  { color: #fff; font-size: 1.2rem; }
+.hp-sep { width: 1px; background: var(--border); align-self: stretch; flex-shrink: 0; }
+.hp-col-label { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); text-align: center; padding: 0.38rem 0 0.15rem; border-top: 1px solid var(--border); }
+.hp-col::before,.hp-col::after { content:''; position:absolute; left:0; right:0; height:60px; z-index:2; pointer-events:none; }
+.hp-col::before { top:0; background:linear-gradient(to bottom,var(--bg-card),transparent); }
+.hp-col::after  { bottom:0; background:linear-gradient(to top,var(--bg-card),transparent); }
+.hp-bar { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); height:44px; background:rgba(233,30,140,0.07); border-top:1.5px solid rgba(233,30,140,0.28); border-bottom:1.5px solid rgba(233,30,140,0.28); pointer-events:none; z-index:1; }
+.hp-result { text-align:center; padding:0.6rem 1rem; font-size:0.88rem; font-weight:800; color:var(--primary); border-top:1px solid var(--border); background:rgba(233,30,140,0.04); }
+.hp-result small { color:var(--text-muted); font-weight:500; font-size:0.78rem; margin-left:0.35rem; }
 /* ---- SCROLLBAR ---- */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -6076,6 +6097,190 @@ function closeConvConfirm() {
   _navRefresh();
 }
 
+/* ================================================================
+   HEIGHT DRUM PICKER
+================================================================ */
+const HP_ITEM_H = 44, HP_PAD = 2;
+const HP_FT  = [4,5,6,7];
+const HP_IN  = Array.from({length:12},(_,i)=>i);
+const HP_CM  = Array.from({length:101},(_,i)=>i+120);
+const _HP = { unit:'imperial', ft:5, ins:8, cm:178 };
+
+function parseHeightStr(str) {
+  if (!str) return null;
+  // "5'10"" or "5'10"
+  const imp = str.match(/(\d)\s*'(\d+)/);
+  if (imp) return { ft: parseInt(imp[1]), ins: parseInt(imp[2]) };
+  // "178 cm"
+  const met = str.match(/(\d{3})\s*cm/i);
+  if (met) return { cm: parseInt(met[1]) };
+  return null;
+}
+
+function hpBuildCol(innerId, values, selected, fmtFn) {
+  const inner = document.getElementById(innerId);
+  if (!inner) return;
+  const pad = Array(HP_PAD).fill('<div class="hp-item"></div>').join('');
+  inner.innerHTML = pad + values.map((v,i) => {
+    const cls = v === selected ? 'hp-item hp-sel'
+              : Math.abs(values.indexOf(selected)-i) === 1 ? 'hp-item hp-near'
+              : 'hp-item';
+    return `<div class="${cls}">${fmtFn ? fmtFn(v) : v}</div>`;
+  }).join('') + pad;
+}
+
+function hpScrollTo(colId, values, selected) {
+  const col = document.getElementById(colId);
+  if (!col) return;
+  const inner = col.querySelector('.hp-col-inner');
+  if (!inner) return;
+  const idx = values.indexOf(selected);
+  const offset = -(idx * HP_ITEM_H);
+  inner.style.transform = `translateY(${offset}px)`;
+}
+
+function hpUpdateHighlights(colId, values, selected) {
+  const col = document.getElementById(colId);
+  if (!col) return;
+  const items = col.querySelectorAll('.hp-item');
+  const selIdx = values.indexOf(selected);
+  items.forEach((el, i) => {
+    const vi = i - HP_PAD; // subtract padding rows
+    el.className = 'hp-item';
+    if (vi === selIdx)       el.classList.add('hp-sel');
+    else if (Math.abs(vi - selIdx) === 1) el.classList.add('hp-near');
+  });
+}
+
+function hpMakeDraggable(colId, values, getVal, setVal) {
+  const col = document.getElementById(colId);
+  if (!col) return;
+  const inner = col.querySelector('.hp-col-inner');
+  if (!inner) return;
+
+  let startY = 0, startOffset = 0, lastY = 0, velY = 0, dragging = false, rafId = null;
+
+  function getOffset() {
+    const m = inner.style.transform.match(/translateY\((-?\d+(?:\.\d+)?)px\)/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+  function clampOffset(off) {
+    const max = 0;
+    const min = -(values.length - 1) * HP_ITEM_H;
+    return Math.max(min, Math.min(max, off));
+  }
+  function snapToNearest(off) {
+    const idx = Math.round(-off / HP_ITEM_H);
+    const clamped = Math.max(0, Math.min(values.length-1, idx));
+    setVal(values[clamped]);
+    const snapped = -(clamped * HP_ITEM_H);
+    inner.style.transition = 'transform 0.2s cubic-bezier(0.25,0.46,0.45,0.94)';
+    inner.style.transform = `translateY(${snapped}px)`;
+    setTimeout(() => { inner.style.transition = ''; }, 220);
+    hpUpdateHighlights(colId, values, values[clamped]);
+    hpUpdateResult();
+  }
+
+  function onStart(y) {
+    dragging = true; startY = y; startOffset = getOffset(); lastY = y; velY = 0;
+    inner.style.transition = '';
+    if (rafId) cancelAnimationFrame(rafId);
+  }
+  function onMove(y) {
+    if (!dragging) return;
+    const dy = y - startY;
+    velY = y - lastY; lastY = y;
+    inner.style.transform = `translateY(${clampOffset(startOffset + dy)}px)`;
+    const idx = Math.round(-(startOffset + dy) / HP_ITEM_H);
+    const ci  = Math.max(0, Math.min(values.length-1, idx));
+    hpUpdateHighlights(colId, values, values[ci]);
+  }
+  function onEnd() {
+    if (!dragging) return;
+    dragging = false;
+    // momentum
+    let off = getOffset();
+    const kick = velY * 4;
+    const target = clampOffset(off + kick);
+    inner.style.transition = 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)';
+    inner.style.transform = `translateY(${target}px)`;
+    setTimeout(() => { inner.style.transition = ''; snapToNearest(target); }, 360);
+  }
+
+  col.addEventListener('touchstart', e => { onStart(e.touches[0].clientY); }, {passive:true});
+  col.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientY); }, {passive:false});
+  col.addEventListener('touchend',   () => onEnd());
+  col.addEventListener('mousedown',  e => { onStart(e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove', e => { if (dragging) onMove(e.clientY); });
+  window.addEventListener('mouseup',   () => { if (dragging) onEnd(); });
+}
+
+function hpSetUnit(unit) {
+  _HP.unit = unit;
+  document.getElementById('hpBtnImp')?.classList.toggle('active', unit === 'imperial');
+  document.getElementById('hpBtnMet')?.classList.toggle('active', unit === 'metric');
+  const imp = document.getElementById('hpImperialDrums');
+  const met = document.getElementById('hpMetricDrums');
+  if (imp) imp.style.display = unit === 'imperial' ? 'flex' : 'none';
+  if (met) met.style.display = unit === 'metric'   ? 'flex' : 'none';
+  hpUpdateResult();
+}
+
+function hpUpdateResult() {
+  const el = document.getElementById('hpResult');
+  if (!el) return;
+  if (_HP.unit === 'imperial') {
+    el.innerHTML = `${_HP.ft}'${_HP.ins}" <small>(${Math.round(_HP.ft*30.48 + _HP.ins*2.54)} cm)</small>`;
+  } else {
+    const totalIn = _HP.cm / 2.54;
+    const ft = Math.floor(totalIn / 12);
+    const ins = Math.round(totalIn % 12);
+    el.innerHTML = `${_HP.cm} cm <small>(${ft}'${ins}")</small>`;
+  }
+}
+
+function hpGetValue() {
+  if (_HP.unit === 'imperial') return `${_HP.ft}'${_HP.ins}"`;
+  return `${_HP.cm} cm`;
+}
+
+function initHeightPicker(currentHeight) {
+  // Parse existing height string
+  const parsed = parseHeightStr(currentHeight);
+  if (parsed) {
+    if (parsed.ft !== undefined) {
+      _HP.unit = 'imperial';
+      _HP.ft   = HP_FT.includes(parsed.ft)  ? parsed.ft  : 5;
+      _HP.ins  = HP_IN.includes(parsed.ins)  ? parsed.ins : 8;
+    } else if (parsed.cm !== undefined) {
+      _HP.unit = 'metric';
+      _HP.cm   = HP_CM.includes(parsed.cm) ? parsed.cm : 178;
+    }
+  } else {
+    _HP.unit = 'imperial'; _HP.ft = 5; _HP.ins = 8; _HP.cm = 178;
+  }
+
+  // Build columns
+  hpBuildCol('hpInnerFt', HP_FT, _HP.ft,  v => `${v} ft`);
+  hpBuildCol('hpInnerIn', HP_IN, _HP.ins,  v => `${v}"`);
+  hpBuildCol('hpInnerCm', HP_CM, _HP.cm,  v => `${v}`);
+
+  // Scroll to current values
+  hpScrollTo('hpColFt', HP_FT, _HP.ft);
+  hpScrollTo('hpColIn', HP_IN, _HP.ins);
+  hpScrollTo('hpColCm', HP_CM, _HP.cm);
+
+  // Wire up drag
+  hpMakeDraggable('hpColFt', HP_FT, () => _HP.ft,  v => { _HP.ft  = v; });
+  hpMakeDraggable('hpColIn', HP_IN, () => _HP.ins, v => { _HP.ins = v; });
+  hpMakeDraggable('hpColCm', HP_CM, () => _HP.cm,  v => { _HP.cm  = v; });
+
+  // Apply unit display
+  hpSetUnit(_HP.unit);
+  hpUpdateResult();
+}
+/* ================================================================ */
+
 async function deleteConversation(uid, name) {
   const myUid  = S.user?.id;
   const match  = S.matches.find(m => m.uid === uid);
@@ -7348,7 +7553,33 @@ function openEditProfile() {
       <option value="Open to anything" ${u.intent==='Open to anything'?'selected':''}>🌈 Open to anything</option>
     </select>
     <label class="form-label">Height <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
-    <input type="text" class="form-input vk-input" id="editHeightIn" value="${escAttr(u.height||'')}" placeholder="e.g. 5'10&quot; or 178 cm" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <div class="hp-wrap" id="editHeightPicker">
+      <div class="hp-unit-row">
+        <button class="hp-unit-btn active" id="hpBtnImp" onclick="hpSetUnit('imperial')">ft / in</button>
+        <button class="hp-unit-btn" id="hpBtnMet" onclick="hpSetUnit('metric')">cm</button>
+      </div>
+      <div id="hpImperialDrums" class="hp-drums">
+        <div class="hp-drum-col" style="flex:1">
+          <div class="hp-bar"></div>
+          <div class="hp-col" id="hpColFt"><div class="hp-col-inner" id="hpInnerFt"></div></div>
+          <div class="hp-col-label">feet</div>
+        </div>
+        <div class="hp-sep"></div>
+        <div class="hp-drum-col" style="flex:2">
+          <div class="hp-bar"></div>
+          <div class="hp-col" id="hpColIn"><div class="hp-col-inner" id="hpInnerIn"></div></div>
+          <div class="hp-col-label">inches</div>
+        </div>
+      </div>
+      <div id="hpMetricDrums" class="hp-drums" style="display:none">
+        <div class="hp-drum-col" style="flex:1">
+          <div class="hp-bar"></div>
+          <div class="hp-col" id="hpColCm"><div class="hp-col-inner" id="hpInnerCm"></div></div>
+          <div class="hp-col-label">centimetres</div>
+        </div>
+      </div>
+      <div class="hp-result" id="hpResult">—</div>
+    </div>
     <label class="form-label">Zodiac Sign <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
     <select class="form-select" id="editZodiacIn">
       <option value="">— Not specified —</option>
@@ -7370,32 +7601,6 @@ function openEditProfile() {
     </div>
     <div class="chips-display" id="editChips"></div>
 
-    <div class="privacy-section">
-      <div class="form-label" style="margin-top:1.5rem">Privacy Settings</div>
-
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-row-label">👻 Invisible Mode</div>
-          <div class="toggle-row-desc">Hide your profile from other users</div>
-        </div>
-        <label class="toggle-switch" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){this.querySelector('input').click();event.preventDefault()}">
-          <input type="checkbox" id="editInvisibleToggle" ${u.invisible ? 'checked' : ''}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
-      <div class="toggle-row" style="border-bottom:none">
-        <div>
-          <div class="toggle-row-label">🕵️ Browse Privately</div>
-          <div class="toggle-row-desc">Don't appear online while browsing</div>
-        </div>
-        <label class="toggle-switch" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){this.querySelector('input').click();event.preventDefault()}">
-          <input type="checkbox" id="editBrowsePrivatelyToggle" ${u.browsePrivately ? 'checked' : ''}>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
     <div style="height:1rem"></div>`;
 
   populateStateDropdowns();
@@ -7403,6 +7608,7 @@ function openEditProfile() {
   renderChips('editChips', S.edit.interests, 'edit');
   renderEditPhotoGrid();
   document.getElementById('editPanel').classList.add('open');
+  initHeightPicker(u.height || '');
   _navRefresh();
 }
 
@@ -7457,16 +7663,16 @@ async function saveProfile() {
     gender:          document.getElementById('editGenderIn').value.trim() || S.user.gender,
     seeking:         document.getElementById('editSeekingIn').value,
     intent:          document.getElementById('editIntentIn')?.value  || '',
-    height:          document.getElementById('editHeightIn')?.value.trim()  || '',
+    height:          hpGetValue(),
     zodiac:          document.getElementById('editZodiacIn')?.value  || '',
     city,
     state:           document.getElementById('editStateDropdown').value,
     bio,
     interests:       [...S.edit.interests],
     photos:          photoUrls,
-    invisible:       document.getElementById('editInvisibleToggle')?.checked ?? false,
-    browsePrivately: document.getElementById('editBrowsePrivatelyToggle')?.checked ?? false,
-    online:          !(document.getElementById('editBrowsePrivatelyToggle')?.checked)
+    invisible:       S.user.invisible       ?? false,
+    browsePrivately: S.user.browsePrivately ?? false,
+    online:          !(S.user.browsePrivately ?? false)
   };
   if (S.location?.lat) {
     updates.lat           = S.location.lat;
