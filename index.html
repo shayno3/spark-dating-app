@@ -7890,12 +7890,21 @@ async function saveProfile() {
   const pendingEditPhotos = [...(S.edit.photos || [])];
   const hasNewPhotos = pendingEditPhotos.some(p => p && p.blob);
 
-  // Use existing saved photos immediately; new uploads happen in background
-  const photoUrls = hasNewPhotos
+  // For Firestore: only write existing Storage URLs — never base64 previews.
+  // Base64 images can be hundreds of KB each and push the doc over Firestore's
+  // 1 MB limit, causing the update() call to hang indefinitely ("Saving…" forever).
+  // New photos are uploaded to Storage in the background by resolvePhotos() below
+  // and the doc is patched with real HTTPS URLs once the uploads complete.
+  const photoUrls = pendingEditPhotos
+    .map(p => (p && typeof p === 'string') ? p : null)
+    .filter(Boolean);
+
+  // For local display only: show previews immediately so the UI feels instant.
+  const localPhotoUrls = hasNewPhotos
     ? pendingEditPhotos.map(p => {
         if (!p) return null;
-        if (typeof p === 'string') return p;     // existing URL — keep as-is
-        return p.preview || null;                // new upload — use preview for now
+        if (typeof p === 'string') return p;
+        return p.preview || null;
       }).filter(Boolean)
     : (S.user.photos || []);
 
@@ -7910,7 +7919,7 @@ async function saveProfile() {
     state:           document.getElementById('editStateDropdown').value,
     bio,
     interests:       [...S.edit.interests],
-    photos:          photoUrls,
+    photos:          photoUrls,      // Storage URLs only — no base64 in Firestore
     invisible:       S.user.invisible       ?? false,
     browsePrivately: S.user.browsePrivately ?? false,
     online:          !(S.user.browsePrivately ?? false)
@@ -7924,8 +7933,9 @@ async function saveProfile() {
 
   try {
     await db.collection('users').doc(uid).update(updates);
-    logEv('profile_edit', { photo_count: photoUrls.length });
+    logEv('profile_edit', { photo_count: localPhotoUrls.length });
     Object.assign(S.user, updates);
+    S.user.photos = localPhotoUrls;  // show previews locally while real uploads run in background
     closeEditProfile();
     renderMyProfile();
     toast('Profile saved! ✨');
