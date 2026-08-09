@@ -3409,8 +3409,16 @@ async function forgotPassword() {
       url: 'https://spark-dating-d16.pages.dev/',
       handleCodeInApp: true
     });
-    toast('Password reset email sent — check your inbox ✉️');
-  } catch(e) { toast(fbErrMsg(e)); }
+  } catch(e) {
+    // Intentionally swallow user-not-found to prevent account enumeration.
+    // Any other real error (network, invalid email format) still surfaces generically.
+    if (e.code !== 'auth/user-not-found') {
+      toast('Something went wrong — please try again');
+      return;
+    }
+  }
+  // Always show the same message whether the account exists or not
+  toast('If that email is registered, a reset link is on its way ✉️');
 }
 
 /* ---- In-app password reset (handles ?mode=resetPassword&oobCode=... links) ---- */
@@ -3585,8 +3593,8 @@ function fbErrMsg(e) {
     'auth/email-already-in-use': 'Email already in use — try signing in',
     'auth/invalid-email':        'Invalid email address',
     'auth/weak-password':        'Password too weak (6+ chars)',
-    'auth/user-not-found':       'No account found — try signing up',
-    'auth/wrong-password':       'Incorrect password',
+    'auth/user-not-found':       'Incorrect email or password',
+    'auth/wrong-password':       'Incorrect email or password',
     'auth/too-many-requests':    'Too many attempts — try again later',
     'auth/invalid-credential':   'Incorrect email or password',
     'auth/account-exists-with-different-credential': 'An account already exists with this email — try a different sign-in method',
@@ -4060,9 +4068,9 @@ function _adminBuildRow(u) {
   return `<div class="admin-user-row" id="adminrow-${u.id}" onclick="openAdminUser('${u.id}')">
     <div class="admin-user-av">${photo}${ring}</div>
     <div style="flex:1;min-width:0">
-      <div class="admin-user-name">${u.name||'Unknown'}${u.age ? ', '+u.age : ''}</div>
+      <div class="admin-user-name">${escHtml(u.name||'Unknown')}${u.age ? ', '+u.age : ''}</div>
       <div class="admin-user-meta">
-        <span class="admin-user-state">${u.state||''}</span>
+        <span class="admin-user-state">${escHtml(u.state||'')}</span>
         ${u.state ? '<span>·</span>' : ''}
         <span>Joined ${joined}</span>
       </div>
@@ -4400,7 +4408,7 @@ async function openAdminUser(uid) {
     <div class="admin-info-item"><div class="admin-info-key">Joined</div><div class="admin-info-val">${joined}</div></div>
     <div class="admin-info-item"><div class="admin-info-key">Last Seen</div><div class="admin-info-val">${lastOn}</div></div>
     <div class="admin-info-item"><div class="admin-info-key">Premium</div><div class="admin-info-val">${u.premium ? '⭐ Yes' : 'No'}</div></div>
-    <div class="admin-info-item"><div class="admin-info-key">Location</div><div class="admin-info-val">${u.city || u.state || '—'}</div></div>
+    <div class="admin-info-item"><div class="admin-info-key">Location</div><div class="admin-info-val">${escHtml((u.city || u.state) || '—')}</div></div>
     <div class="admin-info-item"><div class="admin-info-key">Status</div><div class="admin-info-val">${u.banned ? '🚫 Banned' : '✅ Active'}</div></div>
   </div>`;
 
@@ -4423,10 +4431,10 @@ async function openAdminUser(uid) {
       <div class="admin-detail-section-label">Actions</div>
       <div class="admin-action-grid">
         <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
-        <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}','${u.email||''}')"><span class="aab-icon">🔑</span>Reset Password</button>
+        <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}')"><span class="aab-icon">🔑</span>Reset Password</button>
         <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
-        <button class="admin-action-btn delete" style="grid-column:span 2" onclick="adminDeleteAccount('${uid}','${u.name||'this user'}')"><span class="aab-icon">🗑</span>Delete Account</button>
+        <button class="admin-action-btn delete" style="grid-column:span 2" onclick="adminDeleteAccount('${uid}')"><span class="aab-icon">🗑</span>Delete Account</button>
       </div>
     </div>
     <!-- compose is now handled by the global adminComposeModal -->
@@ -4539,9 +4547,11 @@ async function adminToggleBan(uid, currentlyBanned) {
   }
 }
 
-async function adminDeleteAccount(uid, name) {
-  if (!confirm(`Permanently delete ${name}'s account? This cannot be undone.`)) return;
-  if (!confirm(`Are you absolutely sure? All data for ${name} will be marked deleted.`)) return;
+async function adminDeleteAccount(uid) {
+  const _u = (window._adminUsers||[]).find(x => x.id === uid);
+  const name = _u?.name || 'this user';
+  if (!confirm(`Permanently delete ${escHtml(name)}'s account? This cannot be undone.`)) return;
+  if (!confirm(`Are you absolutely sure? All data for ${escHtml(name)} will be marked deleted.`)) return;
   if (!db) return;
   try {
     await db.collection('users').doc(uid).update({
@@ -4558,12 +4568,14 @@ async function adminDeleteAccount(uid, name) {
   }
 }
 
-async function adminResetPassword(uid, email) {
+async function adminResetPassword(uid) {
+  const _u = (window._adminUsers||[]).find(x => x.id === uid);
+  const email = _u?.email;
   if (!email) { toast('No email on file for this user'); return; }
-  if (!confirm(`Send password reset email to ${email}?`)) return;
+  if (!confirm(`Send password reset email to ${escHtml(email)}?`)) return;
   try {
     await auth.sendPasswordResetEmail(email);
-    toast(`🔑 Password reset sent to ${email}`);
+    toast(`🔑 Password reset sent to ${escHtml(email)}`);
   } catch (e) {
     toast('⚠️ Reset failed: ' + e.message);
   }
@@ -5071,6 +5083,8 @@ async function swipe(action) {
 // H6: per-call timestamp throttle — caps Firestore like writes at 1 per 600ms
 // regardless of swipe path (buttons, drag, keyboard, glasses voice commands).
 let _lastLikeTs = 0;
+let _lastMsgTs  = 0;
+let _lastReportTs = 0;
 
 async function recordLike(targetUid, action) {
   const myUid = S.user?.id;
@@ -5331,6 +5345,10 @@ async function blockUser(uid, name) {
 async function reportUser(uid, name, reason) {
   const myUid = S.user?.id;
   if (!myUid || !db) return;
+  // Rate limit: max 1 report per 30 seconds to prevent spam
+  const _rNow = Date.now();
+  if (_rNow - _lastReportTs < 30000) { toast('Please wait before submitting another report'); return; }
+  _lastReportTs = _rNow;
   try {
     await db.collection('reports').add({
       reporterId: myUid,
@@ -7337,6 +7355,10 @@ async function sendMsg() {
   const text  = input.value.trim();
   if (!text || !S.activeMatchId || !db) return;
   if (text.length > 1000) { toast('Message too long (max 1,000 characters)'); return; }
+  // Rate limit: max 1 message per second to prevent flooding
+  const _now = Date.now();
+  if (_now - _lastMsgTs < 1000) return;
+  _lastMsgTs = _now;
   // M5: block guard — prevent sending to a user you've blocked
   if ((S.user.blockedUsers||[]).includes(S.activeChatId)) { toast('You have blocked this user'); return; }
   const btn     = document.getElementById('chatSendBtn');
