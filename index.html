@@ -4773,7 +4773,9 @@ function getProspects() {
     if (!S.user || u.id === S.user.id) return false;
     // S.seen is NOT filtered here — the grid always shows all eligible profiles.
     // (S.seen is used only by the legacy swipe-card mode, not the grid.)
-    if (S.matchIds.has(u.id))          return false; // already matched — show in Matches tab
+    // NOTE: matched users ARE shown in Discover — excluding them caused the grid to be
+    // empty when all test accounts are matched. updateFilterCounts() never filtered by
+    // matchIds, so this was the mismatch causing chips to show counts but grid to be blank.
     if (u.deleted || u.banned)         return false; // account removed or banned
     if (u.invisible)                   return false; // user hid their profile
     if (u.age < S.minAge)              return false; // age range filter
