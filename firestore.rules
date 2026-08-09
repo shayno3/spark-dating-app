@@ -12,11 +12,17 @@ service cloud.firestore {
 
     // ── Users ─────────────────────────────────────────────────────────────
     // Anyone signed in can read profiles (needed for Discover/Nearby).
-    // Only the owner can write their own profile.
+    // Owner can create/delete their own profile freely.
+    // Owner updates are allowed but photos array is capped at 6 entries (#10).
     // Any authenticated user may increment profileViewsWeekly (profile view tracking).
     match /users/{uid} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      // Owner update: any field allowed, but photos array must not exceed 6 entries
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && (!('photos' in request.resource.data) || request.resource.data.photos.size() <= 6);
       // Allow any signed-in user to increment profileViewsWeekly on another user's doc
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys()
@@ -78,12 +84,20 @@ service cloud.firestore {
     // ── Glasses Pairing ───────────────────────────────────────────────────
     // glassPair documents are read by the glasses BEFORE the user is signed
     // in (the glasses enter the code first, then use the encrypted record to
-    // authenticate). Reads must be allowed without auth.
-    // Only authenticated users may create/delete their own pairing record.
+    // authenticate). Single-document GET is allowed without auth so the glasses
+    // can fetch by known code.
+    // #6: Split read → get/list: block list enumeration, allow targeted get only.
+    // #7: Delete restricted to the account owner (matched via auth token email).
+    // #8: Create restricted to the account owner (email in new doc must match auth token).
     match /glassPair/{code} {
-      allow read:   if true;                        // glasses read pre-auth
-      allow create: if request.auth != null;        // phone writes after PIN setup
-      allow delete: if request.auth != null;        // phone can reset the code
+      allow get:    if true;                           // glasses fetch a specific code pre-auth
+      allow list:   if false;                          // block enumeration of all codes (#6)
+      // Owner creates their own pairing record — email in doc must match their auth email
+      allow create: if request.auth != null
+                    && request.auth.token.email == request.resource.data.email; // #8
+      // Only the account whose email is in the doc may delete it (#7)
+      allow delete: if request.auth != null
+                    && request.auth.token.email == resource.data.email;         // #7
     }
 
     // ── Reports ───────────────────────────────────────────────────────────

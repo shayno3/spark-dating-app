@@ -10,9 +10,12 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
-    // Profile verification selfies
+    // Profile verification selfies — owner or admin only (#9).
+    // These are sensitive identity documents; other users must not be able to read them.
     match /verifications/{userId}/{allPaths=**} {
-      allow read:  if request.auth != null;
+      allow read:  if request.auth != null
+                   && (request.auth.uid == userId
+                       || request.auth.uid == 'qwDw0vp4suOugIr39GqJ0K70cIq2'); // admin UID
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 10 * 1024 * 1024
