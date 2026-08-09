@@ -2689,7 +2689,8 @@ function applyPastedConfig() {
   }
 })();
 
-const ADMIN_EMAIL = 'shayno3@gmail.com';
+// Admin identity — checked against UID (not email) so no personal email is exposed in client JS
+const ADMIN_UID = 'qwDw0vp4suOugIr39GqJ0K70cIq2';
 
 /* ================================================================
    STATE
@@ -4039,7 +4040,7 @@ function removeInterest(idx, mode) {
 function _updateAdminTab() {
   const btn = document.getElementById('nav-admin');
   if (!btn) return;
-  const isAdmin = auth.currentUser?.email === ADMIN_EMAIL;
+  const isAdmin = auth.currentUser?.uid === ADMIN_UID;
   btn.style.display = isAdmin ? '' : 'none';
 }
 
@@ -4086,7 +4087,7 @@ function _adminBuildRow(u) {
 }
 
 async function renderAdminPanel() {
-  if (!db || auth.currentUser?.email !== ADMIN_EMAIL) return;
+  if (!db || auth.currentUser?.uid !== ADMIN_UID) return;
   const panel = document.getElementById('adminPanel');
   if (!panel) return;
   panel.innerHTML = '<div class="admin-loading">⭐ Loading admin data…</div>';
@@ -4364,7 +4365,7 @@ function adminFilterUsers(f) { adminSetFilter(f); }
    ADMIN USER DETAIL PANEL
 ================================================================ */
 async function openAdminUser(uid) {
-  if (auth.currentUser?.email !== ADMIN_EMAIL) return;
+  if (auth.currentUser?.uid !== ADMIN_UID) return;
   // Find from cache first, then fetch fresh from Firestore
   let u = (window._adminUsers || []).find(x => x.id === uid);
   if (!u && db) {
@@ -4557,7 +4558,7 @@ async function adminDeleteAccount(uid) {
     await db.collection('users').doc(uid).update({
       deleted: true,
       deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      deletedBy: 'admin:' + auth.currentUser.email,
+      deletedBy: 'admin:' + auth.currentUser.uid,
       name: '[Deleted]', email: '[Deleted]', photos: [], bio: '',
     });
     toast('🗑 Account deleted');

@@ -1,0 +1,18 @@
+/*
+  # Prevent the app from being embedded in iframes on other sites (clickjacking)
+  X-Frame-Options: DENY
+
+  # Prevent browsers from MIME-sniffing responses away from the declared content-type
+  X-Content-Type-Options: nosniff
+
+  # Only send the origin when crossing from HTTPS to HTTPS; strip it on HTTP
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Allow camera/mic/geolocation (used by the app) but block payment/usb/etc.
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), serial=()
+
+  # Content Security Policy
+  # script-src needs 'unsafe-inline' because all JS is inline in the single-file PWA.
+  # style-src needs 'unsafe-inline' for the same reason.
+  # connect-src is the most important — restricts which servers the app can talk to.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com https://recaptcha.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.firebasestorage.app; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app wss://*.firebaseio.com https://www.google.com https://recaptcha.google.com; frame-src https://www.google.com https://recaptcha.google.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
