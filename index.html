@@ -4714,32 +4714,32 @@ async function savePrivacySetting(field, value) {
 ================================================================ */
 function loadProfiles() {
   if (!db) return;
-  // Cancel any previous listener (legacy path or refresh)
+  // Cancel any previous listener before attaching a new one
   if (S.listeners.profiles) { S.listeners.profiles(); S.listeners.profiles = null; }
   S.profilesCursor      = null;
   S.profilesLoadingMore = false;
 
-  // H2: paginated one-time fetch — limit(50) prevents loading every user on startup.
-  // Auto-fetches next pages as the card stack runs low (see renderDiscover).
-  db.collection('users').limit(50).get()
-    .then(snap => {
-      const now = Date.now();
-      S.profiles = snap.docs
-        .filter(d => d.id !== S.user?.id)
-        .map(d => {
-          const data     = d.data();
-          const lastSeen = data.lastSeen?.toDate?.();
-          return { id: d.id, ...data, online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
-        });
-      // Store cursor only if a full page came back (more pages may exist)
-      S.profilesCursor = snap.docs.length === 50 ? snap.docs[snap.docs.length - 1] : null;
-      renderDiscover();
-      updateFilterCounts();
-    })
-    .catch(e => console.warn('loadProfiles error:', e));
+  // Real-time listener — fires immediately from Firestore's local cache (instant on repeat
+  // visits) then patches from the network, and fires again whenever any profile changes.
+  // This makes the Online tab show live status without any manual refresh.
+  S.listeners.profiles = db.collection('users').limit(200).onSnapshot(snap => {
+    const now = Date.now();
+    S.profiles = snap.docs
+      .filter(d => d.id !== S.user?.id)
+      .map(d => {
+        const data     = d.data();
+        const lastSeen = data.lastSeen?.toDate?.();
+        // online = true if their lastSeen is within the last 5 minutes
+        return { id: d.id, ...data, online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
+      });
+    renderDiscover();
+    updateFilterCounts();
+  }, e => console.warn('loadProfiles error:', e));
 }
 
 async function loadMoreProfiles() {
+  // With onSnapshot(limit 200) we auto-receive up to 200 profiles in real time.
+  // This fallback runs only if somehow the cursor is set (legacy path).
   if (!db || !S.profilesCursor || S.profilesLoadingMore) return;
   S.profilesLoadingMore = true;
   try {
@@ -4769,30 +4769,46 @@ function getProspects() {
   const now = Date.now();
   return S.profiles.filter(u => {
     if (!S.user || u.id === S.user.id) return false;
-    if (S.seen.has(u.id))              return false;
-    if (S.matchIds.has(u.id))          return false; // already matched
+    // S.seen is NOT filtered here — the grid always shows all eligible profiles.
+    // (S.seen is used only by the legacy swipe-card mode, not the grid.)
+    if (S.matchIds.has(u.id))          return false; // already matched — show in Matches tab
     if (u.deleted || u.banned)         return false; // account removed or banned
-    if (u.invisible)                   return false; // hidden by user
+    if (u.invisible)                   return false; // user hid their profile
     if (u.age < S.minAge)              return false; // age range filter
     if (S.maxAge < 80 && u.age > S.maxAge) return false;
-    // Gender preference filter — only show genders the current user is seeking
-    // Note: seeking values are pluralised ('Men','Women'); gender values are singular ('Man','Woman')
+
+    // ── Gender seeking preference ──────────────────────────────────────────
+    // seeking is pluralised ('Men'/'Women'); gender is singular ('Man'/'Woman')
     if (S.user.seeking && S.user.seeking !== 'Everyone') {
-      const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
+      const wantGender = S.user.seeking === 'Men' ? 'Man'
+                       : S.user.seeking === 'Women' ? 'Woman'
+                       : S.user.seeking;
       if (u.gender !== wantGender) return false;
     }
+
+    // ── Tab-specific filters ───────────────────────────────────────────────
     if (S.filter === 'nearby') {
+      // GPS distance (if available), city/state fallback
       const d = distanceTo(u);
-      if (d !== null) return d <= S.radius; // GPS-based: within radius km
-      return u.city === S.user.city && u.state === S.user.state; // fallback: city match
+      if (d !== null) return d <= S.radius;
+      return u.city === S.user.city && u.state === S.user.state;
     }
-    if (S.filter === 'online')         return u.online;
+    if (S.filter === 'online') {
+      // Must be currently online AND within the user's distance setting
+      if (!u.online) return false;
+      const d = distanceTo(u);
+      if (d !== null) return d <= S.radius; // GPS distance filter
+      return true; // no GPS coords — include if online
+    }
+    // 'all' — show every signed-up profile matching gender + age (no location or online filter)
     return true;
   }).sort((a, b) => {
-    // Boosted profiles always appear first in the stack
+    // Boosted profiles first, then online users, then everyone else
     const aEnd = (a.boostActiveUntil > now) ? a.boostActiveUntil : 0;
     const bEnd = (b.boostActiveUntil > now) ? b.boostActiveUntil : 0;
-    return bEnd - aEnd;
+    if (bEnd !== aEnd) return bEnd - aEnd;
+    if (a.online !== b.online) return a.online ? -1 : 1; // online users bubble up
+    return 0;
   });
 }
 
@@ -4812,7 +4828,13 @@ function updateFilterCounts() {
   const totalAll = baseUsers.length;
 
   const now = Date.now();
-  const totalOnline = baseUsers.filter(u => u.online).length;
+  // Online = online + within radius (same distance logic as the Online tab)
+  const totalOnline = baseUsers.filter(u => {
+    if (!u.online) return false;
+    const d = distanceTo(u);
+    if (d !== null) return d <= S.radius;
+    return true; // no GPS — count as online
+  }).length;
 
   // Nearby: within radius (GPS) or same city as fallback
   const totalNearby = baseUsers.filter(u => {
@@ -4832,6 +4854,8 @@ function updateFilterCounts() {
 
 function setFilter(f, btn) {
   S.filter = f;
+  // Update the chip highlight IMMEDIATELY so the UI feels instant,
+  // before any DOM-heavy rendering work begins.
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   updateRadiusBar();
@@ -4858,7 +4882,8 @@ function setFilter(f, btn) {
     if (discoverInner) discoverInner.style.display = '';
     if (ageBar)        ageBar.style.display = '';
     if (wlySection)    wlySection.style.display = 'none';
-    renderDiscover();
+    // Defer heavy grid render to next frame so the chip highlight paints first
+    requestAnimationFrame(() => renderDiscover());
   }
 }
 
@@ -4919,38 +4944,51 @@ function renderDiscover() {
   const hint      = document.getElementById('swipeHint');
   if (!stack) return;
 
-  const prospects = getProspects();
-
-  // H2: silently pre-fetch next page when the unseen stack is running low
-  if (prospects.length < 8 && S.profilesCursor && !S.profilesLoadingMore) {
-    loadMoreProfiles();
-  }
-
-  stack.innerHTML = '';
-
-  if (prospects.length === 0) {
-    // M8: friendly empty state instead of a blank card stack
-    stack.classList.remove('grid-mode');
-    stack.innerHTML = `<div class="empty-state" style="position:absolute;inset:0">
-      <div class="empty-icon">🌟</div>
-      <div class="empty-title">You've seen everyone nearby!</div>
-      <div class="empty-desc">Check back later — new people join every day.<br>In the meantime, invite friends to Spark!</div>
-      <button class="btn-primary" style="max-width:220px;margin-top:1rem" onclick="resetSeen()">Start Over 🔄</button>
-    </div>`;
-    if (actionRow) actionRow.style.display = 'none';
-    if (hint)      hint.style.display = 'none';
-    return;
-  }
-
-  // Grid/list mode — hide swipe action row and hint
   if (actionRow) actionRow.style.display = 'none';
   if (hint)      hint.style.display = 'none';
 
+  // Show a brief loading placeholder while the first snapshot arrives
+  if (!S.profiles || S.profiles.length === 0) {
+    stack.classList.remove('grid-mode');
+    stack.innerHTML = `<div class="empty-state" style="position:absolute;inset:0">
+      <div class="empty-icon" style="animation:pulse 1.2s infinite">✨</div>
+      <div class="empty-title">Loading profiles…</div>
+    </div>`;
+    return;
+  }
+
+  const prospects = getProspects();
+
+  if (prospects.length === 0) {
+    // Filter-aware empty state message
+    const emptyMsgs = {
+      all:    { icon: '🌟', title: 'No profiles yet',
+                desc: 'Be the first to invite friends — new people join every day!' },
+      nearby: { icon: '📍', title: 'No one nearby right now',
+                desc: 'Try increasing your radius in the slider above, or switch to All to see everyone.' },
+      online: { icon: '🟢', title: 'No one online right now',
+                desc: 'Come back later when more people are active, or switch to All.' },
+      new:    { icon: '✨', title: 'No new Sparks yet',
+                desc: 'Keep checking back — people who liked you will appear here!' },
+    };
+    const { icon, title, desc } = emptyMsgs[S.filter] || emptyMsgs.all;
+    stack.classList.remove('grid-mode');
+    stack.innerHTML = `<div class="empty-state" style="position:absolute;inset:0">
+      <div class="empty-icon">${icon}</div>
+      <div class="empty-title">${title}</div>
+      <div class="empty-desc">${desc}</div>
+    </div>`;
+    return;
+  }
+
+  // Render grid (or list) of prospect cards
   stack.classList.add('grid-mode');
   const grid = document.createElement('div');
   const isListMode = S.viewMode.discover === 'list';
   grid.className = 'discover-grid' + (isListMode ? ' list-mode' : '');
   prospects.forEach(user => grid.appendChild(buildDiscCard(user)));
+  // Swap in one shot to avoid layout thrash
+  stack.innerHTML = '';
   stack.appendChild(grid);
 }
 
