@@ -916,6 +916,95 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
   touch-action: manipulation;
 }
 
+/* ---- CONV ⋮ MENU BUTTON ---- */
+.conv-menu-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted); font-size: 1.15rem; line-height: 1; letter-spacing: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; touch-action: manipulation;
+  transition: background 0.12s, color 0.12s;
+}
+.conv-menu-btn:active { background: rgba(233,30,140,0.15); color: var(--primary); border-color: rgba(233,30,140,0.3); }
+
+/* ---- CONV ACTION SHEET ---- */
+.conv-action-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px); z-index: 450;
+  opacity: 0; pointer-events: none; transition: opacity 0.22s;
+}
+.conv-action-overlay.open { opacity: 1; pointer-events: all; }
+.conv-action-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--bg-card); border-radius: 20px 20px 0 0;
+  padding: 0 0 max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); z-index: 451;
+}
+.conv-action-overlay.open .conv-action-sheet { transform: translateY(0); }
+.conv-action-drag { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 0; }
+.conv-action-header {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border);
+}
+.conv-action-av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.conv-action-name { font-weight: 800; font-size: 0.97rem; }
+.conv-action-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+.conv-action-rows { padding: 0.5rem 1rem; }
+.conv-action-row {
+  display: flex; align-items: center; gap: 0.85rem;
+  width: 100%; background: none; border: none; color: var(--text);
+  padding: 0.85rem 0.5rem; font-size: 0.93rem; font-weight: 700;
+  cursor: pointer; border-bottom: 1px solid var(--border);
+  text-align: left; touch-action: manipulation; border-radius: 0; transition: background 0.1s;
+}
+.conv-action-row:last-of-type { border-bottom: none; }
+.conv-action-row:active { background: rgba(255,255,255,0.05); }
+.conv-action-row .ca-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+}
+.conv-action-row.ca-delete .ca-icon  { background: rgba(239,68,68,0.15); }
+.conv-action-row.ca-unmatch .ca-icon { background: rgba(245,158,11,0.12); }
+.conv-action-row.ca-report .ca-icon  { background: rgba(156,39,176,0.12); }
+.conv-action-row.ca-delete  { color: #f87171; }
+.conv-action-row.ca-unmatch { color: #fbbf24; }
+.conv-action-row.ca-report  { color: #c084fc; }
+.conv-action-row .ca-label { flex: 1; }
+.conv-action-row .ca-desc { font-size: 0.71rem; font-weight: 500; color: var(--text-muted); display: block; margin-top: 2px; }
+.conv-action-cancel {
+  margin: 0.5rem 1rem 0; width: calc(100% - 2rem);
+  background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12);
+  color: var(--text); border-radius: 14px; padding: 0.85rem;
+  font-size: 0.93rem; font-weight: 800; cursor: pointer; touch-action: manipulation;
+}
+.conv-action-cancel:active { background: rgba(255,255,255,0.14); }
+
+/* ---- CONV CONFIRM CARD ---- */
+.conv-confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px); z-index: 460;
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.18s;
+}
+.conv-confirm-overlay.open { opacity: 1; pointer-events: all; }
+.conv-confirm-card {
+  background: var(--bg-card); border-radius: 20px 20px 0 0;
+  padding: 1.5rem 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+  width: 100%; text-align: center;
+  transform: translateY(30px); opacity: 0;
+  transition: transform 0.24s cubic-bezier(0.32,0.72,0,1), opacity 0.18s;
+}
+.conv-confirm-overlay.open .conv-confirm-card { transform: translateY(0); opacity: 1; }
+.conv-confirm-icon  { font-size: 2.2rem; margin-bottom: 0.5rem; }
+.conv-confirm-title { font-size: 1.05rem; font-weight: 900; margin-bottom: 0.3rem; }
+.conv-confirm-desc  { font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem; }
+.conv-confirm-btns  { display: flex; gap: 0.6rem; }
+.conv-confirm-cancel { flex: 1; padding: 0.85rem; border-radius: 14px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.14); color: var(--text); font-weight: 800; font-size: 0.9rem; cursor: pointer; touch-action: manipulation; }
+.conv-confirm-ok { flex: 1; padding: 0.85rem; border-radius: 14px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; color: white; touch-action: manipulation; }
+.conv-confirm-ok.danger { background: linear-gradient(135deg,#ef4444,#dc2626); }
+.conv-confirm-ok.warn   { background: linear-gradient(135deg,#f59e0b,#d97706); }
+
 /* ---- SCROLLBAR ---- */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -5907,8 +5996,13 @@ function renderConversations() {
       <div class="conv-meta">
         ${last ? `<div class="conv-time">${fmtTime(last.time)}</div>` : ''}
         ${isUnread ? '<div class="unread-badge">●</div>' : ''}
+        <button class="conv-menu-btn" aria-label="More options">⋮</button>
       </div>`;
     item.onclick = () => openChat(m.uid);
+    item.querySelector('.conv-menu-btn').onclick = (e) => {
+      e.stopPropagation();
+      openConvSheet(m.uid, m.name || '', photo);
+    };
     list.appendChild(item);
   });
 }
@@ -5916,6 +6010,111 @@ function renderConversations() {
 function clearUnread() {
   S.matches.forEach(m => { S.unread[m.uid] = false; });
   S.newMatchMsgs.clear();
+}
+
+/* ================================================================
+   CONV ACTION SHEET — delete thread / unmatch / report
+================================================================ */
+let _convSheetUid  = null;
+let _convSheetName = '';
+let _convConfirmAction = null;
+
+function openConvSheet(uid, name, photo) {
+  _convSheetUid  = uid;
+  _convSheetName = name;
+  const av   = document.getElementById('convActionAv');
+  const nm   = document.getElementById('convActionName');
+  if (av) { av.src = photo; av.onerror = () => { av.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="%231A1A2E"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="%239BA3AF" font-size="16">' + (name?.[0]||'?') + '</text></svg>'; }; }
+  if (nm) nm.textContent = name || 'This person';
+  document.getElementById('convActionOverlay')?.classList.add('open');
+  _navRefresh();
+}
+
+function closeConvSheet() {
+  document.getElementById('convActionOverlay')?.classList.remove('open');
+  _convSheetUid  = null;
+  _convSheetName = '';
+  _navRefresh();
+}
+
+function confirmConvAction(type) {
+  closeConvSheet();
+  const uid  = _convSheetUid  || '';
+  const name = _convSheetName || 'this person';
+
+  const configs = {
+    delete: {
+      icon: '🗑️', title: 'Delete Conversation?',
+      desc: `Your message history with ${name} will be removed from your view. They will keep their copy.`,
+      btnClass: 'danger', btnLabel: 'Delete',
+      action: () => deleteConversation(uid, name)
+    },
+    unmatch: {
+      icon: '💔', title: `Unmatch ${name}?`,
+      desc: `You'll both lose this match and all messages. This cannot be undone.`,
+      btnClass: 'warn', btnLabel: 'Unmatch',
+      action: () => unmatchUser(uid, name)
+    }
+  };
+
+  const cfg = configs[type];
+  if (!cfg) return;
+
+  _convConfirmAction = cfg.action;
+  document.getElementById('convConfirmIcon').textContent  = cfg.icon;
+  document.getElementById('convConfirmTitle').textContent = cfg.title;
+  document.getElementById('convConfirmDesc').textContent  = cfg.desc;
+  const okBtn = document.getElementById('convConfirmOk');
+  if (okBtn) { okBtn.textContent = cfg.btnLabel; okBtn.className = `conv-confirm-ok ${cfg.btnClass}`; }
+  document.getElementById('convConfirmOverlay')?.classList.add('open');
+  _navRefresh();
+}
+
+function closeConvConfirm() {
+  document.getElementById('convConfirmOverlay')?.classList.remove('open');
+  _convConfirmAction = null;
+  _navRefresh();
+}
+
+async function deleteConversation(uid, name) {
+  const myUid  = S.user?.id;
+  const match  = S.matches.find(m => m.uid === uid);
+  const matchId = match?.matchId;
+  if (!myUid || !matchId) { toast('Could not find conversation'); return; }
+
+  // Clear local message state so the row disappears from the list
+  delete S.messages[matchId];
+  delete S.unread[uid];
+  renderConversations();
+  toast(`Conversation with ${name || 'user'} deleted`);
+
+  // Persist: record this matchId in the user's deletedConvs array so it
+  // stays hidden after a page refresh (messages still exist on Firestore).
+  if (db) {
+    db.collection('users').doc(myUid)
+      .update({ deletedConvs: firebase.firestore.FieldValue.arrayUnion(matchId) })
+      .catch(() => {});
+  }
+}
+
+async function unmatchUser(uid, name) {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+  const matchId = [myUid, uid].sort().join('_');
+  try {
+    // Delete the match document (removes the match for both users)
+    await db.collection('matches').doc(matchId).delete().catch(() => {});
+    // Clean up local state (mirrors blockUser pattern)
+    S.seen.add(uid);
+    S.matches    = S.matches.filter(m => m.uid !== uid);
+    S.matchIds.delete(uid);
+    delete S.messages[matchId];
+    delete S.unread[uid];
+    if (S.activeChatId === uid) closeChat();
+    renderMatches();
+    renderConversations();
+    toast(`Unmatched ${name || 'user'}`);
+  } catch(e) { toast(fbErrMsg ? fbErrMsg(e) : 'Error — please try again'); }
 }
 
 function openChat(uid) {
@@ -8706,6 +8905,57 @@ async function initPushNotifications() {
 <style>
 @keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(16px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
 </style>
+
+<!-- ====== CONV ACTION SHEET ====== -->
+<div class="conv-action-overlay" id="convActionOverlay" onclick="closeConvSheet()">
+  <div class="conv-action-sheet" onclick="event.stopPropagation()">
+    <div class="conv-action-drag"></div>
+    <div class="conv-action-header">
+      <img class="conv-action-av" id="convActionAv" src="" alt="">
+      <div>
+        <div class="conv-action-name" id="convActionName"></div>
+        <div class="conv-action-sub">Choose an option</div>
+      </div>
+    </div>
+    <div class="conv-action-rows">
+      <button class="conv-action-row ca-delete" onclick="confirmConvAction('delete')">
+        <span class="ca-icon">🗑️</span>
+        <span class="ca-label">
+          Delete Conversation
+          <span class="ca-desc">Remove message history from your device</span>
+        </span>
+      </button>
+      <button class="conv-action-row ca-unmatch" onclick="confirmConvAction('unmatch')">
+        <span class="ca-icon">💔</span>
+        <span class="ca-label">
+          Unmatch
+          <span class="ca-desc">Remove this match and all messages</span>
+        </span>
+      </button>
+      <button class="conv-action-row ca-report" onclick="closeConvSheet();showReportBlock(_convSheetUid,_convSheetName)">
+        <span class="ca-icon">🚩</span>
+        <span class="ca-label">
+          Report / Block
+          <span class="ca-desc">Report inappropriate behaviour</span>
+        </span>
+      </button>
+    </div>
+    <button class="conv-action-cancel" onclick="closeConvSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- ====== CONV CONFIRM CARD ====== -->
+<div class="conv-confirm-overlay" id="convConfirmOverlay">
+  <div class="conv-confirm-card" id="convConfirmCard" onclick="event.stopPropagation()">
+    <div class="conv-confirm-icon" id="convConfirmIcon"></div>
+    <div class="conv-confirm-title" id="convConfirmTitle"></div>
+    <div class="conv-confirm-desc" id="convConfirmDesc"></div>
+    <div class="conv-confirm-btns">
+      <button class="conv-confirm-cancel" onclick="closeConvConfirm()">Cancel</button>
+      <button class="conv-confirm-ok" id="convConfirmOk" onclick="closeConvConfirm();_convConfirmAction&&_convConfirmAction()">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <!-- ====== DELETE ACCOUNT MODAL ====== -->
 <div id="deleteAccountModal">
