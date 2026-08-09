@@ -896,6 +896,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 .match-profile-body {
   padding: 1.25rem 1.25rem 1.5rem;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
 }
 .match-profile-name { font-size: 1.65rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
@@ -912,6 +913,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
   font-weight: 800;
   cursor: pointer;
   margin-top: 0.75rem;
+  touch-action: manipulation;
 }
 
 /* ---- SCROLLBAR ---- */
@@ -920,7 +922,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* ---- MOMENTUM SCROLLING (iOS) ---- */
-html, body, .chat-messages, .setup-step, .auth-view, .help-body, .fb-setup-scroll {
+html, body, .chat-messages, .setup-step, .auth-view, .help-body, .fb-setup-scroll, .match-profile-body {
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2186,7 +2188,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── MATCH PROFILE PANEL ── -->
-    <div class="panel" id="matchProfilePanel" style="overflow-y:auto">
+    <div class="panel" id="matchProfilePanel" style="overflow:hidden">
       <div class="match-profile-photos" id="matchProfilePhotos">
         <img class="match-profile-photo-img" id="matchProfileImg" src="" alt="">
         <button class="match-profile-back" onclick="closeMatchProfile()">←</button>
