@@ -207,35 +207,77 @@ html, body {
 .nav-btn.nav-admin-btn svg { filter: drop-shadow(0 0 4px rgba(245,158,11,0.6)); }
 
 /* ---- ADMIN PANEL ---- */
-.admin-panel { display: flex; flex-direction: column; padding: 1rem; gap: 1rem; overflow-y: auto; }
-.admin-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.1)); border: 1px solid rgba(245,158,11,0.3); border-radius: 14px; }
-.admin-header-icon { font-size: 1.6rem; }
-.admin-header-title { font-size: 1.1rem; font-weight: 800; color: #fcd34d; }
-.admin-header-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
-.admin-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-.admin-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 0.85rem; display: flex; flex-direction: column; gap: 0.25rem; cursor: pointer; touch-action: manipulation; transition: background 0.15s, border-color 0.15s, transform 0.1s; }
-.admin-stat-card:active { transform: scale(0.97); }
-.admin-stat-card.filter-active { border-color: var(--primary); background: rgba(233,30,140,0.1); }
-.admin-stat-val { font-size: 1.8rem; font-weight: 900; color: var(--primary); line-height: 1; }
-.admin-stat-val.gold { color: #f59e0b; }
-.admin-stat-val.green { color: #22c55e; }
-.admin-stat-val.blue { color: #60a5fa; }
-.admin-stat-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-.admin-section-title { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem; }
-.admin-user-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.admin-user-row { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0.65rem 0.85rem; }
-.admin-user-av { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: linear-gradient(135deg,#e11d8f,#f97316); flex-shrink: 0; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; color: white; }
-.admin-user-name { font-weight: 700; font-size: 0.88rem; flex: 1; }
-.admin-user-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
-.admin-badge { font-size: 0.62rem; font-weight: 800; padding: 2px 7px; border-radius: 8px; margin-left: 0.25rem; flex-shrink: 0; }
-.admin-badge.premium { background: rgba(245,158,11,0.18); color: #f59e0b; border: 1px solid rgba(245,158,11,0.35); }
-.admin-badge.online { background: rgba(34,197,94,0.18); color: #22c55e; border: 1px solid rgba(34,197,94,0.35); }
-.admin-loading { text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem; }
-.admin-refresh-btn { width: 100%; padding: 0.75rem; border: 1.5px solid rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); color: #f59e0b; border-radius: 12px; font-size: 0.85rem; font-weight: 700; cursor: pointer; touch-action: manipulation; transition: background 0.15s; }
-.admin-refresh-btn:active { background: rgba(245,158,11,0.18); }
-.admin-user-row { cursor: pointer; transition: background 0.15s, transform 0.1s; }
-.admin-user-row:hover { background: rgba(245,158,11,0.07); }
-.admin-user-row:active { transform: scale(0.98); }
+/* ---- ADMIN PANEL ---- */
+.admin-panel { display:flex; flex-direction:column; gap:0; overflow-y:auto; padding-bottom:1rem; }
+.admin-sticky-head { position:sticky; top:0; z-index:50; background:linear-gradient(180deg,var(--bg) 82%,transparent 100%); padding:1rem 1rem 0; }
+.admin-banner { display:flex; align-items:center; gap:0.75rem; padding:0.85rem 1rem; background:linear-gradient(135deg,rgba(245,158,11,0.14),rgba(217,119,6,0.08)); border:1px solid rgba(245,158,11,0.28); border-radius:14px; margin-bottom:0.85rem; }
+.admin-banner-icon { font-size:1.5rem; }
+.admin-banner-title { font-size:1.05rem; font-weight:800; color:#fcd34d; }
+.admin-banner-sub { font-size:0.72rem; color:var(--text-muted); margin-top:1px; }
+.admin-live-row { display:flex; align-items:center; gap:0.35rem; margin-left:auto; }
+.admin-live-label { font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#22c55e; }
+.admin-live-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,0.6); animation:adminPulseDot 2s infinite; flex-shrink:0; }
+@keyframes adminPulseDot { 0%{box-shadow:0 0 0 0 rgba(34,197,94,0.6)} 60%{box-shadow:0 0 0 6px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+.admin-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.65rem; padding:0 1rem; }
+.admin-stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:0.9rem 0.85rem; cursor:pointer; touch-action:manipulation; transition:all 0.15s; }
+.admin-stat-card:active { transform:scale(0.97); }
+.admin-stat-card.filter-active { border-color:var(--primary); background:rgba(233,30,140,0.1); }
+.admin-stat-val { font-size:1.9rem; font-weight:900; line-height:1; }
+.admin-stat-val.pink  { color:var(--primary); }
+.admin-stat-val.green { color:#22c55e; }
+.admin-stat-val.gold  { color:#f59e0b; }
+.admin-stat-val.blue  { color:#60a5fa; }
+.admin-stat-label { font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-top:0.3rem; }
+.admin-stat-delta { font-size:0.65rem; font-weight:700; margin-top:0.2rem; color:#22c55e; }
+.admin-search-section { padding:0.85rem 1rem 0; }
+.admin-search-wrap { display:flex; align-items:center; gap:0.6rem; background:rgba(255,255,255,0.05); border:1.5px solid var(--border); border-radius:30px; padding:0.6rem 1rem; transition:border-color 0.15s; }
+.admin-search-wrap:focus-within { border-color:rgba(245,158,11,0.5); }
+.admin-search-icon { font-size:0.95rem; color:var(--text-muted); flex-shrink:0; }
+.admin-search-input { flex:1; background:none; border:none; outline:none; color:var(--text); font-size:0.88rem; font-family:inherit; }
+.admin-search-input::placeholder { color:var(--text-muted); }
+.admin-search-clear { background:rgba(255,255,255,0.1); border:none; color:var(--text-muted); width:20px; height:20px; border-radius:50%; font-size:0.7rem; align-items:center; justify-content:center; cursor:pointer; display:none; }
+.admin-search-clear.visible { display:flex; }
+.admin-date-section { padding:0.7rem 1rem 0; }
+.admin-date-row { display:flex; gap:0.45rem; overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+.admin-date-row::-webkit-scrollbar { display:none; }
+.admin-date-chip { flex-shrink:0; padding:0.38rem 0.85rem; border-radius:20px; border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-muted); font-size:0.75rem; font-weight:700; cursor:pointer; white-space:nowrap; transition:all 0.15s; touch-action:manipulation; }
+.admin-date-chip.active { background:rgba(245,158,11,0.14); border-color:rgba(245,158,11,0.5); color:#f59e0b; }
+.admin-date-chip:active { transform:scale(0.95); }
+.admin-activity-section { padding:0.85rem 1rem 0; }
+.admin-section-label { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:0.55rem; display:flex; align-items:center; gap:0.4rem; }
+.admin-activity-list { display:flex; flex-direction:column; gap:0.35rem; }
+.admin-activity-item { display:flex; align-items:center; gap:0.6rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.5rem 0.75rem; font-size:0.78rem; }
+.admin-activity-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.admin-activity-dot.join    { background:#22c55e; }
+.admin-activity-dot.delete  { background:#f87171; }
+.admin-activity-dot.ban     { background:#f59e0b; }
+.admin-activity-dot.premium { background:#a78bfa; }
+.admin-activity-text { flex:1; color:var(--text); }
+.admin-activity-time { font-size:0.68rem; color:var(--text-muted); flex-shrink:0; }
+.admin-users-section { padding:0.85rem 1rem 0; }
+.admin-list-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.35rem; }
+.admin-list-count { font-size:0.68rem; color:var(--text-muted); font-weight:700; margin-bottom:0.55rem; }
+.admin-sort-btn { font-size:0.7rem; color:var(--text-muted); background:var(--bg-card); border:1px solid var(--border); cursor:pointer; font-family:inherit; font-weight:700; display:flex; align-items:center; gap:0.25rem; padding:0.3rem 0.6rem; border-radius:8px; touch-action:manipulation; }
+.admin-user-list { display:flex; flex-direction:column; gap:0.45rem; }
+.admin-user-row { display:flex; align-items:center; gap:0.75rem; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.65rem 0.85rem; cursor:pointer; touch-action:manipulation; transition:all 0.15s; }
+.admin-user-row:active { transform:scale(0.98); background:rgba(245,158,11,0.07); }
+.admin-user-row.admin-new-flash { animation:adminRowFlash 1.4s ease; }
+@keyframes adminRowFlash { 0%{background:rgba(34,197,94,0.18);border-color:rgba(34,197,94,0.4)} 100%{background:var(--bg-card);border-color:var(--border)} }
+.admin-user-av { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#e11d8f,#f97316); flex-shrink:0; display:flex; align-items:center; justify-content:center; color:white; font-size:1rem; font-weight:800; overflow:hidden; position:relative; }
+.admin-user-av img { width:100%; height:100%; object-fit:cover; }
+.admin-online-ring { position:absolute; inset:-2px; border-radius:50%; border:2px solid #22c55e; }
+.admin-user-name { font-weight:700; font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.admin-user-meta { font-size:0.68rem; color:var(--text-muted); margin-top:2px; display:flex; gap:0.4rem; }
+.admin-user-state { color:#60a5fa; font-weight:700; }
+.admin-badge { font-size:0.6rem; font-weight:800; padding:2px 7px; border-radius:8px; white-space:nowrap; }
+.admin-badge.premium { background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.35); }
+.admin-badge.online  { background:rgba(34,197,94,0.18);  color:#22c55e; border:1px solid rgba(34,197,94,0.35); }
+.admin-badge.banned  { background:rgba(239,68,68,0.15);  color:#f87171; border:1px solid rgba(239,68,68,0.3); }
+.admin-badge.new     { background:rgba(96,165,250,0.15); color:#60a5fa; border:1px solid rgba(96,165,250,0.3); }
+.admin-user-badges { display:flex; flex-direction:column; align-items:flex-end; gap:0.25rem; }
+.admin-loading { text-align:center; color:var(--text-muted); padding:2rem; font-size:0.9rem; }
+.admin-empty-state { text-align:center; padding:2.5rem 1rem; color:var(--text-muted); font-size:0.85rem; }
+.admin-monitoring-banner { background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); border-radius:10px; padding:0.55rem 0.75rem; font-size:0.74rem; color:#60a5fa; font-weight:600; display:flex; align-items:center; gap:0.45rem; }
 
 /* ---- ADMIN USER DETAIL PANEL ---- */
 .admin-detail-panel { position: fixed; inset: 0; z-index: 8500; background: rgba(10,10,20,0.6); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.22s; }
@@ -3993,149 +4035,321 @@ function _updateAdminTab() {
   btn.style.display = isAdmin ? '' : 'none';
 }
 
+/* Admin panel state */
+const _adminState = { filter:'all', dateRange:'all', search:'', sort:'newest', activity:[] };
+
+function _adminTimeAgo(ms) {
+  if (!ms) return '—';
+  const d = Date.now() - ms;
+  if (d < 60000)    return 'Just now';
+  if (d < 3600000)  return Math.floor(d/60000) + 'm ago';
+  if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
+  return Math.floor(d/86400000) + 'd ago';
+}
+
+function _adminBuildRow(u) {
+  const now      = Date.now();
+  const isOnline = u.lastSeen && (now - (u.lastSeen?.toMillis?.() || u.lastSeen)) < 3 * 60 * 1000;
+  const isNew    = u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < 24 * 60 * 60 * 1000;
+  const joined   = _adminTimeAgo(u.createdAt?.toMillis?.() || u.createdAt);
+  const initial  = (u.name||'?')[0].toUpperCase();
+  const photo    = u.photos?.[0]
+    ? `<img src="${u.photos[0]}" alt="" onerror="this.style.display='none'">`
+    : initial;
+  const ring     = isOnline ? '<div class="admin-online-ring"></div>' : '';
+  return `<div class="admin-user-row" id="adminrow-${u.id}" onclick="openAdminUser('${u.id}')">
+    <div class="admin-user-av">${photo}${ring}</div>
+    <div style="flex:1;min-width:0">
+      <div class="admin-user-name">${u.name||'Unknown'}${u.age ? ', '+u.age : ''}</div>
+      <div class="admin-user-meta">
+        <span class="admin-user-state">${u.state||''}</span>
+        ${u.state ? '<span>·</span>' : ''}
+        <span>Joined ${joined}</span>
+      </div>
+    </div>
+    <div class="admin-user-badges">
+      ${u.banned  ? '<span class="admin-badge banned">🚫 Banned</span>' : ''}
+      ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>'   : ''}
+      ${isOnline  ? '<span class="admin-badge online">Online</span>'    : ''}
+      ${isNew && !u.banned ? '<span class="admin-badge new">New</span>' : ''}
+    </div>
+    <span style="color:var(--text-muted);font-size:0.85rem;margin-left:0.25rem;flex-shrink:0">›</span>
+  </div>`;
+}
+
 async function renderAdminPanel() {
-  if (!db) return;
-  if (auth.currentUser?.email !== ADMIN_EMAIL) return;
+  if (!db || auth.currentUser?.email !== ADMIN_EMAIL) return;
   const panel = document.getElementById('adminPanel');
   if (!panel) return;
   panel.innerHTML = '<div class="admin-loading">⭐ Loading admin data…</div>';
 
   try {
-    const [usersSnap] = await Promise.all([
-      db.collection('users').get()
-    ]);
+    const snap = await db.collection('users').get();
+    const now  = Date.now();
+    const DAY  = 86400000;
+    const WEEK = 7 * DAY;
 
-    const users    = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    window._adminUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const users = window._adminUsers;
+
     const total    = users.length;
-    const now      = Date.now();
-    const online   = users.filter(u => u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000).length;
+    const online   = users.filter(u => u.lastSeen && (now - (u.lastSeen?.toMillis?.() || u.lastSeen)) < 3 * 60 * 1000).length;
     const premium  = users.filter(u => u.premium).length;
-    const newToday = users.filter(u => {
-      if (!u.createdAt) return false;
-      const ms = u.createdAt.toMillis?.() || u.createdAt;
-      return (now - ms) < 24 * 60 * 60 * 1000;
-    }).length;
-
-    // Sort: online first, then newest
-    const sorted = [...users].sort((a, b) => {
-      const ao = a.lastSeen ? (now - (a.lastSeen.toMillis?.() || 0)) : Infinity;
-      const bo = b.lastSeen ? (now - (b.lastSeen.toMillis?.() || 0)) : Infinity;
-      return ao - bo;
-    });
-
-    // Cache users for detail panel lookups
-    window._adminUsers = sorted;
-
-    const rows = sorted.slice(0, 50).map(u => {
-      const isOnline = u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000;
-      const photo    = u.photos?.[0] ? `<img class="admin-user-av" src="${u.photos[0]}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><span class="admin-user-av" style="display:none">${(u.name||'?')[0]}</span>` : `<span class="admin-user-av">${(u.name||'?')[0]}</span>`;
-      const isBanned = u.banned ? '<span class="admin-badge" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">🚫 Banned</span>' : '';
-      return `<div class="admin-user-row" onclick="openAdminUser('${u.id}')">
-        ${photo}
-        <div style="flex:1;min-width:0">
-          <div class="admin-user-name">${u.name || 'Unknown'}${u.age ? ', '+u.age : ''}</div>
-          <div class="admin-user-meta">${u.email || u.id.slice(0,12)+'…'}</div>
-        </div>
-        ${isBanned}
-        ${isOnline ? '<span class="admin-badge online">Online</span>' : ''}
-        ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>' : ''}
-        <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-left:0.25rem">›</span>
-      </div>`;
-    }).join('');
+    const newToday = users.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < DAY).length;
+    const newWeek  = users.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < WEEK).length;
+    const newYest  = users.filter(u => { const ms = u.createdAt?.toMillis?.() || u.createdAt; return ms && (now - ms) >= DAY && (now - ms) < 2*DAY; }).length;
 
     panel.innerHTML = `
-      <div class="admin-header">
-        <div class="admin-header-icon">⭐</div>
-        <div>
-          <div class="admin-header-title">Admin Dashboard</div>
-          <div class="admin-header-sub">Spark — ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      <div class="admin-sticky-head">
+        <div class="admin-banner">
+          <div class="admin-banner-icon">⭐</div>
+          <div>
+            <div class="admin-banner-title">Admin Dashboard</div>
+            <div class="admin-banner-sub">Spark · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+          </div>
+          <div class="admin-live-row">
+            <span class="admin-live-label">Live</span>
+            <div class="admin-live-dot"></div>
+          </div>
         </div>
       </div>
       <div class="admin-stat-grid">
-        <div class="admin-stat-card filter-active" id="statAll" onclick="adminFilterUsers('all')">
-          <div class="admin-stat-val">${total}</div>
+        <div class="admin-stat-card filter-active" id="aStatAll" onclick="adminSetFilter('all')">
+          <div class="admin-stat-val pink">${total}</div>
           <div class="admin-stat-label">Total Users</div>
+          <div class="admin-stat-delta">↑ ${newWeek} this week</div>
         </div>
-        <div class="admin-stat-card" id="statOnline" onclick="adminFilterUsers('online')">
+        <div class="admin-stat-card" id="aStatOnline" onclick="adminSetFilter('online')">
           <div class="admin-stat-val green">${online}</div>
           <div class="admin-stat-label">Online Now</div>
+          <div class="admin-stat-delta" style="color:var(--text-muted)">active 3 min</div>
         </div>
-        <div class="admin-stat-card" id="statPremium" onclick="adminFilterUsers('premium')">
+        <div class="admin-stat-card" id="aStatPremium" onclick="adminSetFilter('premium')">
           <div class="admin-stat-val gold">${premium}</div>
           <div class="admin-stat-label">Premium</div>
+          <div class="admin-stat-delta">${premium > 0 ? Math.round(premium/total*100)+'% of users' : '—'}</div>
         </div>
-        <div class="admin-stat-card" id="statNew" onclick="adminFilterUsers('new')">
+        <div class="admin-stat-card" id="aStatNew" onclick="adminSetFilter('new')">
           <div class="admin-stat-val blue">${newToday}</div>
           <div class="admin-stat-label">New Today</div>
+          <div class="admin-stat-delta">${newYest > 0 ? (newToday >= newYest ? '↑' : '↓') + ' ' + Math.abs(newToday-newYest) + ' vs yesterday' : newToday + ' joined today'}</div>
         </div>
       </div>
-      <div>
-        <div class="admin-section-title" id="adminListTitle">All Users (${sorted.length})</div>
-        <div class="admin-user-list" id="adminUserList">${rows}</div>
+      <div class="admin-search-section">
+        <div class="admin-search-wrap">
+          <span class="admin-search-icon">🔍</span>
+          <input class="admin-search-input" id="adminSearchInput" type="text" placeholder="Search by name, state, email…" oninput="adminOnSearch()">
+          <button class="admin-search-clear" id="adminSearchClear" onclick="adminClearSearch()">✕</button>
+        </div>
       </div>
-      <button class="admin-refresh-btn" onclick="renderAdminPanel()">↻ Refresh</button>
-    `;
-  } catch (e) {
+      <div class="admin-date-section">
+        <div class="admin-date-row">
+          <div class="admin-date-chip active" id="adf-all"   onclick="adminSetDate('all')">All Time</div>
+          <div class="admin-date-chip"        id="adf-today" onclick="adminSetDate('today')">Today</div>
+          <div class="admin-date-chip"        id="adf-week"  onclick="adminSetDate('week')">This Week</div>
+          <div class="admin-date-chip"        id="adf-month" onclick="adminSetDate('month')">This Month</div>
+        </div>
+      </div>
+      <div class="admin-activity-section">
+        <div class="admin-section-label">
+          <div class="admin-live-dot" style="width:6px;height:6px"></div>
+          Recent Activity
+        </div>
+        <div class="admin-activity-list" id="adminActivityList">
+          ${_adminState.activity.length === 0
+            ? '<div class="admin-activity-item"><div class="admin-activity-text" style="color:var(--text-muted)">Activity will appear here as users join, leave, or are moderated.</div></div>'
+            : _adminState.activity.slice(0,5).map(a => `
+              <div class="admin-activity-item">
+                <div class="admin-activity-dot ${a.type}"></div>
+                <div class="admin-activity-text">${a.text}</div>
+                <div class="admin-activity-time">${a.time}</div>
+              </div>`).join('')}
+        </div>
+      </div>
+      <div class="admin-users-section">
+        <div class="admin-list-header">
+          <div class="admin-section-label" style="margin-bottom:0" id="adminListLabel">All Users</div>
+          <button class="admin-sort-btn" onclick="adminToggleSort()">⇅ <span id="adminSortLabel">Newest</span></button>
+        </div>
+        <div class="admin-list-count" id="adminListCount"></div>
+        <div class="admin-user-list" id="adminUserList"></div>
+        <div class="admin-empty-state" id="adminEmptyState" style="display:none">
+          <div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>
+          No users match your search
+        </div>
+      </div>`;
+
+    _adminState.filter = 'all';
+    _adminState.dateRange = 'all';
+    _adminState.search = '';
+    _adminState.sort = 'newest';
+    adminRenderList();
+
+    // Subscribe to live user changes
+    if (S.listeners.adminUsers) S.listeners.adminUsers();
+    S.listeners.adminUsers = db.collection('users').onSnapshot(snap => {
+      const prevIds  = new Set((window._adminUsers||[]).map(u => u.id));
+      const now2     = Date.now();
+      const updated  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // Detect new joins and deletions for activity feed
+      updated.forEach(u => {
+        if (!prevIds.has(u.id)) {
+          _adminState.activity.unshift({ type:'join', text:`${u.name||'Someone'} joined Spark`, time:'Just now' });
+          if (_adminState.activity.length > 10) _adminState.activity.pop();
+          // Flash the new row after render
+          setTimeout(() => {
+            const el = document.getElementById('adminrow-' + u.id);
+            if (el) { el.classList.add('admin-new-flash'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
+          }, 120);
+        }
+      });
+      const newIds = new Set(updated.map(u => u.id));
+      (window._adminUsers||[]).forEach(u => {
+        if (!newIds.has(u.id)) {
+          _adminState.activity.unshift({ type:'delete', text:`${u.name||'A user'}'s account was removed`, time:'Just now' });
+          if (_adminState.activity.length > 10) _adminState.activity.pop();
+        }
+      });
+
+      window._adminUsers = updated;
+
+      // Refresh stats
+      const t  = updated.length;
+      const on = updated.filter(u => u.lastSeen && (now2-(u.lastSeen?.toMillis?.() || u.lastSeen))<180000).length;
+      const pr = updated.filter(u => u.premium).length;
+      const nt = updated.filter(u => u.createdAt && (now2-(u.createdAt?.toMillis?.() || u.createdAt))<86400000).length;
+      const sv = (id, val) => { const el=document.getElementById(id); if(el) el.childNodes[0].textContent=val; };
+      const statAll = document.getElementById('aStatAll');
+      if (statAll) statAll.querySelector('.admin-stat-val').textContent = t;
+      const statOn  = document.getElementById('aStatOnline');
+      if (statOn)  statOn.querySelector('.admin-stat-val').textContent = on;
+      const statPr  = document.getElementById('aStatPremium');
+      if (statPr)  statPr.querySelector('.admin-stat-val').textContent = pr;
+      const statNw  = document.getElementById('aStatNew');
+      if (statNw)  statNw.querySelector('.admin-stat-val').textContent = nt;
+
+      // Refresh activity feed
+      const feed = document.getElementById('adminActivityList');
+      if (feed && _adminState.activity.length > 0) {
+        feed.innerHTML = _adminState.activity.slice(0,5).map(a => `
+          <div class="admin-activity-item">
+            <div class="admin-activity-dot ${a.type}"></div>
+            <div class="admin-activity-text">${a.text}</div>
+            <div class="admin-activity-time">${a.time}</div>
+          </div>`).join('');
+      }
+
+      adminRenderList();
+    }, () => {});
+
+  } catch(e) {
     panel.innerHTML = `<div class="admin-loading">⚠️ Error loading data: ${e.message}</div>`;
   }
 }
 
-function adminFilterUsers(filter) {
-  const users = window._adminUsers || [];
-  const now = Date.now();
+function adminSetFilter(f) {
+  _adminState.filter = f;
+  ['aStatAll','aStatOnline','aStatPremium','aStatNew'].forEach(id => document.getElementById(id)?.classList.remove('filter-active'));
+  const map = {all:'aStatAll',online:'aStatOnline',premium:'aStatPremium',new:'aStatNew'};
+  document.getElementById(map[f])?.classList.add('filter-active');
+  adminRenderList();
+}
 
-  // Update active stat card
-  const idMap = { all: 'statAll', online: 'statOnline', premium: 'statPremium', new: 'statNew' };
-  ['statAll','statOnline','statPremium','statNew'].forEach(id => {
-    document.getElementById(id)?.classList.remove('filter-active');
-  });
-  document.getElementById(idMap[filter])?.classList.add('filter-active');
+function adminSetDate(d) {
+  _adminState.dateRange = d;
+  ['adf-all','adf-today','adf-week','adf-month'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+  document.getElementById('adf-'+d)?.classList.add('active');
+  adminRenderList();
+}
 
-  // Filter
-  let filtered;
-  switch (filter) {
-    case 'online':
-      filtered = users.filter(u => u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000);
-      break;
-    case 'premium':
-      filtered = users.filter(u => u.premium);
-      break;
-    case 'new':
-      filtered = users.filter(u => u.createdAt && (now - (u.createdAt.toMillis?.() || u.createdAt)) < 24 * 60 * 60 * 1000);
-      break;
-    default:
-      filtered = users;
-  }
+function adminOnSearch() {
+  _adminState.search = document.getElementById('adminSearchInput')?.value || '';
+  const clearBtn = document.getElementById('adminSearchClear');
+  if (clearBtn) clearBtn.classList.toggle('visible', _adminState.search.length > 0);
+  adminRenderList();
+}
 
-  const labels = { all: 'All Users', online: 'Online Now', premium: 'Premium Members', new: 'New Today' };
-  const titleEl = document.getElementById('adminListTitle');
-  if (titleEl) titleEl.textContent = `${labels[filter] || 'Users'} (${filtered.length})`;
+function adminClearSearch() {
+  const inp = document.getElementById('adminSearchInput');
+  if (inp) inp.value = '';
+  _adminState.search = '';
+  document.getElementById('adminSearchClear')?.classList.remove('visible');
+  adminRenderList();
+}
 
-  const listEl = document.getElementById('adminUserList');
+function adminToggleSort() {
+  _adminState.sort = _adminState.sort === 'newest' ? 'online' : 'newest';
+  const lbl = document.getElementById('adminSortLabel');
+  if (lbl) lbl.textContent = _adminState.sort === 'newest' ? 'Newest' : 'Online';
+  adminRenderList();
+}
+
+function adminRenderList() {
+  const listEl   = document.getElementById('adminUserList');
+  const emptyEl  = document.getElementById('adminEmptyState');
+  const countEl  = document.getElementById('adminListCount');
+  const labelEl  = document.getElementById('adminListLabel');
   if (!listEl) return;
 
-  if (filtered.length === 0) {
-    listEl.innerHTML = `<div class="admin-loading" style="padding:1.5rem 0">No ${(labels[filter] || 'users').toLowerCase()} right now</div>`;
-    return;
+  const now   = Date.now();
+  const DAY   = 86400000;
+  let users   = window._adminUsers || [];
+
+  // Date range filter
+  if (_adminState.dateRange === 'today')
+    users = users.filter(u => u.createdAt && (now-(u.createdAt?.toMillis?.() || u.createdAt)) < DAY);
+  else if (_adminState.dateRange === 'week')
+    users = users.filter(u => u.createdAt && (now-(u.createdAt?.toMillis?.() || u.createdAt)) < 7*DAY);
+  else if (_adminState.dateRange === 'month')
+    users = users.filter(u => u.createdAt && (now-(u.createdAt?.toMillis?.() || u.createdAt)) < 30*DAY);
+
+  // Stat card filter
+  if (_adminState.filter === 'online')
+    users = users.filter(u => u.lastSeen && (now-(u.lastSeen?.toMillis?.() || u.lastSeen)) < 3*60*1000);
+  else if (_adminState.filter === 'premium')
+    users = users.filter(u => u.premium);
+  else if (_adminState.filter === 'new')
+    users = users.filter(u => u.createdAt && (now-(u.createdAt?.toMillis?.() || u.createdAt)) < DAY);
+
+  // Search
+  if (_adminState.search) {
+    const q = _adminState.search.toLowerCase();
+    users = users.filter(u =>
+      (u.name||'').toLowerCase().includes(q) ||
+      (u.state||'').toLowerCase().includes(q) ||
+      (u.email||'').toLowerCase().includes(q) ||
+      (u.city||'').toLowerCase().includes(q)
+    );
   }
 
-  listEl.innerHTML = filtered.slice(0, 50).map(u => {
-    const isOnline = u.lastSeen && (now - (u.lastSeen.toMillis?.() || 0)) < 3 * 60 * 1000;
-    const photo = u.photos?.[0] ? `<img class="admin-user-av" src="${u.photos[0]}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><span class="admin-user-av" style="display:none">${(u.name||'?')[0]}</span>` : `<span class="admin-user-av">${(u.name||'?')[0]}</span>`;
-    const isBanned = u.banned ? '<span class="admin-badge" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">🚫 Banned</span>' : '';
-    return `<div class="admin-user-row" onclick="openAdminUser('${u.id}')">
-      ${photo}
-      <div style="flex:1;min-width:0">
-        <div class="admin-user-name">${u.name || 'Unknown'}${u.age ? ', '+u.age : ''}</div>
-        <div class="admin-user-meta">${u.email || u.id.slice(0,12)+'…'}</div>
-      </div>
-      ${isBanned}
-      ${isOnline ? '<span class="admin-badge online">Online</span>' : ''}
-      ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>' : ''}
-      <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-left:0.25rem">›</span>
-    </div>`;
-  }).join('');
+  // Sort
+  users = [...users].sort((a, b) => {
+    if (_adminState.sort === 'online') {
+      const ao = a.lastSeen ? (now-(a.lastSeen?.toMillis?.() || a.lastSeen)) : Infinity;
+      const bo = b.lastSeen ? (now-(b.lastSeen?.toMillis?.() || b.lastSeen)) : Infinity;
+      return ao - bo;
+    }
+    const ac = a.createdAt?.toMillis?.() || a.createdAt || 0;
+    const bc = b.createdAt?.toMillis?.() || b.createdAt || 0;
+    return bc - ac;
+  });
+
+  const labels = { all:'All Users', online:'Online Now', premium:'Premium', new:'New Today' };
+  if (labelEl) labelEl.textContent = labels[_adminState.filter] || 'Users';
+  if (countEl) countEl.textContent = `${users.length} user${users.length !== 1 ? 's' : ''}`;
+
+  if (users.length === 0) {
+    listEl.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  listEl.innerHTML = users.slice(0, 100).map(_adminBuildRow).join('');
 }
+
+/* Legacy alias kept so any existing call sites still work */
+function adminFilterUsers(f) { adminSetFilter(f); }
 
 /* ================================================================
    ADMIN USER DETAIL PANEL
@@ -4195,6 +4409,7 @@ async function openAdminUser(uid) {
 
   body.innerHTML = `
     <button class="admin-back-body-btn" onclick="closeAdminDetail()">← Back to Admin</button>
+    <div class="admin-monitoring-banner">👁 Monitoring view — all photos visible to admin only</div>
     <div>
       <div class="admin-detail-section-label">Profile Photos</div>
       ${photosHtml}
