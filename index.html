@@ -4542,6 +4542,7 @@ function getProspects() {
     if (!S.user || u.id === S.user.id) return false;
     if (S.seen.has(u.id))              return false;
     if (S.matchIds.has(u.id))          return false; // already matched
+    if (u.deleted || u.banned)         return false; // account removed or banned
     if (u.invisible)                   return false; // hidden by user
     if (u.age < S.minAge)              return false; // age range filter
     if (S.maxAge < 80 && u.age > S.maxAge) return false;
@@ -5731,6 +5732,7 @@ async function renderNearby() {
       .filter(d => {
         if (d.id === myUid) return false;
         const u = d.data();
+        if (u.deleted || u.banned) return false; // account removed or banned
         if (u.invisible) return false;
         if ((S.user.blockedUsers||[]).includes(u.id)) return false; // blocked
         // Gender preference filter — seeking is pluralised ('Men'/'Women'); gender is singular ('Man'/'Woman')
@@ -5783,7 +5785,7 @@ async function renderNearby() {
         .filter(d => {
           if (d.id === myUid) return false;
           const u = d.data();
-          return !u.invisible && seekFilter(u);
+          return !u.deleted && !u.banned && !u.invisible && seekFilter(u);
         })
         .map(d => ({ id: d.id, ...d.data(), _distance: null }))
         .sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
@@ -8770,33 +8772,63 @@ async function confirmDeleteAccount() {
   if (btn) { btn.textContent = '⏳ Deleting…'; btn.disabled = true; }
 
   try {
-    // 1. Delete Firebase Auth account FIRST — fail fast if recent-login required
-    //    before touching any Firestore data so nothing is left half-deleted.
-    const firebaseUser = auth.currentUser;
-    if (firebaseUser) {
-      try {
-        await firebaseUser.delete();
-      } catch (authErr) {
-        if (authErr.code === 'auth/requires-recent-login') {
-          // Auto-reauthenticate using credentials stored at login time, then retry.
-          const email = S._authEmail || firebaseUser.email;
-          const pw    = S._pw;
-          if (email && pw) {
-            const credential = firebase.auth.EmailAuthProvider.credential(email, pw);
-            await firebaseUser.reauthenticateWithCredential(credential);
-            await firebaseUser.delete(); // retry after silent reauth
-          } else {
-            // No stored creds (e.g. SMS login) — ask user to re-sign-in manually.
-            throw authErr;
-          }
-        } else {
-          throw authErr;
-        }
-      }
+    // STEP 1 — Mark the profile as deleted immediately (while still authenticated).
+    // This hides the user from all Firestore queries and local prospect filters
+    // before any further work happens. If any later step fails the user is at least invisible.
+    await db.collection('users').doc(uid).update({
+      deleted:   true,
+      invisible: true,
+      online:    false,
+    }).catch(() => {});
+
+    // Remove from local prospect cache so they vanish from the UI instantly on any client
+    S.profiles = (S.profiles || []).filter(p => p.id !== uid);
+
+    // STEP 2 — Helper: accumulate deletes across multiple batches (Firestore max = 500/batch)
+    const batches = [db.batch()];
+    let opCount = 0;
+    const batchDelete = (ref) => {
+      if (opCount >= 490) { batches.push(db.batch()); opCount = 0; }
+      batches[batches.length - 1].delete(ref);
+      opCount++;
+    };
+
+    // STEP 3 — Delete all matches and their message sub-collections
+    const matchSnap = await db.collection('matches')
+      .where('uids', 'array-contains', uid).get();
+
+    for (const matchDoc of matchSnap.docs) {
+      // Messages live at: messages/{matchId}/msgs/{msgId}
+      const msgSnap = await db.collection('messages')
+        .doc(matchDoc.id).collection('msgs').get();
+      msgSnap.docs.forEach(m => batchDelete(m.ref));
+      batchDelete(matchDoc.ref);
     }
 
-    // H3/H4: Delete Storage files (photos, voice notes, verifications)
-    // so deleted users' files don't persist after account removal.
+    // STEP 4 — Delete likes sent BY this user + clean up the other side's received index
+    const sentSnap = await db.collection('likes').doc(uid).collection('sent').get();
+    for (const sentDoc of sentSnap.docs) {
+      const targetUid = sentDoc.id;
+      batchDelete(db.collection('likes').doc(targetUid).collection('received').doc(uid));
+      batchDelete(sentDoc.ref);
+    }
+    if (sentSnap.size > 0) batchDelete(db.collection('likes').doc(uid));
+
+    // STEP 5 — Delete likes received BY this user + clean up the other side's sent index
+    const receivedSnap = await db.collection('likes').doc(uid).collection('received').get();
+    for (const recDoc of receivedSnap.docs) {
+      const likerUid = recDoc.id;
+      batchDelete(db.collection('likes').doc(likerUid).collection('sent').doc(uid));
+      batchDelete(recDoc.ref);
+    }
+
+    // STEP 6 — Delete the Firestore profile document
+    batchDelete(db.collection('users').doc(uid));
+
+    // Commit all batches while still authenticated
+    await Promise.all(batches.map(b => b.commit()));
+
+    // STEP 7 — Delete Storage files (photos, voice notes, verifications)
     if (storage) {
       const deleteStorageFolder = async (path) => {
         try {
@@ -8814,56 +8846,32 @@ async function confirmDeleteAccount() {
       ]);
     }
 
-    // Helper: accumulate deletes across multiple batches (Firestore max = 500/batch)
-    const batches = [db.batch()];
-    let opCount = 0;
-    const batchDelete = (ref) => {
-      if (opCount >= 490) { batches.push(db.batch()); opCount = 0; }
-      batches[batches.length - 1].delete(ref);
-      opCount++;
-    };
-
-    // 2. Delete all matches and their message sub-collections
-    const matchSnap = await db.collection('matches')
-      .where('uids', 'array-contains', uid).get();  // 'uids' is the correct field name
-
-    for (const matchDoc of matchSnap.docs) {
-      // Messages live at top-level: messages/{matchId}/msgs/{msgId}
-      const msgSnap = await db.collection('messages')
-        .doc(matchDoc.id).collection('msgs').get();
-      msgSnap.docs.forEach(m => batchDelete(m.ref));
-      batchDelete(matchDoc.ref);
+    // STEP 8 — Delete Firebase Auth account LAST (all Firestore work is done)
+    const firebaseUser = auth.currentUser;
+    if (firebaseUser) {
+      try {
+        await firebaseUser.delete();
+      } catch (authErr) {
+        if (authErr.code === 'auth/requires-recent-login') {
+          const email = S._authEmail || firebaseUser.email;
+          const pw    = S._pw;
+          if (email && pw) {
+            const credential = firebase.auth.EmailAuthProvider.credential(email, pw);
+            await firebaseUser.reauthenticateWithCredential(credential);
+            await firebaseUser.delete();
+          } else {
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
     }
 
-    // 3. Delete likes sent BY this user and clean up the received index on the other side
-    const sentSnap = await db.collection('likes').doc(uid).collection('sent').get();
-    for (const sentDoc of sentSnap.docs) {
-      const targetUid = sentDoc.id;
-      // Remove this user's entry from the target's received index
-      batchDelete(db.collection('likes').doc(targetUid).collection('received').doc(uid));
-      batchDelete(sentDoc.ref);
-    }
-    if (sentSnap.size > 0) batchDelete(db.collection('likes').doc(uid));
-
-    // 4. Delete likes received BY this user and clean up the sent index on the other side
-    const receivedSnap = await db.collection('likes').doc(uid).collection('received').get();
-    for (const recDoc of receivedSnap.docs) {
-      const likerUid = recDoc.id;
-      // Remove this user's entry from the liker's sent index
-      batchDelete(db.collection('likes').doc(likerUid).collection('sent').doc(uid));
-      batchDelete(recDoc.ref);
-    }
-
-    // 5. Delete the user's Firestore profile document
-    batchDelete(db.collection('users').doc(uid));
-
-    // Commit all batches
-    await Promise.all(batches.map(b => b.commit()));
-
-    // 5. Clear local state and return to auth screen
+    // STEP 9 — Clear local state and return to auth screen
     closeDeleteModal();
     Object.values(S.listeners).forEach(fn => typeof fn === 'function' && fn());
-    S.user = null; S.matches = []; S.prospects = []; S.activeChatId = null;
+    S.user = null; S.matches = []; S.activeChatId = null;
     showView('auth');
     toast('Account permanently deleted.');
 
