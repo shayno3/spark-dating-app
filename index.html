@@ -3274,56 +3274,85 @@ function _navSet(el) {
     try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch(e) {}
   }
 }
-/* Directional move: pick the nearest interactive element in the pressed direction.
-   At list edges, wraps to the opposite end (Meta wearables nav standard). */
+/* Directional move: zone-aware spatial navigation.
+   Three zones: disc-cards, filter-chips, everything else.
+   - Card  + UP/DOWN    → stay on cards; wrap card-to-card at boundaries
+   - Chip  + LEFT/RIGHT → stay on chips; modular wrap (Sparks→All, All→Sparks)
+   - Other              → prefer non-bottom-nav; fall back to full list; then hard-wrap
+   Scroll-adjusted Y keeps off-screen cards competitive with fixed nav elements. */
 function _navMove(dir) {
   const els = _navList();
   if (!els.length) return;
   const cur = document.querySelector('.kbd-focus');
-  if (!cur || !els.includes(cur)) { _navSet(els[0]); return; }
+  if (!cur || !els.includes(cur)) { _navFocus(); return; }
 
-  // Use scroll-adjusted coordinates so cards below the fold compete correctly.
-  // Without this, getBoundingClientRect() makes off-screen cards appear "farther"
-  // than the bottom nav buttons — the nav wins and the third card is never reachable.
-  const _ca = document.querySelector('.content-area');
-  const _caScroll = _ca ? _ca.scrollTop : 0;
-  const _adjCenter = el => {
+  const _ca  = document.querySelector('.content-area');
+  const _caS = _ca ? _ca.scrollTop : 0;
+  // Adjusted center: elements inside the scroll container use document-flow Y so that
+  // off-screen cards compete correctly against fixed/sticky elements.
+  const _adj = el => {
     const r = el.getBoundingClientRect();
-    // Elements inside the scrollable content-area get scrollTop added so their
-    // position is in document-flow space; nav buttons (outside the scroll) stay
-    // at their viewport position, making them correctly "farther" than off-screen cards.
-    const adj = (_ca && _ca.contains(el)) ? _caScroll : 0;
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 + adj };
+    return { x: r.left + r.width  / 2,
+             y: r.top  + r.height / 2 + ((_ca && _ca.contains(el)) ? _caS : 0) };
+  };
+  // Cheapest candidate from pool in the current direction.
+  const _find = pool => {
+    const { x: cx, y: cy } = _adj(cur);
+    let best = null, bestCost = Infinity;
+    pool.forEach(el => {
+      if (el === cur) return;
+      const { x: ex, y: ey } = _adj(el);
+      const dx = ex - cx, dy = ey - cy;
+      let inDir, primary, cross;
+      if      (dir === 'right') { inDir = dx >  4; primary =  dx; cross = Math.abs(dy); }
+      else if (dir === 'left')  { inDir = dx < -4; primary = -dx; cross = Math.abs(dy); }
+      else if (dir === 'down')  { inDir = dy >  4; primary =  dy; cross = Math.abs(dx); }
+      else                      { inDir = dy < -4; primary = -dy; cross = Math.abs(dx); }
+      if (!inDir) return;
+      const cost = primary + cross * 2;
+      if (cost < bestCost) { bestCost = cost; best = el; }
+    });
+    return best;
   };
 
-  const { x: cx, y: cy } = _adjCenter(cur);
   const curIsCard = cur.classList.contains('disc-card');
-  let best = null, bestCost = Infinity;
-  els.forEach(el => {
-    if (el === cur) return;
-    const { x: ex, y: ey } = _adjCenter(el);
-    const dx = ex - cx, dy = ey - cy;
-    let inDir, primary, cross;
-    if (dir === 'right')      { inDir = dx > 4;  primary = dx;  cross = Math.abs(dy); }
-    else if (dir === 'left')  { inDir = dx < -4; primary = -dx; cross = Math.abs(dy); }
-    else if (dir === 'down')  { inDir = dy > 4;  primary = dy;  cross = Math.abs(dx); }
-    else                      { inDir = dy < -4; primary = -dy; cross = Math.abs(dx); }
-    if (!inDir) return;
-    // When on a disc-card, heavily penalise bottom-nav buttons so any disc-card
-    // below (or to the side) always wins over the nav bar. Nav only gets selected
-    // when there are no more disc-cards in that direction (end of list).
-    const navPenalty = (curIsCard && el.closest('.bottom-nav')) ? 50000 : 0;
-    const cost = primary + cross * 2 + navPenalty;
-    if (cost < bestCost) { bestCost = cost; best = el; }
-  });
-  if (best) {
-    _navSet(best);
+  const curIsChip = cur.classList.contains('filter-chip');
+  const cards  = els.filter(e => e.classList.contains('disc-card'));
+  const chips  = els.filter(e => e.classList.contains('filter-chip'));
+  const nonNav = els.filter(e => !e.closest('.bottom-nav'));
+
+  let best = null;
+
+  if (curIsCard && (dir === 'up' || dir === 'down')) {
+    // Card zone — vertical: only other disc-cards; wrap card-to-card at list edges
+    // so nav bar and filter chips never intercept a mid-list swipe.
+    best = _find(cards);
+    if (!best && cards.length) {
+      best = dir === 'down' ? cards[0] : cards[cards.length - 1];
+    }
+
+  } else if (curIsChip && (dir === 'left' || dir === 'right')) {
+    // Chip zone — horizontal: stay on filter chips so stepper buttons (radius +/−)
+    // that share the same row never hijack horizontal swipes.
+    // Modular wrap: last chip → first chip and vice versa.
+    best = _find(chips);
+    if (!best && chips.length) {
+      const idx = chips.indexOf(cur);
+      best = dir === 'right'
+        ? chips[(idx + 1) % chips.length]
+        : chips[(idx - 1 + chips.length) % chips.length];
+    }
+
   } else {
-    // Wrap: at list boundary, cycle to opposite end (Meta wearables standard)
-    const idx = els.indexOf(cur);
-    if (dir === 'down' || dir === 'right')  _navSet(els[0]);
-    else if (dir === 'up' || dir === 'left') _navSet(els[els.length - 1]);
+    // General navigation: prefer non-bottom-nav first so the bar is a last resort.
+    best = _find(nonNav);
+    if (!best) best = _find(els);          // nothing outside nav — try everything
+    if (!best) {                           // hard wrap at absolute edges
+      best = (dir === 'down' || dir === 'right') ? els[0] : els[els.length - 1];
+    }
   }
+
+  if (best) _navSet(best);
 }
 
 /* Escape key: close the innermost open panel (Meta wearables back-navigation standard) */
@@ -5010,11 +5039,17 @@ function renderDiscover() {
   grid.className = 'discover-grid' + (isListMode ? ' list-mode' : '');
   prospects.forEach(user => grid.appendChild(buildDiscCard(user)));
   // Swap in one shot to avoid layout thrash
+  const _preFocus = document.querySelector('.kbd-focus');
   stack.innerHTML = '';
   stack.appendChild(grid);
-  // Re-land the glasses focus ring on the first card after the DOM rebuilds.
-  // Without this the highlight orphans on the destroyed element every tab switch.
-  setTimeout(_navFocus, 80);
+  // Re-land focus after DOM rebuild.
+  // If the previously focused element survived the rebuild (e.g. a stepper button
+  // outside the card-stack), keep focus there — don't jump to the first card.
+  // If it was a card or is gone, call _navFocus to land on the first disc-card.
+  setTimeout(() => {
+    if (_preFocus && !_preFocus.classList.contains('disc-card') && _navList().includes(_preFocus)) return;
+    _navFocus();
+  }, 80);
 }
 
 function buildCard(user, pos) {
