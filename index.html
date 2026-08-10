@@ -3294,13 +3294,26 @@ function _navMove(dir) {
   if (!els.length) return;
   const cur = document.querySelector('.kbd-focus');
   if (!cur || !els.includes(cur)) { _navSet(els[0]); return; }
-  const cr = cur.getBoundingClientRect();
-  const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+
+  // Use scroll-adjusted coordinates so cards below the fold compete correctly.
+  // Without this, getBoundingClientRect() makes off-screen cards appear "farther"
+  // than the bottom nav buttons — the nav wins and the third card is never reachable.
+  const _ca = document.querySelector('.content-area');
+  const _caScroll = _ca ? _ca.scrollTop : 0;
+  const _adjCenter = el => {
+    const r = el.getBoundingClientRect();
+    // Elements inside the scrollable content-area get scrollTop added so their
+    // position is in document-flow space; nav buttons (outside the scroll) stay
+    // at their viewport position, making them correctly "farther" than off-screen cards.
+    const adj = (_ca && _ca.contains(el)) ? _caScroll : 0;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 + adj };
+  };
+
+  const { x: cx, y: cy } = _adjCenter(cur);
   let best = null, bestCost = Infinity;
   els.forEach(el => {
     if (el === cur) return;
-    const r = el.getBoundingClientRect();
-    const ex = r.left + r.width / 2, ey = r.top + r.height / 2;
+    const { x: ex, y: ey } = _adjCenter(el);
     const dx = ex - cx, dy = ey - cy;
     let inDir, primary, cross;
     if (dir === 'right')      { inDir = dx > 4;  primary = dx;  cross = Math.abs(dy); }
