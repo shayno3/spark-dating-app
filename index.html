@@ -3310,6 +3310,7 @@ function _navMove(dir) {
   };
 
   const { x: cx, y: cy } = _adjCenter(cur);
+  const curIsCard = cur.classList.contains('disc-card');
   let best = null, bestCost = Infinity;
   els.forEach(el => {
     if (el === cur) return;
@@ -3321,7 +3322,11 @@ function _navMove(dir) {
     else if (dir === 'down')  { inDir = dy > 4;  primary = dy;  cross = Math.abs(dx); }
     else                      { inDir = dy < -4; primary = -dy; cross = Math.abs(dx); }
     if (!inDir) return;
-    const cost = primary + cross * 2;   // prefer aligned, then closest
+    // When on a disc-card, heavily penalise bottom-nav buttons so any disc-card
+    // below (or to the side) always wins over the nav bar. Nav only gets selected
+    // when there are no more disc-cards in that direction (end of list).
+    const navPenalty = (curIsCard && el.closest('.bottom-nav')) ? 50000 : 0;
+    const cost = primary + cross * 2 + navPenalty;
     if (cost < bestCost) { bestCost = cost; best = el; }
   });
   if (best) {
@@ -3351,7 +3356,10 @@ function _navBack() {
 }
 function _navFocus() {           // land focus on the first element in context
   const els = _navList();
-  if (els.length) _navSet(els[0]);
+  if (!els.length) return;
+  // Prefer first disc-card so glasses users start on content, not the grid-toggle icon
+  const firstCard = els.find(el => el.classList.contains('disc-card'));
+  _navSet(firstCard || els[0]);
 }
 document.addEventListener('keydown', e => {
   if (!NAV.on) return;
