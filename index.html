@@ -2088,21 +2088,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <input type="range" id="radiusSlider" min="5" max="500" step="5" value="50" style="display:none" oninput="setRadius(this.value)">
           <span class="radius-value" id="radiusLiveTag">GPS 🟢</span>
         </div>
-        <div class="age-bar" id="ageBar">
-          <span class="radius-label">🎂 Age</span>
-          <div class="age-stepper-wrap">
-            <span class="age-stepper-label">Min</span>
-            <button class="age-step-btn" onclick="stepAge('min',-1)" title="Decrease min age">−</button>
-            <span class="age-step-val" id="ageMinVal">18</span>
-            <button class="age-step-btn" onclick="stepAge('min',1)" title="Increase min age">+</button>
-          </div>
-          <div class="age-stepper-wrap">
-            <span class="age-stepper-label">Max</span>
-            <button class="age-step-btn" onclick="stepAge('max',-1)" title="Decrease max age">−</button>
-            <span class="age-step-val" id="ageMaxVal">80+</span>
-            <button class="age-step-btn" onclick="stepAge('max',1)" title="Increase max age">+</button>
-          </div>
-          <!-- Hidden sliders kept for setAgeMin/setAgeMax / updateAgeSliderTracks compatibility -->
+        <!-- Age stepper moved to Profile → Preferences; hidden inputs kept for JS compatibility -->
+        <div id="ageBar" style="display:none">
           <input type="range" id="ageMinSlider" min="18" max="80" step="1" value="18" style="display:none" oninput="setAgeMin(this.value)">
           <input type="range" id="ageMaxSlider" min="18" max="80" step="1" value="80" style="display:none" oninput="setAgeMax(this.value)">
           <span id="ageRangeLabel" style="display:none">18–80+</span>
@@ -2743,8 +2730,8 @@ const S = {
   viewMode: (() => {
     try {
       const saved = JSON.parse(localStorage.getItem('spark_viewMode') || '{}');
-      return { discover: 'grid', matches: 'grid', messages: 'list', explore: 'grid', ...saved };
-    } catch { return { discover: 'grid', matches: 'grid', messages: 'list', explore: 'grid' }; }
+      return { discover: 'list', matches: 'grid', messages: 'list', explore: 'grid', ...saved };
+    } catch { return { discover: 'list', matches: 'grid', messages: 'list', explore: 'grid' }; }
   })()
 };
 
@@ -7870,6 +7857,21 @@ function openEditProfile() {
       <option value="Women"    ${u.seeking==='Women'?'selected':''}>Women</option>
       <option value="Everyone" ${u.seeking==='Everyone'?'selected':''}>Everyone</option>
     </select>
+    <label class="form-label">Age Preference</label>
+    <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.75rem">
+      <div class="age-stepper-wrap">
+        <span class="age-stepper-label">Min</span>
+        <button class="age-step-btn" onclick="stepAge('min',-1)" title="Decrease min age">−</button>
+        <span class="age-step-val" id="ageMinVal">18</span>
+        <button class="age-step-btn" onclick="stepAge('min',1)" title="Increase min age">+</button>
+      </div>
+      <div class="age-stepper-wrap">
+        <span class="age-stepper-label">Max</span>
+        <button class="age-step-btn" onclick="stepAge('max',-1)" title="Decrease max age">−</button>
+        <span class="age-step-val" id="ageMaxVal">80+</span>
+        <button class="age-step-btn" onclick="stepAge('max',1)" title="Increase max age">+</button>
+      </div>
+    </div>
     <label class="form-label">Looking For</label>
     <select class="form-select" id="editIntentIn">
       <option value="">— Not specified —</option>
