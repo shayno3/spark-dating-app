@@ -712,7 +712,7 @@ html, body {
 .detail-photos { position: relative; height: 58vh; min-height: 300px; flex-shrink: 0; background: #0a0a14; }
 .detail-photo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .detail-back { position: absolute; top: 0.9rem; left: 0.9rem; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; backdrop-filter: blur(4px); }
-.detail-info { padding: 1.25rem; overflow: visible; }
+.detail-info { padding: 1.25rem 1.25rem 5rem; overflow: visible; } /* 5rem clears Pass/Like footer */
 .detail-name-line { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
 .detail-loc-line { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 0.9rem; }
 .detail-bio-text { font-size: 0.9rem; line-height: 1.6; color: rgba(255,255,255,0.82); margin-bottom: 1.25rem; }
@@ -935,11 +935,15 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 }
 .match-profile-arrow.prev { left: 0; border-radius: 0 6px 6px 0; }
 .match-profile-arrow.next { right: 0; border-radius: 6px 0 0 6px; }
-.match-profile-body {
-  padding: 1.25rem 1.25rem 1.5rem;
+/* Single scroll container — photo + body scroll together as one unit.
+   Send Message stays at the bottom of the scroll; nothing floats over info. */
+.match-profile-scroll {
+  flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  flex: 1;
+}
+.match-profile-body {
+  padding: 1.25rem 1.25rem 2rem;
 }
 .match-profile-name { font-size: 1.65rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
 .match-profile-loc { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 0.7rem; }
@@ -1074,7 +1078,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* ---- MOMENTUM SCROLLING (iOS) ---- */
-html, body, .chat-messages, .setup-step, .auth-view, .help-body, .fb-setup-scroll, .match-profile-body {
+html, body, .chat-messages, .setup-step, .auth-view, .help-body, .fb-setup-scroll, .match-profile-scroll {
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2342,21 +2346,27 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── MATCH PROFILE PANEL ── -->
-    <div class="panel" id="matchProfilePanel" style="overflow:hidden">
-      <div class="match-profile-photos" id="matchProfilePhotos">
-        <img class="match-profile-photo-img" id="matchProfileImg" src="" alt="">
-        <button class="match-profile-back" onclick="closeMatchProfile()">←</button>
-        <div class="match-profile-photo-dots" id="matchProfileDots"></div>
-        <button class="match-profile-arrow prev" id="matchProfilePrev" onclick="matchProfileNav(-1)">‹</button>
-        <button class="match-profile-arrow next" id="matchProfileNext" onclick="matchProfileNav(1)">›</button>
-        <div class="card-gradient"></div>
-      </div>
-      <div class="match-profile-body">
-        <div class="match-profile-name" id="matchProfileName"></div>
-        <div class="match-profile-loc" id="matchProfileLoc"></div>
-        <div class="tags-wrap" id="matchProfileTags" style="margin-bottom:0.875rem"></div>
-        <div class="match-profile-bio" id="matchProfileBio"></div>
-        <button class="match-profile-msg-btn" id="matchProfileMsgBtn">💬 Send a Message</button>
+    <!-- Single scroll wrapper: photo + bio + button all scroll as one.
+         This prevents the Send Message button from floating over profile
+         info on small screens (glasses). User scrolls to the bottom
+         to reveal and tap the button. -->
+    <div class="panel" id="matchProfilePanel">
+      <div class="match-profile-scroll" id="matchProfileScroll">
+        <div class="match-profile-photos" id="matchProfilePhotos">
+          <img class="match-profile-photo-img" id="matchProfileImg" src="" alt="">
+          <button class="match-profile-back" onclick="closeMatchProfile()">←</button>
+          <div class="match-profile-photo-dots" id="matchProfileDots"></div>
+          <button class="match-profile-arrow prev" id="matchProfilePrev" onclick="matchProfileNav(-1)" style="display:none">‹</button>
+          <button class="match-profile-arrow next" id="matchProfileNext" onclick="matchProfileNav(1)" style="display:none">›</button>
+          <div class="card-gradient"></div>
+        </div>
+        <div class="match-profile-body">
+          <div class="match-profile-name" id="matchProfileName"></div>
+          <div class="match-profile-loc" id="matchProfileLoc"></div>
+          <div class="tags-wrap" id="matchProfileTags" style="margin-bottom:0.875rem"></div>
+          <div class="match-profile-bio" id="matchProfileBio"></div>
+          <button class="match-profile-msg-btn" id="matchProfileMsgBtn">💬 Send a Message</button>
+        </div>
       </div>
     </div>
 
@@ -4994,6 +5004,9 @@ function renderDiscover() {
   // Swap in one shot to avoid layout thrash
   stack.innerHTML = '';
   stack.appendChild(grid);
+  // Re-land the glasses focus ring on the first card after the DOM rebuilds.
+  // Without this the highlight orphans on the destroyed element every tab switch.
+  setTimeout(_navFocus, 80);
 }
 
 function buildCard(user, pos) {
@@ -5592,6 +5605,10 @@ function openDetail(uid) {
   ];
   document.getElementById('detailTags').innerHTML  = extraTags.join('');
   document.getElementById('detailBioText').textContent = u.bio || 'No bio yet.';
+  // Scroll the content-area back to top so the panel (position:absolute;top:0)
+  // aligns with the viewport — without this, a scrolled-down grid leaves cards
+  // visible above the panel on the glasses.
+  document.querySelector('.content-area')?.scrollTo({ top: 0, behavior: 'instant' });
   document.getElementById('detailPanel').classList.add('open');
   _navRefresh();
 }
@@ -6148,6 +6165,11 @@ async function openMatchProfile(uid) {
   };
 
   if (S.newMatches.has(uid)) { S.newMatches.delete(uid); updateBadges(); }
+  // Scroll to top so the panel covers the full viewport (same fix as openDetail)
+  document.querySelector('.content-area')?.scrollTo({ top: 0, behavior: 'instant' });
+  // Also reset the panel's own scroll so it starts at the top photo
+  const mpScroll = document.getElementById('matchProfileScroll');
+  if (mpScroll) mpScroll.scrollTop = 0;
   document.getElementById('matchProfilePanel').classList.add('open');
   _navRefresh();
 
