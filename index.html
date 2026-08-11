@@ -632,7 +632,12 @@ html, body {
 .msg-seen-banner { display:flex; align-items:center; justify-content:center; gap:0.4rem; margin:0.75rem 0 0.25rem; padding:0.55rem 1rem; background:var(--bg-card); border-radius:20px; font-size:0.78rem; color:var(--pink); cursor:pointer; border:1px solid rgba(var(--pink-rgb,219,39,119),0.25); }
 .msg-translate-btn { display:inline-flex; align-items:center; gap:0.25rem; margin-top:3px; padding:2px 8px; font-size:0.62rem; color:var(--text-muted); background:transparent; border:1px solid var(--border); border-radius:10px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
 .msg-translate-btn:hover { color:var(--primary); border-color:var(--primary); }
+.msg-translate-btn:disabled { opacity:0.5; cursor:default; pointer-events:none; }
+.msg-translate-locked { opacity:0.6; }
 .msg-translated-badge { font-size:0.58rem; color:var(--text-muted); margin-left:4px; font-style:italic; opacity:0.75; }
+/* Voice note translation result bubble */
+.vt-result { display:none; margin-top:4px; padding:6px 10px; font-size:0.78rem; color:var(--text-muted); background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:10px; max-width:260px; line-height:1.45; word-break:break-word; }
+.vt-result-label { font-size:0.65rem; letter-spacing:0.02em; opacity:0.7; margin-bottom:2px; }
 .chat-input-bar { display: flex; gap: 0.625rem; padding: 0.7rem; border-top: 1px solid var(--border); background: var(--bg-card); align-items: flex-end; flex-shrink: 0; }
 .chat-input { flex: 1; background: var(--bg); border: 1.5px solid var(--border); border-radius: 20px; padding: 0.6rem 1rem; color: var(--text); font-size: 0.9rem; outline: none; resize: none; max-height: 90px; font-family: inherit; }
 .chat-input:focus { border-color: var(--primary); }
@@ -7058,8 +7063,30 @@ function renderChatMessages(containerId = 'chatMessages') {
       ? `<button class="msg-translate-btn" onclick="toggleMsgTranslation('${msg.id}',this)" data-state="original" data-original="${escHtml(msg.text||'')}">🌐 Translate</button>`
       : '';
 
+    // Voice note translate button — received voice notes only (Premium feature)
+    const isVoiceNote = msg.type === 'voiceNote' && !!msg.audioUrl;
+    let voiceTransBtn = '';
+    let voiceTransResult = '';
+    if (!isSent && isVoiceNote) {
+      if (S.isPremium) {
+        // If already cached in the message doc, pre-populate the result div
+        if (msg.translation) {
+          voiceTransResult = `<div class="vt-result" id="vt-result-${msg.id}" style="display:block"><div class="vt-result-label">🌐 Translation</div>${escHtml(msg.translation)}</div>`;
+          voiceTransBtn   = `<button class="msg-translate-btn" id="vt-btn-${msg.id}" onclick="toggleVoiceTranslation('${msg.id}','${matchId}',this)" data-state="showing">Hide translation</button>`;
+        } else {
+          voiceTransResult = `<div class="vt-result" id="vt-result-${msg.id}"></div>`;
+          voiceTransBtn   = `<button class="msg-translate-btn" id="vt-btn-${msg.id}" onclick="toggleVoiceTranslation('${msg.id}','${matchId}',this)" data-state="idle">🌐 Translate</button>`;
+        }
+      } else {
+        // Free users see a locked button that opens the upgrade modal
+        voiceTransBtn = `<button class="msg-translate-btn msg-translate-locked" onclick="upgradeToPremium()" title="Upgrade to Premium to translate voice notes">🔒 Translate</button>`;
+      }
+    }
+
     return `${dateSep}<div>
         <div class="msg ${isSent?'sent':'recv'}" id="msg-bubble-${msg.id}">${msgContent}</div>
+        ${voiceTransResult}
+        ${voiceTransBtn}
         ${translateBtn}
         <div class="msg-time ${isSent?'r':''}">${fmtTime(msg.time)}</div>
         ${seenHtml}
@@ -7110,6 +7137,51 @@ function toggleMsgTranslation(msgId, btn) {
   bubble.innerHTML = escHtml(text) + '<span class="msg-translated-badge"> · translated</span>';
   btn.textContent = 'Show original';
   btn.dataset.state = 'translated';
+}
+
+/* ================================================================
+   VOICE NOTE TRANSLATION  (Premium-only, on-demand)
+================================================================ */
+async function toggleVoiceTranslation(msgId, matchId, btn) {
+  const resultEl = document.getElementById('vt-result-' + msgId);
+
+  // Toggle hide/show if we already have a translation
+  if (btn.dataset.state === 'showing') {
+    if (resultEl) resultEl.style.display = 'none';
+    btn.textContent   = '🌐 Translate';
+    btn.dataset.state = 'idle';
+    return;
+  }
+  if (btn.dataset.state === 'loaded') {
+    if (resultEl) resultEl.style.display = 'block';
+    btn.textContent   = 'Hide translation';
+    btn.dataset.state = 'showing';
+    return;
+  }
+
+  // Request translation from Cloud Function
+  if (!functions) { toast('Service not ready — try again'); return; }
+  btn.disabled      = true;
+  btn.textContent   = '⏳ Translating…';
+  try {
+    const fn     = functions.httpsCallable('translateVoiceNote');
+    const result = await fn({ matchId, msgId });
+    const text   = result.data?.translation;
+    if (!text) throw new Error('Empty translation');
+    if (resultEl) {
+      resultEl.innerHTML    = `<div class="vt-result-label">🌐 Translation</div>${escHtml(text)}`;
+      resultEl.style.display = 'block';
+    }
+    btn.textContent   = 'Hide translation';
+    btn.dataset.state = 'showing';
+  } catch (e) {
+    const msg = (typeof e.details === 'string' && e.details) ? e.details : (e.message || 'Translation failed — please try again.');
+    toast('⚠️ ' + msg);
+    btn.textContent   = '🌐 Translate';
+    btn.dataset.state = 'idle';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* ================================================================

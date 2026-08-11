@@ -34,6 +34,7 @@ const messaging = getMessaging();
 // Firebase Secret Manager bindings
 const stripeSecretKey     = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
+const openAiKey           = defineSecret('OPENAI_API_KEY');
 
 // Live Stripe Price ID — Spark Premium $9.99/month
 const STRIPE_PRICE_ID = 'price_1TxarFDFkYr4mQ8S5pJ9B1rP';
@@ -319,6 +320,115 @@ exports.stripeWebhook = onRequest(
     }
 
     res.json({ received: true });
+  }
+);
+
+/* ----------------------------------------------------------------
+   TRANSLATE VOICE NOTE  (Premium-only, on-demand)
+   Called by the frontend with { matchId, msgId }.
+   1. Verifies the caller is authenticated & isPremium.
+   2. Verifies the caller is a participant in that match.
+   3. Returns a cached translation if one already exists.
+   4. Downloads the voice note audio, sends it to OpenAI Whisper
+      /v1/audio/translations (returns English text), caches the
+      result back on the message doc, and returns it to the client.
+---------------------------------------------------------------- */
+exports.translateVoiceNote = onCall(
+  { secrets: [openAiKey] },
+  async (request) => {
+    const { HttpsError } = require('firebase-functions/v2/https');
+
+    // 1. Auth
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.', 'You must be logged in.');
+
+    // 2. Premium check — enforce server-side so it cannot be bypassed
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (!userSnap.exists || !userSnap.data().isPremium) {
+      throw new HttpsError(
+        'permission-denied',
+        'Voice note translation is a Premium feature.',
+        'Voice note translation is a Premium feature. Upgrade to unlock!'
+      );
+    }
+
+    const { matchId, msgId } = request.data || {};
+    if (!matchId || !msgId) {
+      throw new HttpsError('invalid-argument', 'matchId and msgId are required.', 'Invalid request — please try again.');
+    }
+
+    // 3. Verify the caller is in this match
+    const matchSnap = await db.collection('matches').doc(matchId).get();
+    if (!matchSnap.exists) throw new HttpsError('not-found', 'Match not found.', 'Match not found.');
+    if (!(matchSnap.data().uids || []).includes(uid)) {
+      throw new HttpsError('permission-denied', 'Not authorised.', 'Not authorised.');
+    }
+
+    // 4. Get the message doc
+    const msgRef  = db.collection('messages').doc(matchId).collection('msgs').doc(msgId);
+    const msgSnap = await msgRef.get();
+    if (!msgSnap.exists) throw new HttpsError('not-found', 'Message not found.', 'Message not found.');
+    const msgData = msgSnap.data();
+
+    // 5. Return cached translation immediately if available
+    if (msgData.translation) return { translation: msgData.translation };
+
+    if (msgData.type !== 'voiceNote' || !msgData.audioUrl) {
+      throw new HttpsError('invalid-argument', 'Not a voice note.', 'This message is not a voice note.');
+    }
+
+    // 6. Download the audio (supports Firebase Storage URLs and base64 data URLs)
+    const audioUrl = msgData.audioUrl;
+    let audioBuffer;
+    let mimeType = 'audio/webm';
+
+    if (audioUrl.startsWith('data:')) {
+      // Base64 data URL — extract MIME type and decode bytes
+      const [header, b64] = audioUrl.split(',');
+      mimeType = header.split(':')[1]?.split(';')[0] || 'audio/webm';
+      audioBuffer = Buffer.from(b64, 'base64');
+    } else {
+      // Remote URL (Firebase Storage download URL)
+      const dlRes = await fetch(audioUrl);
+      if (!dlRes.ok) throw new HttpsError('internal', 'Could not download audio.', 'Could not download audio — please try again.');
+      audioBuffer = Buffer.from(await dlRes.arrayBuffer());
+    }
+
+    // 7. Determine file extension for Whisper (must be a supported format)
+    const ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a'
+              : mimeType.includes('ogg') ? 'ogg'
+              : mimeType.includes('wav') ? 'wav'
+              : 'webm';
+
+    // 8. Call OpenAI Whisper /v1/audio/translations — detects the source language
+    //    automatically and always returns the transcript in English.
+    const apiKey = openAiKey.value();
+    if (!apiKey) throw new HttpsError('internal', 'Translation service not configured.', 'Translation service not configured.');
+
+    const form = new FormData();
+    form.append('file', new Blob([audioBuffer], { type: mimeType }), `audio.${ext}`);
+    form.append('model', 'whisper-1');
+    form.append('response_format', 'text');
+
+    const whisperRes = await fetch('https://api.openai.com/v1/audio/translations', {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body:    form,
+    });
+
+    if (!whisperRes.ok) {
+      const errBody = await whisperRes.text();
+      console.error('Whisper API error:', errBody);
+      throw new HttpsError('internal', 'Translation failed — please try again.', 'Translation failed — please try again.');
+    }
+
+    const translation = (await whisperRes.text()).trim();
+    if (!translation) throw new HttpsError('internal', 'Empty translation returned.', 'Could not translate this voice note.');
+
+    // 9. Cache on the message doc so repeat taps are instant & free
+    await msgRef.update({ translation }).catch(() => {});
+
+    return { translation };
   }
 );
 
