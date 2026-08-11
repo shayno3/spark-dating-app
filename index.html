@@ -630,6 +630,9 @@ html, body {
 .msg-time.r { text-align: right; }
 .msg-seen { font-size: 0.62rem; color: var(--text-muted); text-align: right; margin-top: 1px; padding-right: 2px; letter-spacing: 0.01em; }
 .msg-seen-banner { display:flex; align-items:center; justify-content:center; gap:0.4rem; margin:0.75rem 0 0.25rem; padding:0.55rem 1rem; background:var(--bg-card); border-radius:20px; font-size:0.78rem; color:var(--pink); cursor:pointer; border:1px solid rgba(var(--pink-rgb,219,39,119),0.25); }
+.msg-translate-btn { display:inline-flex; align-items:center; gap:0.25rem; margin-top:3px; padding:2px 8px; font-size:0.62rem; color:var(--text-muted); background:transparent; border:1px solid var(--border); border-radius:10px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+.msg-translate-btn:hover { color:var(--primary); border-color:var(--primary); }
+.msg-translated-badge { font-size:0.58rem; color:var(--text-muted); margin-left:4px; font-style:italic; opacity:0.75; }
 .chat-input-bar { display: flex; gap: 0.625rem; padding: 0.7rem; border-top: 1px solid var(--border); background: var(--bg-card); align-items: flex-end; flex-shrink: 0; }
 .chat-input { flex: 1; background: var(--bg); border: 1.5px solid var(--border); border-radius: 20px; padding: 0.6rem 1rem; color: var(--text); font-size: 0.9rem; outline: none; resize: none; max-height: 90px; font-family: inherit; }
 .chat-input:focus { border-color: var(--primary); }
@@ -6801,8 +6804,9 @@ function subscribeToMessages(matchId, uid) {
         audioUrl:   d.data().audioUrl,
         duration:   d.data().duration,
         waveform:   d.data().waveform   || null,   // M2: real waveform data
-        listenedAt: d.data()['listenedAt_' + uid] || null,  // M4: heard receipt
-        time:       d.data().ts?.toDate() || new Date()
+        listenedAt:   d.data()['listenedAt_' + uid] || null,  // M4: heard receipt
+        translations: d.data().translations || null,           // Firebase translate extension
+        time:         d.data().ts?.toDate() || new Date()
       }));
       if (S.activeChatId === uid) {
         const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
@@ -6975,8 +6979,19 @@ function renderChatMessages(containerId = 'chatMessages') {
       else dateLabel = msgDate.toLocaleDateString(undefined, {month:'short', day:'numeric', year: msgDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined});
       if (dateLabel !== lastDateStr) { dateSep = `<div class="msg-date-sep">${dateLabel}</div>`; lastDateStr = dateLabel; }
     }
+    // Translation button — only on received text messages
+    const isTextMsg = msg.type !== 'voiceNote';
+    if (!isSent && isTextMsg) {
+      window._msgTranslations = window._msgTranslations || {};
+      if (msg.translations) window._msgTranslations[msg.id] = msg.translations;
+    }
+    const translateBtn = (!isSent && isTextMsg)
+      ? `<button class="msg-translate-btn" onclick="toggleMsgTranslation('${msg.id}',this)" data-state="original" data-original="${escHtml(msg.text||'')}">🌐 Translate</button>`
+      : '';
+
     return `${dateSep}<div>
-        <div class="msg ${isSent?'sent':'recv'}">${msgContent}</div>
+        <div class="msg ${isSent?'sent':'recv'}" id="msg-bubble-${msg.id}">${msgContent}</div>
+        ${translateBtn}
         <div class="msg-time ${isSent?'r':''}">${fmtTime(msg.time)}</div>
         ${seenHtml}
       </div>`;
@@ -6999,6 +7014,31 @@ function scrollChatToBottom(containerId = 'chatMessages') {
     const c = document.getElementById(containerId);
     if (c) c.scrollTop = c.scrollHeight;
   }, 60);
+}
+
+function toggleMsgTranslation(msgId, btn) {
+  const bubble = document.getElementById('msg-bubble-' + msgId);
+  if (!bubble) return;
+  const isTranslated = btn.dataset.state === 'translated';
+  if (isTranslated) {
+    // Restore original text
+    bubble.textContent = btn.dataset.original || '';
+    btn.textContent = '🌐 Translate';
+    btn.dataset.state = 'original';
+    return;
+  }
+  // Look up translations
+  const translations = (window._msgTranslations || {})[msgId];
+  if (!translations) {
+    toast('Translation not ready yet — try again in a moment');
+    return;
+  }
+  // Prefer English; fall back through the other languages
+  const text = translations['en'] || translations['es'] || translations['fr'] || translations['de'] || translations['pt'] || '';
+  if (!text) { toast('Translation not available'); return; }
+  bubble.innerHTML = escHtml(text) + '<span class="msg-translated-badge"> · translated</span>';
+  btn.textContent = 'Show original';
+  btn.dataset.state = 'translated';
 }
 
 /* ================================================================
