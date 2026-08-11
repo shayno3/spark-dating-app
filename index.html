@@ -5990,7 +5990,10 @@ async function activatePremium() {
     window.location.href = result.data.url; // Stripe-hosted checkout page
   } catch (e) {
     console.error('Checkout error:', e);
-    const msg = e.message || 'Please try again.';
+    // Firebase HttpsError surfaces the real message in e.message (v2) or e.details (v1)
+    const msg = (e.message && e.message !== 'internal')
+      ? e.message
+      : (e.details || 'Checkout unavailable — please try again or contact support.');
     toast('⚠️ ' + msg);
     if (btn) { btn.disabled = false; btn.textContent = 'Get Premium — $9.99/mo'; }
   }
