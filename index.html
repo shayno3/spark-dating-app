@@ -7033,8 +7033,10 @@ function toggleMsgTranslation(msgId, btn) {
     toast('Translation not ready yet — try again in a moment');
     return;
   }
-  // Prefer English; fall back through the other languages
-  const text = translations['en'] || translations['es'] || translations['fr'] || translations['de'] || translations['pt'] || '';
+  // Use user's preferred language, fall back through others
+  const lang = localStorage.getItem('sparkTranslateLang') || 'en';
+  const fallbacks = ['en','es','fr','de','pt'].filter(l => l !== lang);
+  const text = translations[lang] || fallbacks.map(l => translations[l]).find(Boolean) || '';
   if (!text) { toast('Translation not available'); return; }
   bubble.innerHTML = escHtml(text) + '<span class="msg-translated-badge"> · translated</span>';
   btn.textContent = 'Show original';
@@ -7947,6 +7949,14 @@ function openEditProfile() {
         <button class="age-step-btn" onclick="stepAge('max',1)" title="Increase max age">+</button>
       </div>
     </div>
+    <label class="form-label">🌐 Translation Language</label>
+    <select class="form-select" id="editTranslateLang" onchange="localStorage.setItem('sparkTranslateLang',this.value)">
+      <option value="en" ${(localStorage.getItem('sparkTranslateLang')||'en')==='en'?'selected':''}>English</option>
+      <option value="es" ${(localStorage.getItem('sparkTranslateLang')||'en')==='es'?'selected':''}>Spanish (Español)</option>
+      <option value="fr" ${(localStorage.getItem('sparkTranslateLang')||'en')==='fr'?'selected':''}>French (Français)</option>
+      <option value="de" ${(localStorage.getItem('sparkTranslateLang')||'en')==='de'?'selected':''}>German (Deutsch)</option>
+      <option value="pt" ${(localStorage.getItem('sparkTranslateLang')||'en')==='pt'?'selected':''}>Portuguese (Português)</option>
+    </select>
     <label class="form-label">Looking For</label>
     <select class="form-select" id="editIntentIn">
       <option value="">— Not specified —</option>
