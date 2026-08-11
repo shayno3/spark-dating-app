@@ -5990,10 +5990,11 @@ async function activatePremium() {
     window.location.href = result.data.url; // Stripe-hosted checkout page
   } catch (e) {
     console.error('Checkout error:', e);
-    // Firebase HttpsError surfaces the real message in e.message (v2) or e.details (v1)
-    const msg = (e.message && e.message !== 'internal')
-      ? e.message
-      : (e.details || 'Checkout unavailable — please try again or contact support.');
+    // e.details holds the human-readable message (passed as 3rd arg to HttpsError)
+    // e.message is usually just the error code string ('internal', 'unauthenticated', etc.)
+    const msg = (typeof e.details === 'string' && e.details)
+      ? e.details
+      : (e.message && e.message !== 'internal' ? e.message : 'Checkout unavailable — please try again or contact support.');
     toast('⚠️ ' + msg);
     if (btn) { btn.disabled = false; btn.textContent = 'Get Premium — $9.99/mo'; }
   }

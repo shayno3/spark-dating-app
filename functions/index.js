@@ -170,14 +170,15 @@ exports.createCheckoutSession = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     const { HttpsError } = require('firebase-functions/v2/https');
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in to subscribe.');
 
     try {
+      const uid = request.auth?.uid;
+      if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in to subscribe.', 'You must be logged in to subscribe.');
+
       const Stripe = require('stripe');
       const keyVal = stripeSecretKey.value();
-      if (!keyVal) throw new Error('Stripe secret key is not configured.');
-      const stripe = Stripe(keyVal);
+      if (!keyVal) throw new HttpsError('internal', 'Stripe secret key is not configured.', 'Stripe secret key is not configured.');
+      const stripe = new Stripe(keyVal);
 
       // Look up the user's Stripe customer ID, or create one.
       const userSnap = await db.collection('users').doc(uid).get();
@@ -204,9 +205,12 @@ exports.createCheckoutSession = onCall(
 
       return { url: session.url };
     } catch (err) {
+      // Re-throw HttpsErrors (unauthenticated, our own internal, etc.) as-is
+      if (err instanceof require('firebase-functions/v2/https').HttpsError) throw err;
       const msg = err?.raw?.message || err?.message || 'Unable to start checkout. Please try again.';
-      console.error('createCheckoutSession error:', msg, err);
-      throw new HttpsError('internal', msg);
+      console.error('createCheckoutSession error:', JSON.stringify({ msg, type: err?.type, code: err?.statusCode }));
+      // Pass msg as details (3rd arg) so client can always read it via e.details
+      throw new HttpsError('internal', msg, msg);
     }
   }
 );
@@ -220,18 +224,19 @@ exports.createPortalSession = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     const { HttpsError } = require('firebase-functions/v2/https');
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
 
     try {
+      const uid = request.auth?.uid;
+      if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.', 'You must be logged in.');
+
       const Stripe = require('stripe');
       const keyVal = stripeSecretKey.value();
-      if (!keyVal) throw new Error('Stripe secret key is not configured.');
-      const stripe = Stripe(keyVal);
+      if (!keyVal) throw new HttpsError('internal', 'Stripe secret key is not configured.', 'Stripe secret key is not configured.');
+      const stripe = new Stripe(keyVal);
 
       const userSnap = await db.collection('users').doc(uid).get();
       const customerId = userSnap.data()?.stripeCustomerId;
-      if (!customerId) throw new HttpsError('not-found', 'No billing account found. Subscribe first.');
+      if (!customerId) throw new HttpsError('not-found', 'No billing account found. Subscribe first.', 'No billing account found. Subscribe first.');
 
       const session = await stripe.billingPortal.sessions.create({
         customer:   customerId,
@@ -240,10 +245,11 @@ exports.createPortalSession = onCall(
 
       return { url: session.url };
     } catch (err) {
-      if (err?.code) throw err; // re-throw HttpsError as-is
+      // Re-throw HttpsErrors as-is
+      if (err instanceof require('firebase-functions/v2/https').HttpsError) throw err;
       const msg = err?.raw?.message || err?.message || 'Unable to open billing portal. Please try again.';
-      console.error('createPortalSession error:', msg, err);
-      throw new HttpsError('internal', msg);
+      console.error('createPortalSession error:', JSON.stringify({ msg, type: err?.type, code: err?.statusCode }));
+      throw new HttpsError('internal', msg, msg);
     }
   }
 );
