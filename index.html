@@ -2363,6 +2363,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <button class="nav-btn active" id="nav-discover" onclick="showTab('discover')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg>
       <span>Discover</span>
+      <span class="nav-dot" id="discoverDot"></span>
     </button>
     <button class="nav-btn" id="nav-matches" onclick="showTab('matches')">
       <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -4643,7 +4644,7 @@ async function enterMainApp() {
   // Firestore to return all user docs (glasses are especially sensitive to this delay)
   loadProfiles();
   subscribeToMatches();
-  loadLikedMe().catch(() => {}); // populate WLY panel & badge count on startup
+  subscribeToLikesReceived(); // real-time listener — fires immediately & on every new like
   updateBadges();
   startOnlineHeartbeat();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
@@ -5518,6 +5519,51 @@ function subscribeToMatches() {
       // Remove newly matched users from the "New ✨" WLY panel immediately
       if (S.filter === 'new' && newMatches.length) renderWhoLikedYou();
     }, e => console.warn('matches listener error:', e));
+}
+
+/* ================================================================
+   LIKES RECEIVED — real-time Firestore listener
+   Fires whenever someone likes User B, so the Sparks tab updates
+   immediately without needing a page refresh.
+================================================================ */
+function subscribeToLikesReceived() {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+  if (S.listeners.likesReceived) S.listeners.likesReceived();
+
+  S.listeners.likesReceived = db.collection('likes').doc(myUid).collection('received')
+    .onSnapshot(async snap => {
+      // Re-use loadLikedMe logic: fetch profiles for every liker
+      const likerUids = snap.docs
+        .map(d => ({ uid: d.id, action: d.data().action }))
+        .filter(l => !S.matchIds.has(l.uid));
+
+      if (likerUids.length === 0) {
+        S.likedMe = [];
+        renderLikedMe();
+        updateBadges();
+        return;
+      }
+
+      const profiles = await Promise.all(likerUids.map(async l => {
+        // Re-use cached profile if available
+        let cached = S.profiles.find(p => p.id === l.uid);
+        if (!cached) {
+          try {
+            const doc = await db.collection('users').doc(l.uid).get();
+            if (doc.exists) cached = { id: l.uid, ...doc.data() };
+          } catch(e) {}
+        }
+        return cached ? { uid: l.uid, action: l.action, ...cached } : null;
+      }));
+
+      S.likedMe = profiles.filter(Boolean);
+      renderLikedMe();
+      updateBadges();
+
+      const activeTab = document.querySelector('.tab-content.active')?.id;
+      if (activeTab === 'tab-discover') renderDiscover();
+    }, e => console.warn('likesReceived listener error:', e));
 }
 
 function showMatchOverlay(uid) {
@@ -8143,19 +8189,22 @@ async function saveProfile() {
    BADGES & UTILITIES
 ================================================================ */
 function updateBadges() {
-  const matchDot = document.getElementById('matchDot');
-  const msgDot   = document.getElementById('msgDot');
-  const nm       = S.newMatches.size;
+  const matchDot    = document.getElementById('matchDot');
+  const msgDot      = document.getElementById('msgDot');
+  const discoverDot = document.getElementById('discoverDot');
+  const nm          = S.newMatches.size;
   if (matchDot) matchDot.classList.toggle('active', nm > 0);
   const unread = Object.values(S.unread).filter(Boolean).length;
   // Messages badge fires for unread messages OR new matches waiting in Messages
   if (msgDot) msgDot.classList.toggle('active', unread > 0 || S.newMatchMsgs.size > 0);
 
-  // Update the "New ✨" chip with a live count badge of unmatched people who liked you
+  // Discover dot — pulses when someone liked you and you haven't seen them yet
+  const wlyCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid) && !S.likedMeViewed.has(u.uid)).length;
+  if (discoverDot) discoverDot.classList.toggle('active', wlyCount > 0);
+
+  // Update the "Sparks ✨" chip with a live count badge of unmatched people who liked you
   const chipNew = document.getElementById('chipNew');
   if (chipNew) {
-    // L3: only count likers the user hasn't seen in the WLY panel this session
-    const wlyCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid) && !S.likedMeViewed.has(u.uid)).length;
     const existing = chipNew.querySelector('.new-chip-badge');
     if (wlyCount > 0) {
       const badge = existing || document.createElement('span');
