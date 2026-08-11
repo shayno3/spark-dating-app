@@ -1059,22 +1059,8 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
 .hp-unit-row { display: flex; border-bottom: 1px solid var(--border); }
 .hp-unit-btn { flex: 1; padding: 0.55rem; font-size: 0.8rem; font-weight: 800; border: none; background: none; color: var(--text-muted); cursor: pointer; touch-action: manipulation; transition: color 0.15s, background 0.15s; }
 .hp-unit-btn.active { color: var(--primary); background: rgba(233,30,140,0.08); }
-.hp-drums { display: flex; }
-.hp-drum-col { position: relative; }
-.hp-col { height: 176px; overflow: hidden; position: relative; cursor: grab; user-select: none; touch-action: none; }
-.hp-col:active { cursor: grabbing; }
-.hp-col-inner { will-change: transform; }
-.hp-item { height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 700; color: rgba(255,255,255,0.22); line-height: 1; }
-.hp-item.hp-near { color: rgba(255,255,255,0.58); }
-.hp-item.hp-sel  { color: #fff; font-size: 1.2rem; }
-.hp-sep { width: 1px; background: var(--border); align-self: stretch; flex-shrink: 0; }
-.hp-col-label { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); text-align: center; padding: 0.38rem 0 0.15rem; border-top: 1px solid var(--border); }
-.hp-col::before,.hp-col::after { content:''; position:absolute; left:0; right:0; height:60px; z-index:2; pointer-events:none; }
-.hp-col::before { top:0; background:linear-gradient(to bottom,var(--bg-card),transparent); }
-.hp-col::after  { bottom:0; background:linear-gradient(to top,var(--bg-card),transparent); }
-.hp-bar { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); height:44px; background:rgba(233,30,140,0.07); border-top:1.5px solid rgba(233,30,140,0.28); border-bottom:1.5px solid rgba(233,30,140,0.28); pointer-events:none; z-index:1; }
-.hp-result { text-align:center; padding:0.6rem 1rem; font-size:0.88rem; font-weight:800; color:var(--primary); border-top:1px solid var(--border); background:rgba(233,30,140,0.04); }
-.hp-result small { color:var(--text-muted); font-weight:500; font-size:0.78rem; margin-left:0.35rem; }
+.hp-step-btn { width: 56px; height: 56px; background: var(--bg); border: none; color: var(--primary); font-size: 1.6rem; font-weight: 300; cursor: pointer; touch-action: manipulation; display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+.hp-step-btn:active { background: rgba(233,30,140,0.1); }
 /* ---- SCROLLBAR ---- */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1223,6 +1209,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 .age-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0 1rem 0.5rem; flex-wrap: wrap; }
 .age-sliders { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .age-stepper-wrap { display: flex; align-items: center; gap: 0.3rem; }
+.pill-select-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.25rem; }
+.pill-select-btn { padding: 0.45rem 1rem; border-radius: 20px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-muted); touch-action: manipulation; transition: all 0.15s; }
+.pill-select-btn.pill-sel { background: rgba(233,30,140,0.12); border-color: var(--primary); color: var(--text); font-weight: 600; }
+.pill-select-btn:active { opacity: 0.75; }
 .age-stepper-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 0.1rem; }
 .age-step-btn { width: 30px; height: 30px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 1.1rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; }
 .age-step-btn:active, .age-step-btn.kbd-focus { background: var(--primary); border-color: var(--primary); color: #fff; }
@@ -6445,25 +6435,91 @@ function closeConvConfirm() {
 }
 
 /* ================================================================
-   HEIGHT DRUM PICKER
+   HEIGHT STEPPER PICKER (glasses-friendly replacement)
 ================================================================ */
-const HP_ITEM_H = 44, HP_PAD = 2;
-const HP_FT  = [4,5,6,7];
-const HP_IN  = Array.from({length:12},(_,i)=>i);
-const HP_CM  = Array.from({length:101},(_,i)=>i+120);
 const _HP = { unit:'imperial', ft:5, ins:8, cm:178 };
 
 function parseHeightStr(str) {
   if (!str) return null;
-  // "5'10"" or "5'10"
   const imp = str.match(/(\d)\s*'(\d+)/);
   if (imp) return { ft: parseInt(imp[1]), ins: parseInt(imp[2]) };
-  // "178 cm"
   const met = str.match(/(\d{3})\s*cm/i);
   if (met) return { cm: parseInt(met[1]) };
   return null;
 }
 
+function _hpCmToFtIn(cm) {
+  const totalIn = Math.round(cm / 2.54);
+  return { ft: Math.floor(totalIn / 12), ins: totalIn % 12 };
+}
+function _hpFtInToCm(ft, ins) {
+  return Math.round(ft * 30.48 + ins * 2.54);
+}
+
+function hpStep(field, delta) {
+  if (field === 'cm') {
+    _HP.cm = Math.max(120, Math.min(220, _HP.cm + delta));
+  } else if (field === 'ft') {
+    _HP.ft = Math.max(4, Math.min(7, _HP.ft + delta));
+  } else if (field === 'ins') {
+    let total = _HP.ft * 12 + _HP.ins + delta;
+    total = Math.max(48, Math.min(95, total)); // 4'0" to 7'11"
+    _HP.ft = Math.floor(total / 12);
+    _HP.ins = total % 12;
+  }
+  // Keep cm and ft/in in sync
+  if (field === 'cm') {
+    const fi = _hpCmToFtIn(_HP.cm);
+    _HP.ft = fi.ft; _HP.ins = fi.ins;
+  } else {
+    _HP.cm = _hpFtInToCm(_HP.ft, _HP.ins);
+  }
+  hpUpdateResult();
+}
+
+function hpSetUnit(unit) {
+  _HP.unit = unit;
+  document.getElementById('hpBtnImp')?.classList.toggle('active', unit === 'imperial');
+  document.getElementById('hpBtnMet')?.classList.toggle('active', unit === 'metric');
+  hpUpdateResult();
+}
+
+function hpUpdateResult() {
+  const primary = document.getElementById('hpPrimary');
+  const secondary = document.getElementById('hpSecondary');
+  if (!primary || !secondary) return;
+  if (_HP.unit === 'imperial') {
+    primary.textContent   = `${_HP.ft}'${_HP.ins}"`;
+    secondary.textContent = `${_HP.cm} cm`;
+  } else {
+    primary.textContent   = `${_HP.cm} cm`;
+    secondary.textContent = `${_HP.ft}'${_HP.ins}"`;
+  }
+}
+
+function hpGetValue() {
+  if (_HP.unit === 'imperial') return `${_HP.ft}'${_HP.ins}"`;
+  return `${_HP.cm} cm`;
+}
+
+function initHeightPicker(currentHeight) {
+  const parsed = parseHeightStr(currentHeight);
+  if (parsed) {
+    if (parsed.ft !== undefined) {
+      _HP.unit = 'imperial'; _HP.ft = parsed.ft; _HP.ins = parsed.ins;
+      _HP.cm = _hpFtInToCm(_HP.ft, _HP.ins);
+    } else if (parsed.cm !== undefined) {
+      _HP.unit = 'metric'; _HP.cm = parsed.cm;
+      const fi = _hpCmToFtIn(_HP.cm); _HP.ft = fi.ft; _HP.ins = fi.ins;
+    }
+  } else {
+    _HP.unit = 'imperial'; _HP.ft = 5; _HP.ins = 8; _HP.cm = 173;
+  }
+  hpSetUnit(_HP.unit);
+  hpUpdateResult();
+}
+
+// ---- stub out old drum functions so nothing else breaks ----
 function hpBuildCol(innerId, values, selected, fmtFn) {
   const inner = document.getElementById(innerId);
   if (!inner) return;
@@ -6562,70 +6618,6 @@ function hpMakeDraggable(colId, values, getVal, setVal) {
   window.addEventListener('mouseup',   () => { if (dragging) onEnd(); });
 }
 
-function hpSetUnit(unit) {
-  _HP.unit = unit;
-  document.getElementById('hpBtnImp')?.classList.toggle('active', unit === 'imperial');
-  document.getElementById('hpBtnMet')?.classList.toggle('active', unit === 'metric');
-  const imp = document.getElementById('hpImperialDrums');
-  const met = document.getElementById('hpMetricDrums');
-  if (imp) imp.style.display = unit === 'imperial' ? 'flex' : 'none';
-  if (met) met.style.display = unit === 'metric'   ? 'flex' : 'none';
-  hpUpdateResult();
-}
-
-function hpUpdateResult() {
-  const el = document.getElementById('hpResult');
-  if (!el) return;
-  if (_HP.unit === 'imperial') {
-    el.innerHTML = `${_HP.ft}'${_HP.ins}" <small>(${Math.round(_HP.ft*30.48 + _HP.ins*2.54)} cm)</small>`;
-  } else {
-    const totalIn = _HP.cm / 2.54;
-    const ft = Math.floor(totalIn / 12);
-    const ins = Math.round(totalIn % 12);
-    el.innerHTML = `${_HP.cm} cm <small>(${ft}'${ins}")</small>`;
-  }
-}
-
-function hpGetValue() {
-  if (_HP.unit === 'imperial') return `${_HP.ft}'${_HP.ins}"`;
-  return `${_HP.cm} cm`;
-}
-
-function initHeightPicker(currentHeight) {
-  // Parse existing height string
-  const parsed = parseHeightStr(currentHeight);
-  if (parsed) {
-    if (parsed.ft !== undefined) {
-      _HP.unit = 'imperial';
-      _HP.ft   = HP_FT.includes(parsed.ft)  ? parsed.ft  : 5;
-      _HP.ins  = HP_IN.includes(parsed.ins)  ? parsed.ins : 8;
-    } else if (parsed.cm !== undefined) {
-      _HP.unit = 'metric';
-      _HP.cm   = HP_CM.includes(parsed.cm) ? parsed.cm : 178;
-    }
-  } else {
-    _HP.unit = 'imperial'; _HP.ft = 5; _HP.ins = 8; _HP.cm = 178;
-  }
-
-  // Build columns
-  hpBuildCol('hpInnerFt', HP_FT, _HP.ft,  v => `${v} ft`);
-  hpBuildCol('hpInnerIn', HP_IN, _HP.ins,  v => `${v}"`);
-  hpBuildCol('hpInnerCm', HP_CM, _HP.cm,  v => `${v}`);
-
-  // Scroll to current values
-  hpScrollTo('hpColFt', HP_FT, _HP.ft);
-  hpScrollTo('hpColIn', HP_IN, _HP.ins);
-  hpScrollTo('hpColCm', HP_CM, _HP.cm);
-
-  // Wire up drag
-  hpMakeDraggable('hpColFt', HP_FT, () => _HP.ft,  v => { _HP.ft  = v; });
-  hpMakeDraggable('hpColIn', HP_IN, () => _HP.ins, v => { _HP.ins = v; });
-  hpMakeDraggable('hpColCm', HP_CM, () => _HP.cm,  v => { _HP.cm  = v; });
-
-  // Apply unit display
-  hpSetUnit(_HP.unit);
-  hpUpdateResult();
-}
 /* ================================================================ */
 
 async function deleteConversation(uid, name) {
@@ -7971,33 +7963,36 @@ function openEditProfile() {
         <button class="hp-unit-btn active" id="hpBtnImp" onclick="hpSetUnit('imperial')">ft / in</button>
         <button class="hp-unit-btn" id="hpBtnMet" onclick="hpSetUnit('metric')">cm</button>
       </div>
-      <div id="hpImperialDrums" class="hp-drums">
-        <div class="hp-drum-col" style="flex:1">
-          <div class="hp-bar"></div>
-          <div class="hp-col" id="hpColFt"><div class="hp-col-inner" id="hpInnerFt"></div></div>
-          <div class="hp-col-label">feet</div>
+      <div style="display:flex;align-items:center;padding:0.85rem 0">
+        <button class="hp-step-btn" onclick="hpStep(_HP.unit==='imperial'?'ins':'cm',-1)" title="Decrease">−</button>
+        <div style="flex:1;text-align:center;line-height:1.2">
+          <div id="hpPrimary" style="font-size:2rem;font-weight:800;color:var(--text)">5'8"</div>
+          <div id="hpSecondary" style="font-size:0.82rem;color:var(--text-muted);margin-top:3px">173 cm</div>
         </div>
-        <div class="hp-sep"></div>
-        <div class="hp-drum-col" style="flex:2">
-          <div class="hp-bar"></div>
-          <div class="hp-col" id="hpColIn"><div class="hp-col-inner" id="hpInnerIn"></div></div>
-          <div class="hp-col-label">inches</div>
-        </div>
+        <button class="hp-step-btn" onclick="hpStep(_HP.unit==='imperial'?'ins':'cm',1)" title="Increase">+</button>
       </div>
-      <div id="hpMetricDrums" class="hp-drums" style="display:none">
-        <div class="hp-drum-col" style="flex:1">
-          <div class="hp-bar"></div>
-          <div class="hp-col" id="hpColCm"><div class="hp-col-inner" id="hpInnerCm"></div></div>
-          <div class="hp-col-label">centimetres</div>
-        </div>
-      </div>
-      <div class="hp-result" id="hpResult">—</div>
     </div>
     <label class="form-label">Zodiac Sign <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
     <select class="form-select" id="editZodiacIn">
       <option value="">— Not specified —</option>
       ${['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'].map(z=>`<option value="${z}" ${u.zodiac===z?'selected':''}>${z}</option>`).join('')}
     </select>
+    <label class="form-label">Sexual Orientation</label>
+    <div class="pill-select-group" id="editOrientationGroup">
+      ${['Straight','Bisexual','Gay','Lesbian','Other'].map(v=>`<button class="pill-select-btn${u.orientation===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editOrientationGroup',this)">${v}</button>`).join('')}
+    </div>
+    <label class="form-label">Relationship Status</label>
+    <div class="pill-select-group" id="editRelStatusGroup">
+      ${["Single","It's Complicated","Open"].map(v=>`<button class="pill-select-btn${u.relStatus===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editRelStatusGroup',this)">${v}</button>`).join('')}
+    </div>
+    <label class="form-label">Drinking</label>
+    <div class="pill-select-group" id="editDrinkingGroup">
+      ${[['Socially 🍷','Socially'],['Often 🍻','Often'],['Sober Life 🚫','Sober Life']].map(([label,v])=>`<button class="pill-select-btn${u.drinking===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editDrinkingGroup',this)">${label}</button>`).join('')}
+    </div>
+    <label class="form-label">Smoking</label>
+    <div class="pill-select-group" id="editSmokingGroup">
+      ${[['Social 🚬','Social'],['Never 🚭','Never'],['Trying to Quit 💪','Trying to Quit']].map(([label,v])=>`<button class="pill-select-btn${u.smoking===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editSmokingGroup',this)">${label}</button>`).join('')}
+    </div>
     <label class="form-label">City</label>
     <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">State</label>
@@ -8035,6 +8030,17 @@ function syncEditMainPhoto() {
 function closeEditProfile() {
   document.getElementById('editPanel').classList.remove('open');
   _navRefresh();
+}
+
+function pillSelect(groupId, btn) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const wasSelected = btn.classList.contains('pill-sel');
+  group.querySelectorAll('.pill-select-btn').forEach(b => b.classList.remove('pill-sel'));
+  if (!wasSelected) btn.classList.add('pill-sel'); // tap again to deselect
+}
+function pillGroupValue(groupId) {
+  return document.querySelector(`#${groupId} .pill-sel`)?.dataset?.val || '';
 }
 
 async function saveProfile() {
@@ -8094,7 +8100,11 @@ async function saveProfile() {
     photos:          photoUrls,      // Storage URLs only — no base64 in Firestore
     invisible:       S.user.invisible       ?? false,
     browsePrivately: S.user.browsePrivately ?? false,
-    online:          !(S.user.browsePrivately ?? false)
+    online:          !(S.user.browsePrivately ?? false),
+    orientation:     pillGroupValue('editOrientationGroup') || S.user.orientation || '',
+    relStatus:       pillGroupValue('editRelStatusGroup')   || S.user.relStatus   || '',
+    drinking:        pillGroupValue('editDrinkingGroup')    || S.user.drinking    || '',
+    smoking:         pillGroupValue('editSmokingGroup')     || S.user.smoking     || ''
   };
   if (S.location?.lat) {
     updates.lat           = S.location.lat;
