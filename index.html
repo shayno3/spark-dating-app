@@ -622,7 +622,7 @@ html, body {
 .chat-head-info { flex: 1; }
 .chat-head-name { font-weight: 800; font-size: 1rem; }
 .chat-head-status { font-size: 0.73rem; color: var(--success); font-weight: 600; }
-.chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.chat-messages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .msg { max-width: 78%; padding: 0.6rem 0.875rem; border-radius: 18px; font-size: 0.9rem; line-height: 1.45; }
 .msg.sent { align-self: flex-end; background: var(--gradient-btn); color: white; border-bottom-right-radius: 4px; }
 .msg.recv { align-self: flex-start; background: var(--bg-card); border-bottom-left-radius: 4px; }
@@ -1807,7 +1807,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <div id="loginForm" class="auth-form" style="display:none">
-    <input type="email" class="form-input vk-input" id="loginEmail" placeholder="Email address" autocomplete="email" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="email" class="form-input vk-input" id="loginEmail" placeholder="Email address" autocomplete="email" inputmode="none" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <div class="pw-wrap">
       <input type="password" class="form-input vk-input" id="loginPw" placeholder="Password" autocomplete="current-password" readonly onclick="this.removeAttribute('readonly');openVK(this)">
       <button class="pw-eye" type="button" onclick="togglePwEye('loginPw',this)" tabindex="-1" aria-label="Show/hide password">
@@ -1821,7 +1821,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
   <div id="registerForm" class="auth-form" style="display:none">
     <input type="text" class="form-input vk-input" id="regName" placeholder="Your first name" autocomplete="given-name" readonly onclick="this.removeAttribute('readonly');openVK(this)">
-    <input type="email" class="form-input vk-input" id="regEmail" placeholder="Email address" autocomplete="email" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="email" class="form-input vk-input" id="regEmail" placeholder="Email address" autocomplete="email" inputmode="none" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <div class="pw-wrap">
       <input type="password" class="form-input vk-input" id="regPw" placeholder="Create a password (6+ chars)" autocomplete="new-password" readonly onclick="this.removeAttribute('readonly');openVK(this)">
       <button class="pw-eye" type="button" onclick="togglePwEye('regPw',this)" tabindex="-1" aria-label="Show/hide password">
@@ -3320,12 +3320,17 @@ function _navMove(dir) {
   let best = null;
 
   if (curIsCard && (dir === 'up' || dir === 'down')) {
-    // Card zone — vertical: only other disc-cards; wrap card-to-card at list edges
-    // so nav bar and filter chips never intercept a mid-list swipe.
+    // Card zone — vertical: only other disc-cards; stop at edges so highlighter
+    // never jumps to off-screen content and gets lost.
     best = _find(cards);
-    if (!best && cards.length) {
-      best = dir === 'down' ? cards[0] : cards[cards.length - 1];
-    }
+    // No wrap — if no card found in direction, highlighter stays on current card.
+
+  } else if (curIsChip && (dir === 'up' || dir === 'down')) {
+    // Chip zone — vertical: jump straight to first/last card so DOWN from any
+    // chip (including Online which is off-center) always reaches profiles.
+    best = dir === 'down'
+      ? (cards[0] || _find(nonNav))
+      : (cards[cards.length - 1] || _find(nonNav));
 
   } else if (curIsChip && (dir === 'left' || dir === 'right')) {
     // Chip zone — horizontal: stay on filter chips so stepper buttons (radius +/−)
@@ -3380,6 +3385,20 @@ document.addEventListener('keydown', e => {
   // app's inputs are readonly vk-inputs, so those still participate in nav.
   // EXCEPT type="range" — range sliders trap arrow keys, so we always intercept those.
   if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && !a.classList.contains('vk-input') && a.type !== 'range') return;
+  // When a chat panel is open, UP/DOWN scrolls the message thread instead of
+  // moving nav focus — swiping on glasses should feel like scrolling a feed.
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const chatMsgs = document.querySelector('#chatPanel.open .chat-messages') ||
+                     document.querySelector('#inlineChatSheet.open .chat-messages');
+    const focused = document.querySelector('.kbd-focus') || a;
+    const focusedIsInput = focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA');
+    if (chatMsgs && !focusedIsInput) {
+      chatMsgs.scrollTop += e.key === 'ArrowDown' ? 100 : -100;
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (e.key === 'ArrowRight')      { _navMove('right'); e.preventDefault(); }
   else if (e.key === 'ArrowLeft')  { _navMove('left');  e.preventDefault(); }
   else if (e.key === 'ArrowDown')  { _navMove('down');  e.preventDefault(); }
@@ -5993,6 +6012,7 @@ function upgradeToPremium() {
         : `<button class="btn-primary" onclick="activatePremium()" style="width:100%;font-size:1rem;padding:0.85rem">Get Premium — $9.99/mo</button>
            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.75rem">Cancel anytime · Billed monthly</div>`
       }
+      <button onclick="document.getElementById('premiumModal').remove()" style="width:100%;margin-top:1rem;background:none;border:1.5px solid rgba(255,255,255,0.15);color:var(--text-muted);border-radius:12px;padding:0.65rem;font-size:0.9rem;cursor:pointer;touch-action:manipulation">✕ Close</button>
     </div>`;
   document.body.appendChild(modal);
 }
@@ -7537,7 +7557,15 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
       if (_voiceSecs === 50) toast('⏱ 10 seconds remaining');
       if (_voiceSecs >= 60) voiceStopRecording();
     }, 1000);
-  } catch(e) { toast('Microphone access denied'); }
+  } catch(e) {
+    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      toast('🎤 Mic blocked — allow microphone access in your device Settings, then reload');
+    } else if (e.name === 'NotFoundError') {
+      toast('🎤 No microphone found on this device');
+    } else {
+      toast('🎤 Could not start microphone: ' + (e.message || e.name));
+    }
+  }
 }
 
 function voiceStopRecording() {
