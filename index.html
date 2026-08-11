@@ -18,7 +18,7 @@
 <title>Spark ✨ — Dating App</title>
 <!-- Firebase SDK loaded in <head> so it's available before any inline script -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
+<!-- firebase-app-check-compat.js removed: reCAPTCHA errors block callable functions -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
@@ -2618,10 +2618,10 @@ let auth, db, messaging, analytics, storage, functions;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
-  firebase.appCheck().activate(
-    new firebase.appCheck.ReCaptchaV3Provider('6LcDcFotAAAAAGpbDvMC5n1-hM7FQsEsqaCZ05cx'),
-    true // auto-refresh tokens
-  );
+  // App Check removed — reCAPTCHA v3 was failing (appCheck/recaptcha-error) and
+  // blocking ALL callable function calls (including Stripe checkout) because
+  // firebase-functions-compat v9.22.2 propagates the token error into the call chain.
+  // App Check is not enforced server-side so removing it has no security impact.
   auth      = firebase.auth();
   db        = firebase.firestore();
   messaging = firebase.messaging();
@@ -2667,10 +2667,7 @@ function applyPastedConfig() {
       const cfg = JSON.parse(atob(h.slice(7)));
       if (cfg.apiKey && cfg.apiKey !== 'YOUR_API_KEY') {
         firebase.initializeApp(cfg);
-        firebase.appCheck().activate(
-          new firebase.appCheck.ReCaptchaV3Provider('6LcDcFotAAAAAGpbDvMC5n1-hM7FQsEsqaCZ05cx'),
-          true
-        );
+        // App Check removed (see primary init above for reason)
         auth      = firebase.auth();
         db        = firebase.firestore();
         messaging = firebase.messaging();
