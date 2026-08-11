@@ -5492,6 +5492,21 @@ function subscribeToMatches() {
       S.matches   = results;
       S.matchIds  = new Set(results.map(m => m.uid));
 
+      // Detect unread messages: if lastMsgFrom is someone else & it's newer than our readAt
+      snap.docs.forEach(doc => {
+        const data      = doc.data();
+        const otherUid  = data.uids?.find(u => u !== myUid);
+        if (!otherUid) return;
+        const lastFrom  = data.lastMsgFrom;
+        const lastTime  = data.lastMsgTime?.toDate?.() || null;
+        const readAt    = data['readAt_' + myUid]?.toDate?.() || null;
+        if (lastFrom && lastFrom !== myUid && lastTime) {
+          if (!readAt || lastTime > readAt) {
+            S.unread[otherUid] = true;
+          }
+        }
+      });
+
       // Detect brand-new matches — skip overlay on the very first snapshot (initial load)
       if (S._matchesInitialized) {
         results.forEach(m => {
@@ -5677,9 +5692,13 @@ function openDetail(uid) {
   document.getElementById('detailNameLine').innerHTML = `${escHtml(u.name)}, ${u.age}${u.verified ? ' <span class="verified-badge-lg" title="Verified profile">✓</span>' : ''}`;
   document.getElementById('detailLocLine').innerHTML = `📍 ${u.city}, ${u.state}${u.online?' &nbsp;<span class="online-dot"></span> Online now':''}`;
   const extraTags = [
-    ...(u.height ? [`<span class="tag-pill">📏 ${escHtml(u.height)}</span>`] : []),
-    ...(u.zodiac ? [`<span class="tag-pill">${escHtml(u.zodiac)}</span>`] : []),
-    ...(u.intent ? [`<span class="tag-pill">💫 ${escHtml(u.intent)}</span>`] : []),
+    ...(u.height      ? [`<span class="tag-pill">📏 ${escHtml(u.height)}</span>`]      : []),
+    ...(u.zodiac      ? [`<span class="tag-pill">${escHtml(u.zodiac)}</span>`]          : []),
+    ...(u.intent      ? [`<span class="tag-pill">💫 ${escHtml(u.intent)}</span>`]      : []),
+    ...(u.orientation ? [`<span class="tag-pill">🌈 ${escHtml(u.orientation)}</span>`] : []),
+    ...(u.relStatus   ? [`<span class="tag-pill">💑 ${escHtml(u.relStatus)}</span>`]   : []),
+    ...(u.drinking    ? [`<span class="tag-pill">🍷 ${escHtml(u.drinking)}</span>`]    : []),
+    ...(u.smoking     ? [`<span class="tag-pill">🚬 ${escHtml(u.smoking)}</span>`]     : []),
     ...(u.interests||[]).map(t=>`<span class="tag-pill">${escHtml(t)}</span>`)
   ];
   document.getElementById('detailTags').innerHTML  = extraTags.join('');
@@ -6239,7 +6258,19 @@ async function openMatchProfile(uid) {
     [match.city, match.state].filter(Boolean).join(', ') || '';
 
   const tagsEl = document.getElementById('matchProfileTags');
-  tagsEl.innerHTML = (match.interests || []).map(t => `<span class="tag-pill">${t}</span>`).join('');
+  function _mpTags(m) {
+    const tags = [];
+    if (m.height)      tags.push(`<span class="tag-pill">📏 ${escHtml(m.height)}</span>`);
+    if (m.zodiac)      tags.push(`<span class="tag-pill">${escHtml(m.zodiac)}</span>`);
+    if (m.intent)      tags.push(`<span class="tag-pill">💫 ${escHtml(m.intent)}</span>`);
+    if (m.orientation) tags.push(`<span class="tag-pill">🌈 ${escHtml(m.orientation)}</span>`);
+    if (m.relStatus)   tags.push(`<span class="tag-pill">💑 ${escHtml(m.relStatus)}</span>`);
+    if (m.drinking)    tags.push(`<span class="tag-pill">🍷 ${escHtml(m.drinking)}</span>`);
+    if (m.smoking)     tags.push(`<span class="tag-pill">🚬 ${escHtml(m.smoking)}</span>`);
+    (m.interests || []).forEach(t => tags.push(`<span class="tag-pill">${escHtml(t)}</span>`));
+    return tags.join('');
+  }
+  tagsEl.innerHTML = _mpTags(match);
   document.getElementById('matchProfileBio').textContent = match.bio || '';
 
   document.getElementById('matchProfileMsgBtn').onclick = () => {
@@ -6269,9 +6300,7 @@ async function openMatchProfile(uid) {
           _matchProfileSetPhoto(0);
         }
         if (fresh.bio) document.getElementById('matchProfileBio').textContent = fresh.bio;
-        if (fresh.interests?.length) {
-          tagsEl.innerHTML = fresh.interests.map(t => `<span class="tag-pill">${t}</span>`).join('');
-        }
+        tagsEl.innerHTML = _mpTags(match);
       }
     } catch(e) { /* fail silently */ }
   }
@@ -6808,9 +6837,10 @@ async function sendInlineMsg() {
       text,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Keep conversation list preview current
+    // Keep conversation list preview current & drive unread indicator for recipient
     db.collection('matches').doc(matchId).update({
       lastMsg: text,
+      lastMsgFrom: S.user.id,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => {});
   } catch(e) {
@@ -7533,6 +7563,12 @@ async function voiceSendPreview() {
       waveform: _voiceWaveData.slice(),  // M2: real amplitude data
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
+    // Update match doc so recipient gets an unread indicator (same as text messages)
+    db.collection('matches').doc(S.activeMatchId).update({
+      lastMsg: '🎙 Voice note',
+      lastMsgFrom: S.user.id,
+      lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => {});
   } catch(e) {
     console.error('Voice note send error:', e);
     toast('Failed to send voice note');
@@ -7560,9 +7596,10 @@ async function sendMsg() {
       text,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Keep conversation list preview current
+    // Keep conversation list preview current & drive unread indicator for recipient
     db.collection('matches').doc(matchId).update({
       lastMsg: text,
+      lastMsgFrom: S.user.id,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => {});
   } catch(e) {
