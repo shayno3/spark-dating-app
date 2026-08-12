@@ -1161,8 +1161,11 @@ body.vk-padded .auth-view {
   justify-content: flex-start;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 55vh;
+  padding-bottom: 60vh;
 }
+/* Auth screen: hide voice/mic UI — not usable during login/signup */
+body.auth-active #micTapBtn,
+body.auth-active #voiceStatusBar { display: none !important; }
 body.vk-padded .panel-body,
 body.vk-padded .chat-messages { padding-bottom: 55vh; }
 /* Email domain shortcut row */
@@ -3342,9 +3345,22 @@ function _navMove(dir) {
   } else if (curIsChip && (dir === 'up' || dir === 'down')) {
     // Chip zone — vertical: jump straight to first/last card so DOWN from any
     // chip (including Online which is off-center) always reaches profiles.
-    best = dir === 'down'
-      ? (cards[0] || _find(nonNav))
-      : (cards[cards.length - 1] || _find(nonNav));
+    // If no cards and nothing else found, fall through to bottom nav so user is never trapped.
+    if (dir === 'down') {
+      best = cards[0] || _find(nonNav);
+      if (!best) {
+        // No cards loaded, nothing else below chips — last resort: bottom nav
+        const navBtns = els.filter(e => e.closest('.bottom-nav'));
+        best = navBtns[0] || null;
+      }
+    } else {
+      best = cards[cards.length - 1] || _find(nonNav);
+      // UP from top chip: if nothing above either, try bottom nav as last resort
+      if (!best) {
+        const navBtns = els.filter(e => e.closest('.bottom-nav'));
+        best = navBtns[0] || null;
+      }
+    }
 
   } else if (curIsChip && (dir === 'left' || dir === 'right')) {
     // Chip zone — horizontal: stay on filter chips so stepper buttons (radius +/−)
@@ -3772,6 +3788,8 @@ function showView(v) {
     const el = document.getElementById(id);
     if (el) el.style.display = id === v+'View' ? '' : 'none';
   });
+  // Hide glasses voice/mic UI on the auth screen — it serves no purpose during login/signup
+  document.body.classList.toggle('auth-active', v === 'auth');
 }
 
 function switchAuthTab(tab) {
@@ -9234,14 +9252,50 @@ function openVK(targetEl) {
   if (VOICE.active) speak('Virtual keyboard on. Use neural gestures to navigate.');
 }
 
-/* Scroll the focused field up above the keyboard so it stays visible */
+/* Scroll the focused field up above the keyboard so it stays visible.
+   Uses direct scrollTop math (more reliable than scrollIntoView on Ray-Ban WebView). */
 function _vkScrollTargetIntoView() {
   if (!VK.target) return;
   setTimeout(() => {
-    if (VK.target && document.contains(VK.target)) {
-      VK.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!VK.target || !document.contains(VK.target)) return;
+    const vkPanel = document.getElementById('vkPanel');
+    const vkH = vkPanel ? vkPanel.getBoundingClientRect().height : 0;
+    const safeBottom = window.innerHeight - vkH - 16; // 16px breathing room above keyboard
+
+    // Auth view uses a scrollable container — manipulate scrollTop directly
+    const authView = document.getElementById('authView');
+    if (authView && authView.contains(VK.target)) {
+      const fieldRect = VK.target.getBoundingClientRect();
+      if (fieldRect.bottom > safeBottom) {
+        authView.scrollTop += (fieldRect.bottom - safeBottom) + 8;
+      }
+      // Also ensure the field is not hidden above the top
+      if (fieldRect.top < 60) {
+        authView.scrollTop -= (60 - fieldRect.top);
+      }
+      return;
     }
-  }, 320); // after the panel slide-up animation
+
+    // Panel-body / chat: use scrollable parent
+    const scrollParent = (function findScroll(el) {
+      while (el && el !== document.body) {
+        const st = getComputedStyle(el);
+        if ((st.overflow === 'auto' || st.overflow === 'scroll' ||
+             st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+          return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    })(VK.target.parentElement);
+
+    if (scrollParent) {
+      const fieldRect = VK.target.getBoundingClientRect();
+      if (fieldRect.bottom > safeBottom) {
+        scrollParent.scrollTop += (fieldRect.bottom - safeBottom) + 8;
+      }
+    }
+  }, 320); // after the 280ms slide-up animation completes
 }
 
 /* Move focus to the next visible input without closing the keyboard */
