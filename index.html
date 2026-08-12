@@ -3421,7 +3421,13 @@ document.addEventListener('keydown', e => {
     const chatMsgs = document.querySelector('#chatPanel.open .chat-messages') ||
                      document.querySelector('#inlineChatSheet.open .chat-messages');
     const focused = document.querySelector('.kbd-focus') || a;
-    const focusedIsInput = focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA');
+    // Also treat VK keys, emoji buttons, and input-chooser buttons as "inputs" so that
+    // UP/DOWN navigates within those overlays instead of scrolling the chat thread.
+    const focusedIsInput = focused && (
+      focused.tagName === 'INPUT' ||
+      focused.tagName === 'TEXTAREA' ||
+      !!focused.closest('.chat-vk-local, .chat-emoji-picker, .chat-input-chooser')
+    );
     if (chatMsgs && !focusedIsInput) {
       chatMsgs.scrollTop += e.key === 'ArrowDown' ? 100 : -100;
       e.preventDefault();
