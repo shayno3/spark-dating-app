@@ -608,11 +608,15 @@ html, body {
 .msg-date-sep { text-align: center; font-size: 0.72rem; color: var(--text-muted); font-weight: 600; margin: 0.5rem 0; letter-spacing: 0.03em; }
 
 /* ---- CHAT VIEW ---- */
-.panel { display: none; flex-direction: column; position: absolute; inset: 0; background: var(--bg); z-index: 100; }
+/* position:fixed so the open panel covers the FULL viewport — including the
+   bottom nav bar (which lives outside .content-area and would otherwise bleed through) */
+.panel { display: none; flex-direction: column; position: fixed; inset: 0; background: var(--bg); z-index: 250; }
 .panel.open { display: flex; }
 
 /* ---- INLINE CHAT SHEET (slides up from bottom on Matches tab) ---- */
-.inline-chat-sheet { position: fixed; left: 0; right: 0; bottom: 0; height: 72vh; max-height: 72vh; background: var(--bg); border-radius: 20px 20px 0 0; box-shadow: 0 -6px 40px rgba(0,0,0,0.22); z-index: 210; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+/* Full-screen so the background never bleeds through on glasses (or any screen).
+   Border-radius kept on top corners for a sheet feel on larger phones. */
+.inline-chat-sheet { position: fixed; inset: 0; background: var(--bg); border-radius: 0; box-shadow: 0 -6px 40px rgba(0,0,0,0.22); z-index: 260; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
 .inline-chat-sheet.open { transform: translateY(0); }
 .inline-chat-drag { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 8px auto 0; flex-shrink: 0; }
 .inline-chat-sheet .panel-header { padding-top: 0.7rem; }
@@ -1718,7 +1722,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
 }
 #vkToggleBtn.vk-btn-visible {
-  display: flex;
+  display: none; /* Floating VK removed from chat — use the ⌨️ pill in the pill bar */
 }
 #vkToggleBtn.vk-on {
   background: rgba(108,99,255,0.85);
@@ -3226,7 +3230,7 @@ function _navRoot() {
   if (modeSheet && modeSheet.classList.contains('open')) return modeSheet;
   const privacy = document.getElementById('privacySheet');
   if (privacy && privacy.classList.contains('open')) return privacy.querySelector('.privacy-sheet-card') || privacy;
-  for (const id of ['chatPanel', 'editPanel', 'matchProfilePanel', 'detailPanel']) {
+  for (const id of ['inlineChatSheet', 'chatPanel', 'editPanel', 'matchProfilePanel', 'detailPanel']) {
     const p = document.getElementById(id);
     if (p && p.classList.contains('open')) return p;
   }
@@ -6793,7 +6797,7 @@ function openChat(uid) {
   }
 
   document.getElementById('chatPanel').classList.add('open');
-  document.getElementById('vkToggleBtn')?.classList.add('vk-btn-visible');
+  // Floating VK removed from chat — VK is in the pill bar
   _navRefresh();
   subscribeToMessages(match.matchId, uid);
   markChatRead(match.matchId);
@@ -6802,7 +6806,6 @@ function openChat(uid) {
 
 function closeChat() {
   document.getElementById('chatPanel').classList.remove('open');
-  document.getElementById('vkToggleBtn')?.classList.remove('vk-btn-visible');
   closeVK();
   _navRefresh();
   if (S.listeners.messages)  { S.listeners.messages();  S.listeners.messages  = null; }
@@ -6827,7 +6830,8 @@ function openInlineChat(uid) {
   avEl.onerror = function(){ this.src = avatar(match.name||'?'); };
   document.getElementById('inlineChatName').textContent = match.name || '';
   document.getElementById('inlineChatSheet').classList.add('open');
-  document.getElementById('vkToggleBtn')?.classList.add('vk-btn-visible');
+  // Floating VK removed from chat — VK is in the pill bar
+  _navRefresh();
 
   subscribeToMessages(match.matchId, uid);
   markChatRead(match.matchId);
@@ -6836,7 +6840,6 @@ function openInlineChat(uid) {
 
 function closeInlineChat() {
   document.getElementById('inlineChatSheet').classList.remove('open');
-  document.getElementById('vkToggleBtn')?.classList.remove('vk-btn-visible');
   closeVK();
   if (S.listeners.messages)  { S.listeners.messages();  S.listeners.messages  = null; }
   if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
@@ -9102,6 +9105,9 @@ const VK = {
 };
 
 function openVK(targetEl) {
+  // Never open the global floating VK when a chat is active — the chat pill bar
+  // has its own inline keyboard (chatToggleVKPill) that sits correctly inside the panel.
+  if (document.querySelector('#chatPanel.open, #inlineChatSheet.open')) return;
   VK.open = true;
   VK.target = targetEl || (document.activeElement?.matches('input,textarea') ? document.activeElement : null);
   const panel = document.getElementById('vkPanel');
