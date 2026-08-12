@@ -1814,9 +1814,9 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <div id="loginForm" class="auth-form" style="display:none">
-    <input type="email" class="form-input vk-input" id="loginEmail" placeholder="Email address" autocomplete="email" inputmode="none" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="text" class="form-input vk-input" id="loginEmail" placeholder="Email address" autocomplete="email" inputmode="none" readonly onclick="openVK(this)">
     <div class="pw-wrap">
-      <input type="password" class="form-input vk-input" id="loginPw" placeholder="Password" autocomplete="current-password" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+      <input type="password" class="form-input vk-input" id="loginPw" placeholder="Password" autocomplete="current-password" readonly onclick="openVK(this)">
       <button class="pw-eye" type="button" onclick="togglePwEye('loginPw',this)" tabindex="-1" aria-label="Show/hide password">
         <svg id="loginPw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
@@ -1827,10 +1827,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <div id="registerForm" class="auth-form" style="display:none">
-    <input type="text" class="form-input vk-input" id="regName" placeholder="Your first name" autocomplete="given-name" readonly onclick="this.removeAttribute('readonly');openVK(this)">
-    <input type="email" class="form-input vk-input" id="regEmail" placeholder="Email address" autocomplete="email" inputmode="none" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="text" class="form-input vk-input" id="regName" placeholder="Your first name" autocomplete="given-name" readonly onclick="openVK(this)">
+    <input type="text" class="form-input vk-input" id="regEmail" placeholder="Email address" autocomplete="email" inputmode="none" readonly onclick="openVK(this)">
     <div class="pw-wrap">
-      <input type="password" class="form-input vk-input" id="regPw" placeholder="Create a password (6+ chars)" autocomplete="new-password" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+      <input type="password" class="form-input vk-input" id="regPw" placeholder="Create a password (6+ chars)" autocomplete="new-password" readonly onclick="openVK(this)">
       <button class="pw-eye" type="button" onclick="togglePwEye('regPw',this)" tabindex="-1" aria-label="Show/hide password">
         <svg id="regPw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
@@ -1844,7 +1844,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       No password needed!<br>Enter your phone number — we'll text a 6-digit code.
     </div>
     <div id="smsPhasePhone">
-      <input type="tel" class="form-input vk-input" id="smsPhone" placeholder="+1 (555) 000-0000" autocomplete="tel" readonly onclick="this.removeAttribute('readonly');openVK(this)" style="margin-bottom:0.75rem">
+      <input type="tel" class="form-input vk-input" id="smsPhone" placeholder="+1 (555) 000-0000" autocomplete="tel" readonly onclick="openVK(this)" style="margin-bottom:0.75rem">
       <button class="btn-primary" onclick="sendSMSCode()">Send Code 📱</button>
     </div>
     <div id="smsPhaseOTP" style="display:none">
@@ -1852,7 +1852,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <div class="sms-icon">📲</div>
         <p><strong style="color:var(--text)">Code sent!</strong><br>Enter the 6-digit code we texted you.</p>
       </div>
-      <input type="text" inputmode="numeric" class="form-input otp-input vk-input" id="smsOTP" placeholder="• • • • • •" maxlength="6" autocomplete="one-time-code" readonly onclick="this.removeAttribute('readonly');openVK(this)" style="margin-bottom:0.75rem">
+      <input type="text" inputmode="numeric" class="form-input otp-input vk-input" id="smsOTP" placeholder="• • • • • •" maxlength="6" autocomplete="one-time-code" readonly onclick="openVK(this)" style="margin-bottom:0.75rem">
       <button class="btn-primary" onclick="verifySMSCode()">Verify &amp; Sign In ✅</button>
       <button class="btn-outline" onclick="resetSMSFlow()" style="margin-top:0.5rem;font-size:0.82rem">← Change number</button>
     </div>
@@ -9248,60 +9248,43 @@ function openVK(targetEl) {
   panel.classList.add('vk-open');
   bg.classList.add('vk-open');
   if (btn) { btn.classList.add('vk-on'); btn.title = 'Close virtual keyboard'; }
-  // Show email domain shortcuts only when focused on an email-type input
-  const isEmail = VK.target && (VK.target.type === 'email' || VK.target.id === 'smsPhone');
+  // Show email domain shortcuts for email/phone fields (detect by autocomplete since we use type=text)
+  const isEmail = VK.target && (
+    VK.target.type === 'email' ||
+    VK.target.autocomplete === 'email' ||
+    VK.target.id === 'smsPhone'
+  );
   const emailRow = document.getElementById('vkEmailRow');
   if (emailRow) emailRow.style.display = isEmail ? '' : 'none';
   document.body.classList.add('vk-padded');
   _vkScrollTargetIntoView();
   _vkRefreshKeyList();
+  _vkStartPreview(); // live typing preview in toolbar so user sees what they type
   if (VOICE.active) speak('Virtual keyboard on. Use neural gestures to navigate.');
 }
 
-/* Scroll the focused field up above the keyboard so it stays visible.
-   Uses direct scrollTop math (more reliable than scrollIntoView on Ray-Ban WebView). */
+/* Scroll the focused field above the keyboard so it stays fully visible.
+   Uses window.scrollBy — the body is the real scroll container for auth and panel views.
+   Falls back to scrollable-ancestor for edge cases. */
 function _vkScrollTargetIntoView() {
   if (!VK.target) return;
   setTimeout(() => {
     if (!VK.target || !document.contains(VK.target)) return;
     const vkPanel = document.getElementById('vkPanel');
     const vkH = vkPanel ? vkPanel.getBoundingClientRect().height : 0;
-    const safeBottom = window.innerHeight - vkH - 16; // 16px breathing room above keyboard
+    // Keep the field's BOTTOM 24px above the keyboard top, and TOP at least 56px from screen top
+    const safeBottom = window.innerHeight - vkH - 24;
+    const safeTop    = 56;
+    const rect = VK.target.getBoundingClientRect();
 
-    // Auth view uses a scrollable container — manipulate scrollTop directly
-    const authView = document.getElementById('authView');
-    if (authView && authView.contains(VK.target)) {
-      const fieldRect = VK.target.getBoundingClientRect();
-      if (fieldRect.bottom > safeBottom) {
-        authView.scrollTop += (fieldRect.bottom - safeBottom) + 8;
-      }
-      // Also ensure the field is not hidden above the top
-      if (fieldRect.top < 60) {
-        authView.scrollTop -= (60 - fieldRect.top);
-      }
-      return;
+    if (rect.bottom > safeBottom) {
+      // Field bottom is behind / too close to the keyboard — scroll page down
+      window.scrollBy({ top: rect.bottom - safeBottom, behavior: 'instant' });
+    } else if (rect.top < safeTop) {
+      // Field scrolled above the top bar — scroll page up
+      window.scrollBy({ top: rect.top - safeTop, behavior: 'instant' });
     }
-
-    // Panel-body / chat: use scrollable parent
-    const scrollParent = (function findScroll(el) {
-      while (el && el !== document.body) {
-        const st = getComputedStyle(el);
-        if ((st.overflow === 'auto' || st.overflow === 'scroll' ||
-             st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
-          return el;
-        }
-        el = el.parentElement;
-      }
-      return null;
-    })(VK.target.parentElement);
-
-    if (scrollParent) {
-      const fieldRect = VK.target.getBoundingClientRect();
-      if (fieldRect.bottom > safeBottom) {
-        scrollParent.scrollTop += (fieldRect.bottom - safeBottom) + 8;
-      }
-    }
-  }, 320); // after the 280ms slide-up animation completes
+  }, 320); // fires after the 280ms slide-up transition completes
 }
 
 /* Move focus to the next visible input without closing the keyboard */
@@ -9312,14 +9295,16 @@ function vkNextField() {
   const idx = fields.indexOf(VK.target);
   const next = fields[(idx + 1) % fields.length];
   if (next) {
-    next.removeAttribute('readonly');
     VK.target = next;
+    // Do NOT removeAttribute('readonly') — keeps Ray-Ban glasses from showing
+    // their native "Dictate / Write" input picker. _vkInsert writes via .value directly.
     next.focus({ preventScroll: true });
     _vkScrollTargetIntoView();
     // Update email shortcut row for the new field type
-    const isEmail = next.type === 'email' || next.id === 'smsPhone';
+    const isEmail = next.type === 'email' || next.autocomplete === 'email' || next.id === 'smsPhone';
     const emailRow = document.getElementById('vkEmailRow');
     if (emailRow) emailRow.style.display = isEmail ? '' : 'none';
+    _vkStartPreview(); // refresh preview for the newly focused field
   }
 }
 
@@ -9333,7 +9318,40 @@ function closeVK() {
   if (btn) { btn.classList.remove('vk-on'); btn.title = 'Open virtual keyboard'; }
   document.body.classList.remove('vk-padded');
   _vkClearFocus();
+  _vkStopPreview();
+  // Restore readonly on auth inputs so the user must tap again to re-open VK
+  // (prevents accidental VK auto-open when glasses nav moves focus)
+  document.querySelectorAll('#authView input.vk-input').forEach(el => {
+    el.setAttribute('readonly', '');
+  });
   if (VOICE.active) speak('Virtual keyboard off.');
+}
+
+/* Live typing preview — shows current field value in the VK toolbar label.
+   This way the user can always see what they're typing even if the field
+   is partially behind the keyboard panel. */
+function _vkStartPreview() {
+  _vkStopPreview(); // clear any prior interval
+  const label = document.getElementById('vkModeLabel');
+  if (!label || !VK.target) return;
+  // Only show preview for auth-screen inputs to avoid cluttering other contexts
+  if (!VK.target.closest('#authView')) {
+    label.textContent = '⌨️ Virtual Keyboard';
+    return;
+  }
+  const fieldName = VK.target.type === 'password' ? '🔑' :
+                    (VK.target.autocomplete === 'email' ? '📧' : '👤');
+  VK._previewTimer = setInterval(() => {
+    if (!VK.target || !document.contains(VK.target)) { _vkStopPreview(); return; }
+    const val = VK.target.value || '';
+    const display = VK.target.type === 'password' ? '●'.repeat(val.length) : val;
+    label.textContent = fieldName + ' ' + (display || '(empty)');
+  }, 80);
+}
+function _vkStopPreview() {
+  if (VK._previewTimer) { clearInterval(VK._previewTimer); VK._previewTimer = null; }
+  const label = document.getElementById('vkModeLabel');
+  if (label) label.textContent = '⌨️ Virtual Keyboard';
 }
 
 function toggleVK() {
@@ -9467,7 +9485,7 @@ document.addEventListener('focusin', e => {
   if (!VK.open) openVK(el);
   else _vkScrollTargetIntoView(); // keyboard stays open — just bring the new field into view
   // Show/hide email row based on field type
-  const isEmail = el.type === 'email' || el.id === 'smsPhone';
+  const isEmail = el.type === 'email' || el.autocomplete === 'email' || el.id === 'smsPhone';
   const emailRow = document.getElementById('vkEmailRow');
   if (emailRow) emailRow.style.display = isEmail ? '' : 'none';
 }, true);
