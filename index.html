@@ -2261,6 +2261,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="chat-mic-shortcut" id="chatMicBtn" onclick="chatToggleDictate('chatInput',document.getElementById('chatDictatePill'))">🎤</button>
         <button class="voice-note-btn" id="chatVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
+          onclick="_isGlassesCtx()&&_showChatInputChooser('chatInput','chatPillBar')"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="send-btn" id="chatSendBtn" onclick="sendMsg()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
@@ -2327,6 +2328,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="chat-mic-shortcut" id="inlineMicBtn" onclick="chatToggleDictate('inlineChatInput',document.getElementById('inlineDictatePill'))">🎤</button>
         <button class="voice-note-btn" id="inlineVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
+          onclick="_isGlassesCtx()&&_showChatInputChooser('inlineChatInput','inlineChatPillBar')"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
         <button class="send-btn" id="inlineSendBtn" onclick="sendInlineMsg()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
@@ -7221,6 +7223,7 @@ function _chatClosePills(pillBar) {
   const wrap = pillBar.parentElement;
   wrap.querySelector('.chat-emoji-picker')?.remove();
   wrap.querySelector('.chat-vk-local')?.remove();
+  wrap.querySelector('.chat-input-chooser')?.remove();
   if (_chatDictRecog) { try { _chatDictRecog.stop(); } catch(e){} _chatDictRecog = null; }
   if (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking) speechSynthesis.cancel();
   if (_voiceRec && _voiceRec.state === 'recording') { try { _voiceRec.stop(); } catch(e){} }
@@ -7265,7 +7268,21 @@ function chatToggleDictate(inputId, btn) {
     }
     if (inp) inp.value = final + interim;
   };
-  _chatDictRecog.onerror = _chatDictRecog.onend = () => {
+  _chatDictRecog.onerror = e => {
+    const err = e.error || '';
+    if (err === 'not-allowed' || err === 'service-not-allowed')
+      toast('🎤 Mic blocked — allow microphone access in Settings, then reload');
+    else if (err === 'audio-capture')
+      toast('🎤 No microphone found. Check your device settings.');
+    else if (err === 'network')
+      toast('🎤 Speech recognition needs internet access');
+    else if (err && err !== 'no-speech' && err !== 'aborted')
+      toast('🎤 Dictation error: ' + err);
+    if (btn) btn.classList.remove('pill-active');
+    if (micBtn) micBtn.classList.remove('recording');
+    _chatDictRecog = null;
+  };
+  _chatDictRecog.onend = () => {
     if (btn) btn.classList.remove('pill-active');
     if (micBtn) micBtn.classList.remove('recording');
     _chatDictRecog = null;
@@ -7280,11 +7297,15 @@ function chatHandwrite(inputId, btn) {
   _chatClosePills(pillBar);
   const inp = document.getElementById(inputId);
   if (!inp) return;
+  // Allow native handwriting — remove inputmode:none, set to text
   inp.setAttribute('inputmode', 'text');
+  inp.removeAttribute('readonly');
   const orig = inp.placeholder;
-  inp.placeholder = '✍️ Use handwriting input…';
-  inp.focus();
-  setTimeout(() => { inp.placeholder = orig; }, 3000);
+  inp.placeholder = '✍️ Tap here to start handwriting…';
+  setTimeout(() => { inp.placeholder = orig; }, 4000);
+  // Move glasses highlighter onto the textarea so user can press Enter (tap)
+  // to invoke the Ray-Ban native input picker (Handwrite option)
+  setTimeout(() => _navSet(inp), 60);
 }
 
 const _CHAT_EMOJIS = ['😀','😂','🥰','😍','🤩','😎','😊','🙃','😘','😜','🤗','😏','❤️','🔥','✨','💫','💕','💯','👍','🙌','🎉','🥳','😅','🤣','😭','😢','😤','🤯','💀','🫶','💪','🫠','🤭','🫣','😁','🤝','🥺','😩','🫡','💃','🕺','🍕','🎵','🎸','🌙','⭐','🌹','🦋','✈️','🏖️','🎂','🍾'];
@@ -7302,18 +7323,25 @@ function chatToggleEmoji(inputId, btn) {
   _CHAT_EMOJIS.forEach(em => {
     const b = document.createElement('button');
     b.className = 'chat-emoji-btn'; b.textContent = em;
-    b.style.touchAction = 'manipulation';
+    b.style.cssText = 'touch-action:manipulation;font-size:1.25rem;padding:0.2rem;border:none;background:transparent;cursor:pointer;border-radius:4px;';
     b.onclick = () => {
       const inp = document.getElementById(inputId);
       if (!inp) return;
       const pos = (typeof inp.selectionStart === 'number') ? inp.selectionStart : inp.value.length;
       inp.value = inp.value.slice(0, pos) + em + inp.value.slice(pos);
-      inp.focus();
       try { inp.setSelectionRange(pos + em.length, pos + em.length); } catch(e) {}
+      // Close picker and restore nav after emoji is selected
+      _chatClosePills(pillBar);
+      setTimeout(() => _navRefresh(), 60);
     };
     picker.appendChild(b);
   });
   wrap.insertBefore(picker, pillBar);
+  // Move glasses nav highlighter to the first emoji so user can navigate and select
+  setTimeout(() => {
+    const firstEmoji = picker.querySelector('button');
+    if (firstEmoji) _navSet(firstEmoji);
+  }, 60);
 }
 
 function chatListen(btn) {
@@ -7365,6 +7393,7 @@ function chatToggleVKPill(inputId, btn) {
   vk.className = 'chat-vk-local';
   vk.style.cssText = 'background:var(--bg-elevated);border-top:1px solid var(--border);padding:0.4rem 0.25rem 0.5rem;user-select:none;';
 
+  let _vkFirstBuild = true;
   function buildKeys() {
     vk.innerHTML = '';
     const activeRows = numMode ? (symMode ? sym2Rows : numRows) : rows;
@@ -7406,9 +7435,77 @@ function chatToggleVKPill(inputId, btn) {
       });
       vk.appendChild(rowDiv);
     });
+    // After a mode switch rebuild, re-focus glasses nav on the first key
+    if (!_vkFirstBuild) {
+      setTimeout(() => {
+        const firstKey = vk.querySelector('button');
+        if (firstKey) _navSet(firstKey);
+      }, 40);
+    }
+    _vkFirstBuild = false;
   }
   buildKeys();
   wrap.insertBefore(vk, pillBar);
+  // Focus glasses nav highlighter on the first VK key
+  setTimeout(() => {
+    const firstKey = vk.querySelector('button');
+    if (firstKey) _navSet(firstKey);
+  }, 80);
+}
+
+/* ── Glasses input method chooser ─────────────────────────────────────────────
+   When user taps the message textarea on glasses, show a navigable chooser
+   with large buttons for each input method instead of the native picker. */
+function _isGlassesCtx() {
+  return /OculusBrowser|RayBan/i.test(navigator.userAgent) ||
+         (document.getElementById('app')?.classList.contains('glasses-mode') === true);
+}
+
+function _showChatInputChooser(inputId, pillBarId) {
+  const pillBar = document.getElementById(pillBarId);
+  if (!pillBar) return;
+  const wrap = pillBar.parentElement;
+  // Toggle: if chooser already open, close it
+  const existing = wrap.querySelector('.chat-input-chooser');
+  if (existing) { existing.remove(); _navRefresh(); return; }
+  // Don't stack with other pickers
+  if (wrap.querySelector('.chat-vk-local,.chat-emoji-picker')) return;
+
+  const chooser = document.createElement('div');
+  chooser.className = 'chat-input-chooser';
+  chooser.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;padding:0.6rem 0.7rem;background:var(--bg-card);border-top:1px solid var(--border);flex-shrink:0;';
+
+  const voiceBtnId = inputId === 'chatInput' ? 'chatVoiceBtn' : 'inlineVoiceBtn';
+  const msgContId  = inputId === 'chatInput' ? 'chatMessages' : 'inlineChatMessages';
+
+  const opts = [
+    { icon: '🎤', label: 'Dictate',
+      fn: () => { const dp = pillBar.querySelector('[id*="DictatePill"]'); chatToggleDictate(inputId, dp); } },
+    { icon: '✍️', label: 'Handwrite',
+      fn: () => chatHandwrite(inputId, null) },
+    { icon: '⌨️', label: 'Type',
+      fn: () => { const vp = pillBar.querySelector('[id*="VkPill"]'); chatToggleVKPill(inputId, vp); } },
+    { icon: '🎙️', label: 'Voice Note',
+      fn: () => { const vb = document.getElementById(voiceBtnId); chatToggleVoiceNote(vb || pillBar, msgContId); } },
+    { icon: '✕',  label: 'Cancel',
+      fn: () => {} },
+  ];
+
+  opts.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.5rem;font-size:0.78rem;display:flex;flex-direction:column;align-items:center;gap:0.25rem;touch-action:manipulation;cursor:pointer;';
+    if (opt.label === 'Cancel') btn.style.gridColumn = '1/-1';
+    btn.innerHTML = '<span style="font-size:1.45rem">' + opt.icon + '</span><span>' + opt.label + '</span>';
+    btn.onclick = () => { chooser.remove(); opt.fn(); };
+    chooser.appendChild(btn);
+  });
+
+  wrap.insertBefore(chooser, pillBar);
+  // Move glasses nav highlighter to the first option
+  setTimeout(() => {
+    const firstBtn = chooser.querySelector('button');
+    if (firstBtn) _navSet(firstBtn);
+  }, 60);
 }
 
 /* ── Voice Note Recording (redesigned: recording overlay + preview before send) ── */
@@ -7564,7 +7661,10 @@ async function chatToggleVoiceNote(btn, msgContainerId) {
     if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
       toast('🎤 Mic blocked — allow microphone access in your device Settings, then reload');
     } else if (e.name === 'NotFoundError') {
-      toast('🎤 No microphone found on this device');
+      const onGlassesBrowser = /OculusBrowser|RayBan/i.test(navigator.userAgent);
+      toast(onGlassesBrowser
+        ? '🎤 Glasses browser can\'t access mic for recording — use 🎤 Dictate instead'
+        : '🎤 No microphone found on this device');
     } else {
       toast('🎤 Could not start microphone: ' + (e.message || e.name));
     }
