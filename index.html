@@ -3326,10 +3326,18 @@ function _navMove(dir) {
   let best = null;
 
   if (curIsCard && (dir === 'up' || dir === 'down')) {
-    // Card zone — vertical: only other disc-cards; stop at edges so highlighter
-    // never jumps to off-screen content and gets lost.
+    // Card zone — vertical: prefer other disc-cards.
+    // At edges, fall through: DOWN from last card → bottom nav; UP from top card → chips.
     best = _find(cards);
-    // No wrap — if no card found in direction, highlighter stays on current card.
+    if (!best && dir === 'down') {
+      // No card below — drop highlighter to the bottom nav (first visible tab)
+      const navBtns = els.filter(e => e.closest('.bottom-nav'));
+      best = navBtns[0] || null;
+    }
+    if (!best && dir === 'up') {
+      // No card above — rise up to the last filter chip (or any non-nav element above)
+      best = chips.length ? chips[chips.length - 1] : _find(nonNav);
+    }
 
   } else if (curIsChip && (dir === 'up' || dir === 'down')) {
     // Chip zone — vertical: jump straight to first/last card so DOWN from any
