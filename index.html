@@ -3282,7 +3282,13 @@ function _navSet(el) {
   document.querySelectorAll('.kbd-focus').forEach(x => x.classList.remove('kbd-focus'));
   if (el) {
     el.classList.add('kbd-focus');
-    try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_){} }
+    // For readonly auth inputs, skip focus() — Ray-Ban OS shows its native
+    // "Dictate / Handwriting" picker on focus for type="text" inputs regardless
+    // of the readonly attribute. VK.target handles typing without needing focus.
+    const skipFocus = el.hasAttribute('readonly') && !!el.closest('#authView');
+    if (!skipFocus) {
+      try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_){} }
+    }
     try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch(e) {}
   }
 }
@@ -3448,7 +3454,16 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowUp')    { _navMove('up');    e.preventDefault(); }
   else if (e.key === 'Enter') {
     const f = document.querySelector('.kbd-focus') || a;
-    if (f && f !== document.body) { f.click(); e.preventDefault(); }   // click divs, buttons, anything focused
+    if (f && f !== document.body) {
+      // For readonly auth text inputs, openVK directly — f.click() causes focus which
+      // triggers the Ray-Ban OS native "Dictate/Handwriting" picker on type="text" inputs.
+      if (f.hasAttribute && f.hasAttribute('readonly') && f.closest && f.closest('#authView')) {
+        openVK(f);
+      } else {
+        f.click();
+      }
+      e.preventDefault();
+    }   // click divs, buttons, anything focused
   }
   else if (e.key === 'Escape') {
     if (_navBack()) e.preventDefault();                                 // Meta wearables: Escape = back
@@ -9317,7 +9332,10 @@ function vkNextField() {
     VK.target = next;
     // Do NOT removeAttribute('readonly') — keeps Ray-Ban glasses from showing
     // their native "Dictate / Write" input picker. _vkInsert writes via .value directly.
-    next.focus({ preventScroll: true });
+    // Also skip focus() for readonly auth inputs — Ray-Ban OS native picker fires on focus.
+    if (!next.hasAttribute('readonly') || !next.closest('#authView')) {
+      next.focus({ preventScroll: true });
+    }
     _vkScrollTargetIntoView();
     // Update email shortcut row for the new field type
     const isEmail = next.type === 'email' || next.autocomplete === 'email' || next.id === 'smsPhone';
