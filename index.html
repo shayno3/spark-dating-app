@@ -3256,8 +3256,15 @@ function _isInteractive(el) {
 function _navList() {
   const root = _navRoot();
   const out = [];
+  // When VK is closed, its buttons are translated off-screen but still have
+  // non-zero bounding rects — exclude them so they don't pollute spatial nav.
+  const _vkPanel = document.getElementById('vkPanel');
+  const _vkOpen  = _vkPanel && _vkPanel.classList.contains('vk-open');
   root.querySelectorAll('*').forEach(el => {
     if (!_isInteractive(el) || el.disabled) return;
+    // Exclude VK panel children when keyboard is not open (panel slides off-screen
+    // via CSS transform but buttons still have non-zero size — they're ghost candidates)
+    if (!_vkOpen && _vkPanel && _vkPanel.contains(el)) return;
     // container-style clickables: skip if they wrap another interactive (pick the inner one)
     const native = /^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
     if (!native && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
@@ -3809,6 +3816,18 @@ function switchAuthTab(tab) {
     b.classList.toggle('active', oc.includes("'" + tab + "'"));
   });
   if (tab === 'sms') setTimeout(_ensureRecaptcha, 100);
+  // Glasses nav: after the form switches, move the highlight to the first
+  // input field so the user doesn't have to hunt for it from the tab button.
+  if (typeof NAV !== 'undefined' && NAV.on && typeof _navSet === 'function') {
+    setTimeout(() => {
+      const formId = forms[tab];
+      const form   = formId && document.getElementById(formId);
+      if (!form) return;
+      // Prefer the first vk-input; fall back to first button (e.g. Glasses tab)
+      const first = form.querySelector('input.vk-input') || form.querySelector('button');
+      if (first) _navSet(first);
+    }, 80); // brief delay so display:'' has painted
+  }
 }
 
 /* ----------------------------------------------------------------
