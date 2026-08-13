@@ -190,7 +190,7 @@ html, body {
 .rb-sheet-row.danger { color: #ff6b6b; border-color: rgba(255,107,107,0.25); }
 .rb-sheet-cancel { background: none; border: none; color: var(--text-muted); padding: 0.6rem; font-size: 0.9rem; cursor: pointer; width: 100%; margin-top: 0.25rem; border-radius: 10px; }
 .rb-sheet-cancel:active { background: rgba(255,255,255,0.05); }
-.content-area { flex: 1; overflow-y: auto; position: relative; min-height: 0; }
+.content-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; position: relative; min-height: 0; }
 .tab-content { display: none; height: auto; flex-direction: column; overflow: visible; }
 .tab-content.active { display: flex; }
 
@@ -626,7 +626,7 @@ html, body {
 .chat-head-info { flex: 1; }
 .chat-head-name { font-weight: 800; font-size: 1rem; }
 .chat-head-status { font-size: 0.73rem; color: var(--success); font-weight: 600; }
-.chat-messages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.chat-messages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .msg { max-width: 78%; padding: 0.6rem 0.875rem; border-radius: 18px; font-size: 0.9rem; line-height: 1.45; }
 .msg.sent { align-self: flex-end; background: var(--gradient-btn); color: white; border-bottom-right-radius: 4px; }
 .msg.recv { align-self: flex-start; background: var(--bg-card); border-bottom-left-radius: 4px; }
@@ -2253,15 +2253,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-pill-bar" id="chatPillBar">
-        <button class="chat-pill" id="chatDictatePill" title="Dictate" onclick="chatToggleDictate('chatInput',this)">🎤</button>
-        <button class="chat-pill" title="Handwrite" onclick="chatHandwrite('chatInput',this)">✍️</button>
         <button class="chat-pill" id="chatVoiceNotePill" title="Voice Note" onclick="_chatVoiceNotePill(this,'chatVoiceBtn','chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <button class="chat-pill" id="chatEmojiPill" title="Emoji" onclick="chatToggleEmoji('chatInput',this)">😊</button>
-        <button class="chat-pill" id="chatListenPill" title="Listen" onclick="chatListen(this)">🎧</button>
         <button class="chat-pill" id="chatVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('chatInput',this)">⌨️</button>
       </div>
       <div class="chat-input-bar">
-        <button class="chat-mic-shortcut" id="chatMicBtn" onclick="chatToggleDictate('chatInput',document.getElementById('chatDictatePill'))">🎤</button>
         <button class="voice-note-btn" id="chatVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
           onclick="_isGlassesCtx()&&_showChatInputChooser('chatInput','chatPillBar')"
@@ -2320,15 +2316,11 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
       <div class="chat-messages" id="inlineChatMessages"></div>
       <div class="chat-pill-bar" id="inlineChatPillBar">
-        <button class="chat-pill" id="inlineDictatePill" title="Dictate" onclick="chatToggleDictate('inlineChatInput',this)">🎤</button>
-        <button class="chat-pill" title="Handwrite" onclick="chatHandwrite('inlineChatInput',this)">✍️</button>
         <button class="chat-pill" id="inlineVoiceNotePill" title="Voice Note" onclick="_chatVoiceNotePill(this,'inlineVoiceBtn','inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <button class="chat-pill" id="inlineEmojiPill" title="Emoji" onclick="chatToggleEmoji('inlineChatInput',this)">😊</button>
-        <button class="chat-pill" id="inlineListenPill" title="Listen" onclick="chatListen(this)">🎧</button>
         <button class="chat-pill" id="inlineVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️</button>
       </div>
       <div class="chat-input-bar">
-        <button class="chat-mic-shortcut" id="inlineMicBtn" onclick="chatToggleDictate('inlineChatInput',document.getElementById('inlineDictatePill'))">🎤</button>
         <button class="voice-note-btn" id="inlineVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
           onclick="_isGlassesCtx()&&_showChatInputChooser('inlineChatInput','inlineChatPillBar')"
@@ -3265,9 +3257,16 @@ function _navList() {
     // Exclude VK panel children when keyboard is not open (panel slides off-screen
     // via CSS transform but buttons still have non-zero size — they're ghost candidates)
     if (!_vkOpen && _vkPanel && _vkPanel.contains(el)) return;
-    // container-style clickables: skip if they wrap another interactive (pick the inner one)
+    // Skip the conversation ⋮ menu button — not useful on glasses (no long-press/context menu)
+    if (el.classList.contains('conv-menu-btn')) return;
+    // container-style clickables: skip if they wrap another interactive (pick the inner one).
+    // Exception: known full-row clickables (conv-item, match avatars, likes row) — the row
+    // itself is the primary navigation target even when it contains a child button.
     const native = /^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
-    if (!native && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
+    const isFullRowClickable = el.classList.contains('conv-item') ||
+                               el.classList.contains('msg-match-wrap') ||
+                               el.classList.contains('msg-likes-wrap');
+    if (!native && !isFullRowClickable && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
       if (el.querySelector('button,a[href],input,select,textarea,[onclick],[tabindex]:not([tabindex="-1"])')) return;
     }
     if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return; // hidden
@@ -3289,7 +3288,18 @@ function _navSet(el) {
     if (!skipFocus) {
       try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_){} }
     }
-    try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch(e) {}
+    // Conv-items: smooth scroll so swiping through the messages list feels fluid.
+    // Everything else: instant so nav feels snappy on glasses.
+    const isConvRow = el.classList.contains('conv-item') ||
+                      el.classList.contains('msg-match-wrap') ||
+                      el.classList.contains('msg-likes-wrap');
+    try {
+      el.scrollIntoView(isConvRow
+        ? { behavior: 'smooth', block: 'nearest', inline: 'nearest' }
+        : { behavior: 'instant', block: 'nearest', inline: 'nearest' });
+    } catch(e) {
+      try { el.scrollIntoView(false); } catch(_) {}
+    }
   }
 }
 /* Directional move: zone-aware spatial navigation.
@@ -3333,13 +3343,19 @@ function _navMove(dir) {
     return best;
   };
 
-  const curIsCard = cur.classList.contains('disc-card');
-  const curIsChip = cur.classList.contains('filter-chip');
-  const curIsNav  = !!cur.closest('.bottom-nav');
-  const cards   = els.filter(e => e.classList.contains('disc-card'));
-  const chips   = els.filter(e => e.classList.contains('filter-chip'));
-  const navBtns = els.filter(e => e.closest('.bottom-nav'));
-  const nonNav  = els.filter(e => !e.closest('.bottom-nav'));
+  const curIsCard     = cur.classList.contains('disc-card');
+  const curIsChip     = cur.classList.contains('filter-chip');
+  const curIsNav      = !!cur.closest('.bottom-nav');
+  const curIsConvItem = cur.classList.contains('conv-item') ||
+                        cur.classList.contains('msg-match-wrap') ||
+                        cur.classList.contains('msg-likes-wrap');
+  const cards      = els.filter(e => e.classList.contains('disc-card'));
+  const chips      = els.filter(e => e.classList.contains('filter-chip'));
+  const navBtns    = els.filter(e => e.closest('.bottom-nav'));
+  const nonNav     = els.filter(e => !e.closest('.bottom-nav'));
+  const convItems  = els.filter(e => e.classList.contains('conv-item') ||
+                                     e.classList.contains('msg-match-wrap') ||
+                                     e.classList.contains('msg-likes-wrap'));
 
   let best = null;
 
@@ -3372,15 +3388,44 @@ function _navMove(dir) {
           : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
       }
     } else if (dir === 'up') {
-      // Return to last card; fall back to last chip; fall back to first non-nav element
-      best = cards.length ? cards[cards.length - 1]
-           : chips.length ? chips[chips.length - 1]
+      // Return to last card or last conv-item (wherever the user was); fall back to chips/non-nav
+      best = cards.length        ? cards[cards.length - 1]
+           : convItems.length    ? convItems[convItems.length - 1]
+           : chips.length        ? chips[chips.length - 1]
            : _find(nonNav);
     } else {
-      // DOWN from nav bar — wrap to top of content (first chip or first card)
-      best = chips.length ? chips[0]
-           : cards.length ? cards[0]
+      // DOWN from nav bar — wrap to top of content (chips → cards → conv-items → first non-nav)
+      best = chips.length     ? chips[0]
+           : cards.length     ? cards[0]
+           : convItems.length ? convItems[0]
            : nonNav[0] || null;
+    }
+
+  } else if (curIsConvItem) {
+    // ── CONVERSATION LIST ZONE ────────────────────────────────────────────
+    // UP / DOWN  → navigate through conv-items; fall to nav bar at bottom edge.
+    // LEFT / RIGHT → move to adjacent nav tab (same as being on nav bar).
+    if (dir === 'up' || dir === 'down') {
+      best = _find(convItems);
+      if (!best && dir === 'down') {
+        // Bottom of list — land on active nav tab
+        const activeNav = navBtns.find(e => e.classList.contains('active')) || navBtns[0];
+        best = activeNav || null;
+      }
+      if (!best && dir === 'up') {
+        // Top of list — nothing above; stay put (already at top)
+        best = null;
+      }
+    } else {
+      // LEFT / RIGHT on conversation rows — cycle nav tabs so user can switch sections
+      best = _find(navBtns);
+      if (!best && navBtns.length) {
+        const activeNav = navBtns.find(e => e.classList.contains('active'));
+        const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
+        best = dir === 'right'
+          ? navBtns[(idx + 1) % navBtns.length]
+          : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
+      }
     }
 
   } else if (curIsChip && (dir === 'up' || dir === 'down')) {
@@ -3461,7 +3506,7 @@ document.addEventListener('keydown', e => {
       !!focused.closest('.chat-vk-local, .chat-emoji-picker, .chat-input-chooser')
     );
     if (chatMsgs && !focusedIsInput) {
-      chatMsgs.scrollTop += e.key === 'ArrowDown' ? 100 : -100;
+      chatMsgs.scrollBy({ top: e.key === 'ArrowDown' ? 180 : -180, behavior: 'smooth' });
       e.preventDefault();
       return;
     }
@@ -7564,12 +7609,10 @@ function _showChatInputChooser(inputId, pillBarId) {
   const msgContId  = inputId === 'chatInput' ? 'chatMessages' : 'inlineChatMessages';
 
   const opts = [
-    { icon: '🎤', label: 'Dictate',
-      fn: () => { const dp = pillBar.querySelector('[id*="DictatePill"]'); chatToggleDictate(inputId, dp); } },
-    { icon: '✍️', label: 'Handwrite',
-      fn: () => chatHandwrite(inputId, null) },
     { icon: '⌨️', label: 'Type',
       fn: () => { const vp = pillBar.querySelector('[id*="VkPill"]'); chatToggleVKPill(inputId, vp); } },
+    { icon: '😊', label: 'Emoji',
+      fn: () => { const ep = pillBar.querySelector('[id*="EmojiPill"]'); chatToggleEmoji(inputId, ep); } },
     { icon: '🎙️', label: 'Voice Note',
       fn: () => { const vb = document.getElementById(voiceBtnId); chatToggleVoiceNote(vb || pillBar, msgContId); } },
     { icon: '✕',  label: 'Cancel',
