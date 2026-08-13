@@ -3335,44 +3335,63 @@ function _navMove(dir) {
 
   const curIsCard = cur.classList.contains('disc-card');
   const curIsChip = cur.classList.contains('filter-chip');
-  const cards  = els.filter(e => e.classList.contains('disc-card'));
-  const chips  = els.filter(e => e.classList.contains('filter-chip'));
-  const nonNav = els.filter(e => !e.closest('.bottom-nav'));
+  const curIsNav  = !!cur.closest('.bottom-nav');
+  const cards   = els.filter(e => e.classList.contains('disc-card'));
+  const chips   = els.filter(e => e.classList.contains('filter-chip'));
+  const navBtns = els.filter(e => e.closest('.bottom-nav'));
+  const nonNav  = els.filter(e => !e.closest('.bottom-nav'));
 
   let best = null;
 
   if (curIsCard && (dir === 'up' || dir === 'down')) {
     // Card zone — vertical: prefer other disc-cards.
-    // At edges, fall through: DOWN from last card → bottom nav; UP from top card → chips.
+    // At edges: DOWN from last card → first nav button; UP from top card → last chip.
     best = _find(cards);
     if (!best && dir === 'down') {
-      // No card below — drop highlighter to the bottom nav (first visible tab)
-      const navBtns = els.filter(e => e.closest('.bottom-nav'));
-      best = navBtns[0] || null;
+      // No card below — land on the active nav tab, or first visible nav button
+      const activeNav = navBtns.find(e => e.classList.contains('active')) || navBtns[0];
+      best = activeNav || null;
     }
     if (!best && dir === 'up') {
-      // No card above — rise up to the last filter chip (or any non-nav element above)
+      // No card above — rise to last filter chip or any non-nav element above
       best = chips.length ? chips[chips.length - 1] : _find(nonNav);
     }
 
+  } else if (curIsNav) {
+    // ── NAV BAR ZONE ──────────────────────────────────────────────────────
+    // LEFT / RIGHT → cycle through nav buttons with modular wrap so every
+    //   tab is always reachable from any other with a swipe.
+    // UP           → return to last card (where user came from), or last chip.
+    // DOWN         → wrap back to first card/chip so user isn't dead-ended.
+    if (dir === 'left' || dir === 'right') {
+      best = _find(navBtns);
+      if (!best && navBtns.length) {
+        const idx = navBtns.indexOf(cur);
+        best = dir === 'right'
+          ? navBtns[(idx + 1) % navBtns.length]
+          : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
+      }
+    } else if (dir === 'up') {
+      // Return to last card; fall back to last chip; fall back to first non-nav element
+      best = cards.length ? cards[cards.length - 1]
+           : chips.length ? chips[chips.length - 1]
+           : _find(nonNav);
+    } else {
+      // DOWN from nav bar — wrap to top of content (first chip or first card)
+      best = chips.length ? chips[0]
+           : cards.length ? cards[0]
+           : nonNav[0] || null;
+    }
+
   } else if (curIsChip && (dir === 'up' || dir === 'down')) {
-    // Chip zone — vertical: jump straight to first/last card so DOWN from any
-    // chip (including Online which is off-center) always reaches profiles.
-    // If no cards and nothing else found, fall through to bottom nav so user is never trapped.
+    // Chip zone — vertical: jump straight to first/last card.
+    // If no cards, fall through to nav as last resort so user is never trapped.
     if (dir === 'down') {
       best = cards[0] || _find(nonNav);
-      if (!best) {
-        // No cards loaded, nothing else below chips — last resort: bottom nav
-        const navBtns = els.filter(e => e.closest('.bottom-nav'));
-        best = navBtns[0] || null;
-      }
+      if (!best) best = navBtns[0] || null;
     } else {
       best = cards[cards.length - 1] || _find(nonNav);
-      // UP from top chip: if nothing above either, try bottom nav as last resort
-      if (!best) {
-        const navBtns = els.filter(e => e.closest('.bottom-nav'));
-        best = navBtns[0] || null;
-      }
+      if (!best) best = navBtns[0] || null;
     }
 
   } else if (curIsChip && (dir === 'left' || dir === 'right')) {
