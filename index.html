@@ -3259,13 +3259,18 @@ function _navList() {
     if (!_vkOpen && _vkPanel && _vkPanel.contains(el)) return;
     // Skip the conversation ⋮ menu button — not useful on glasses (no long-press/context menu)
     if (el.classList.contains('conv-menu-btn')) return;
+    // Skip nearby-card child elements — the card itself is the nav target.
+    // The img and like-btn inside each card are redundant for glasses nav (card onclick covers both).
+    if (el.classList.contains('nearby-card-img')) return;
+    if (el.classList.contains('nearby-like-btn')) return;
     // container-style clickables: skip if they wrap another interactive (pick the inner one).
-    // Exception: known full-row clickables (conv-item, match avatars, likes row) — the row
-    // itself is the primary navigation target even when it contains a child button.
+    // Exception: known full-row clickables — the row itself is the primary navigation target
+    // even when it contains a child button.
     const native = /^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
     const isFullRowClickable = el.classList.contains('conv-item') ||
                                el.classList.contains('msg-match-wrap') ||
-                               el.classList.contains('msg-likes-wrap');
+                               el.classList.contains('msg-likes-wrap') ||
+                               el.classList.contains('nearby-card');
     if (!native && !isFullRowClickable && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
       if (el.querySelector('button,a[href],input,select,textarea,[onclick],[tabindex]:not([tabindex="-1"])')) return;
     }
@@ -3288,11 +3293,12 @@ function _navSet(el) {
     if (!skipFocus) {
       try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_){} }
     }
-    // Conv-items: smooth scroll so swiping through the messages list feels fluid.
+    // Conv-items and nearby-cards: smooth scroll so swiping feels fluid.
     // Everything else: instant so nav feels snappy on glasses.
     const isConvRow = el.classList.contains('conv-item') ||
                       el.classList.contains('msg-match-wrap') ||
-                      el.classList.contains('msg-likes-wrap');
+                      el.classList.contains('msg-likes-wrap') ||
+                      el.classList.contains('nearby-card');
     try {
       el.scrollIntoView(isConvRow
         ? { behavior: 'smooth', block: 'nearest', inline: 'nearest' }
@@ -3343,19 +3349,21 @@ function _navMove(dir) {
     return best;
   };
 
-  const curIsCard     = cur.classList.contains('disc-card');
-  const curIsChip     = cur.classList.contains('filter-chip');
-  const curIsNav      = !!cur.closest('.bottom-nav');
-  const curIsConvItem = cur.classList.contains('conv-item') ||
-                        cur.classList.contains('msg-match-wrap') ||
-                        cur.classList.contains('msg-likes-wrap');
-  const cards      = els.filter(e => e.classList.contains('disc-card'));
-  const chips      = els.filter(e => e.classList.contains('filter-chip'));
-  const navBtns    = els.filter(e => e.closest('.bottom-nav'));
-  const nonNav     = els.filter(e => !e.closest('.bottom-nav'));
-  const convItems  = els.filter(e => e.classList.contains('conv-item') ||
-                                     e.classList.contains('msg-match-wrap') ||
-                                     e.classList.contains('msg-likes-wrap'));
+  const curIsCard       = cur.classList.contains('disc-card');
+  const curIsChip       = cur.classList.contains('filter-chip');
+  const curIsNav        = !!cur.closest('.bottom-nav');
+  const curIsConvItem   = cur.classList.contains('conv-item') ||
+                          cur.classList.contains('msg-match-wrap') ||
+                          cur.classList.contains('msg-likes-wrap');
+  const curIsNearbyCard = cur.classList.contains('nearby-card');
+  const cards       = els.filter(e => e.classList.contains('disc-card'));
+  const chips       = els.filter(e => e.classList.contains('filter-chip'));
+  const navBtns     = els.filter(e => e.closest('.bottom-nav'));
+  const nonNav      = els.filter(e => !e.closest('.bottom-nav'));
+  const convItems   = els.filter(e => e.classList.contains('conv-item') ||
+                                      e.classList.contains('msg-match-wrap') ||
+                                      e.classList.contains('msg-likes-wrap'));
+  const nearbyCards = els.filter(e => e.classList.contains('nearby-card'));
 
   let best = null;
 
@@ -3388,16 +3396,18 @@ function _navMove(dir) {
           : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
       }
     } else if (dir === 'up') {
-      // Return to last card or last conv-item (wherever the user was); fall back to chips/non-nav
+      // Return to last card / nearby-card / conv-item (wherever user came from)
       best = cards.length        ? cards[cards.length - 1]
+           : nearbyCards.length  ? nearbyCards[nearbyCards.length - 1]
            : convItems.length    ? convItems[convItems.length - 1]
            : chips.length        ? chips[chips.length - 1]
            : _find(nonNav);
     } else {
-      // DOWN from nav bar — wrap to top of content (chips → cards → conv-items → first non-nav)
-      best = chips.length     ? chips[0]
-           : cards.length     ? cards[0]
-           : convItems.length ? convItems[0]
+      // DOWN from nav bar — wrap to top of content
+      best = chips.length        ? chips[0]
+           : cards.length        ? cards[0]
+           : nearbyCards.length  ? nearbyCards[0]
+           : convItems.length    ? convItems[0]
            : nonNav[0] || null;
     }
 
@@ -3419,6 +3429,34 @@ function _navMove(dir) {
     } else {
       // LEFT / RIGHT on conversation rows — cycle nav tabs so user can switch sections
       best = _find(navBtns);
+      if (!best && navBtns.length) {
+        const activeNav = navBtns.find(e => e.classList.contains('active'));
+        const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
+        best = dir === 'right'
+          ? navBtns[(idx + 1) % navBtns.length]
+          : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
+      }
+    }
+
+  } else if (curIsNearbyCard) {
+    // ── EXPLORE GRID ZONE ─────────────────────────────────────────────────
+    // Navigate within nearby-cards. Grid is 2-col so spatial _find() handles
+    // left/right/up/down correctly. At edges, drop to nav or rise to header.
+    if (dir === 'up' || dir === 'down') {
+      best = _find(nearbyCards);
+      if (!best && dir === 'down') {
+        // No card below — land on the active nav tab
+        const activeNav = navBtns.find(e => e.classList.contains('active')) || navBtns[0];
+        best = activeNav || null;
+      }
+      if (!best && dir === 'up') {
+        // No card above — rise to the view-toggle or nearby-header area
+        best = _find(nonNav.filter(e => !e.classList.contains('nearby-card')));
+      }
+    } else {
+      // LEFT / RIGHT — prefer other nearby-cards (move across grid columns).
+      // If nothing found (edge of grid), cycle nav tabs so user can switch sections.
+      best = _find(nearbyCards);
       if (!best && navBtns.length) {
         const activeNav = navBtns.find(e => e.classList.contains('active'));
         const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
@@ -6209,10 +6247,14 @@ function renderExploreCard(u, matchedUids, grid) {
       <div class="nearby-card-sub">${u.online ? '<span class="nearby-online-dot"></span>Online' : distStr || (u.bio ? u.bio.slice(0,35) + (u.bio.length>35?'…':'') : '')}</div>
       ${!isMatch ? `<button class="nearby-like-btn${alreadyLiked?' liked':''}" onclick="nearbyLike('${u.id}',this)">${alreadyLiked ? '✓ Liked' : '♥ Like'}</button>` : `<button class="nearby-like-btn liked" onclick="openMatchProfile('${u.id}')">💬 Message</button>`}
     </div>`;
+  // Set onclick directly on the card — glasses Enter/tap fires f.click() on the
+  // focussed element; without this the card click did nothing on glasses.
   if (!isMatch) {
-    card.querySelector('.nearby-card-img').onclick = () => openNearbyDetail(u);
+    card.onclick = () => openNearbyDetail(u);
+    card.querySelector('.nearby-card-img').onclick = null; // handled by card
   } else {
-    card.querySelector('.nearby-card-img').onclick = () => openMatchProfile(u.id);
+    card.onclick = () => openMatchProfile(u.id);
+    card.querySelector('.nearby-card-img').onclick = null; // handled by card
   }
   grid.appendChild(card);
 }
