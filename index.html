@@ -3270,7 +3270,8 @@ function _navList() {
     const isFullRowClickable = el.classList.contains('conv-item') ||
                                el.classList.contains('msg-match-wrap') ||
                                el.classList.contains('msg-likes-wrap') ||
-                               el.classList.contains('nearby-card');
+                               el.classList.contains('nearby-card') ||
+                               el.classList.contains('match-card');
     if (!native && !isFullRowClickable && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
       if (el.querySelector('button,a[href],input,select,textarea,[onclick],[tabindex]:not([tabindex="-1"])')) return;
     }
@@ -3298,7 +3299,8 @@ function _navSet(el) {
     const isConvRow = el.classList.contains('conv-item') ||
                       el.classList.contains('msg-match-wrap') ||
                       el.classList.contains('msg-likes-wrap') ||
-                      el.classList.contains('nearby-card');
+                      el.classList.contains('nearby-card') ||
+                      el.classList.contains('match-card');
     try {
       el.scrollIntoView(isConvRow
         ? { behavior: 'smooth', block: 'nearest', inline: 'nearest' }
@@ -3356,6 +3358,7 @@ function _navMove(dir) {
                           cur.classList.contains('msg-match-wrap') ||
                           cur.classList.contains('msg-likes-wrap');
   const curIsNearbyCard = cur.classList.contains('nearby-card');
+  const curIsMatchCard  = cur.classList.contains('match-card');
   const cards       = els.filter(e => e.classList.contains('disc-card'));
   const chips       = els.filter(e => e.classList.contains('filter-chip'));
   const navBtns     = els.filter(e => e.closest('.bottom-nav'));
@@ -3364,6 +3367,7 @@ function _navMove(dir) {
                                       e.classList.contains('msg-match-wrap') ||
                                       e.classList.contains('msg-likes-wrap'));
   const nearbyCards = els.filter(e => e.classList.contains('nearby-card'));
+  const matchCards  = els.filter(e => e.classList.contains('match-card'));
 
   let best = null;
 
@@ -3396,9 +3400,10 @@ function _navMove(dir) {
           : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
       }
     } else if (dir === 'up') {
-      // Return to last card / nearby-card / conv-item (wherever user came from)
+      // Return to last card / nearby-card / match-card / conv-item (wherever user came from)
       best = cards.length        ? cards[cards.length - 1]
            : nearbyCards.length  ? nearbyCards[nearbyCards.length - 1]
+           : matchCards.length   ? matchCards[matchCards.length - 1]
            : convItems.length    ? convItems[convItems.length - 1]
            : chips.length        ? chips[chips.length - 1]
            : _find(nonNav);
@@ -3407,6 +3412,7 @@ function _navMove(dir) {
       best = chips.length        ? chips[0]
            : cards.length        ? cards[0]
            : nearbyCards.length  ? nearbyCards[0]
+           : matchCards.length   ? matchCards[0]
            : convItems.length    ? convItems[0]
            : nonNav[0] || null;
     }
@@ -3457,6 +3463,34 @@ function _navMove(dir) {
       // LEFT / RIGHT — prefer other nearby-cards (move across grid columns).
       // If nothing found (edge of grid), cycle nav tabs so user can switch sections.
       best = _find(nearbyCards);
+      if (!best && navBtns.length) {
+        const activeNav = navBtns.find(e => e.classList.contains('active'));
+        const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
+        best = dir === 'right'
+          ? navBtns[(idx + 1) % navBtns.length]
+          : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
+      }
+    }
+
+  } else if (curIsMatchCard) {
+    // ── MATCHES GRID ZONE ────────────────────────────────────────────────────
+    // Navigate within match-cards. Grid is 2-col so spatial _find() handles
+    // up/down/left/right correctly. At edge, drop to nav or rise to header.
+    if (dir === 'up' || dir === 'down') {
+      best = _find(matchCards);
+      if (!best && dir === 'down') {
+        // No card below — land on the active nav tab
+        const activeNav = navBtns.find(e => e.classList.contains('active')) || navBtns[0];
+        best = activeNav || null;
+      }
+      if (!best && dir === 'up') {
+        // No card above — rise to view-toggle / liked-me section controls
+        best = _find(nonNav.filter(e => !e.classList.contains('match-card')));
+      }
+    } else {
+      // LEFT / RIGHT — prefer other match-cards (move across grid columns).
+      // If at edge, cycle nav tabs so user can switch sections.
+      best = _find(matchCards);
       if (!best && navBtns.length) {
         const activeNav = navBtns.find(e => e.classList.contains('active'));
         const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
