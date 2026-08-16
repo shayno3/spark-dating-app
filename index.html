@@ -3257,6 +3257,13 @@ function _navList() {
     // Exclude VK panel children when keyboard is not open (panel slides off-screen
     // via CSS transform but buttons still have non-zero size — they're ghost candidates)
     if (!_vkOpen && _vkPanel && _vkPanel.contains(el)) return;
+    // Exclude closed slide-out panels — same off-screen-transform problem.
+    // _navRoot scopes nav INTO these when they're open; when closed their
+    // elements must not bleed into the main-tab nav list.
+    for (const pid of ['inlineChatSheet','chatPanel','editPanel','matchProfilePanel','detailPanel']) {
+      const p = document.getElementById(pid);
+      if (p && !p.classList.contains('open') && p.contains(el)) return;
+    }
     // Skip the conversation ⋮ menu button — not useful on glasses (no long-press/context menu)
     if (el.classList.contains('conv-menu-btn')) return;
     // Skip nearby-card child elements — the card itself is the nav target.
@@ -3278,6 +3285,9 @@ function _navList() {
     if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return; // hidden
     const r = el.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return;
+    // Skip elements inside opacity-hidden modals/overlays (they use pointer-events:none
+    // instead of display:none so they still have non-zero rects and pass the checks above).
+    if (getComputedStyle(el).pointerEvents === 'none') return;
     if (el.tabIndex < 0 && !native) el.tabIndex = 0;               // make focusable
     out.push(el);
   });
