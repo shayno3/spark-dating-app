@@ -3212,6 +3212,24 @@ function _navRefresh() {
   setTimeout(_navFocus, 60); // brief delay so DOM/CSS transitions settle first
 }
 
+/* Slide-out panels that use CSS transform to hide (not display:none).
+   When closed, their interactive elements still have valid rects and would
+   pollute the main-tab nav list. Add a panel's element ID here to exclude it.
+   _navRoot already scopes nav INTO these when they're open — this is the
+   mirror that keeps them OUT when they're closed. */
+const _SLIDE_PANELS = [
+  'inlineChatSheet',
+  'chatPanel',
+  'editPanel',
+  'matchProfilePanel',
+  'detailPanel',
+];
+
+/* Grid/list card CSS classes that act as full-row nav targets.
+   Adding a new card type here is the ONLY change needed to register it
+   in _navList (container-filter bypass) and _navMove (generic grid zone). */
+const _GRID_CARD_CLASSES = ['nearby-card', 'match-card'];
+
 /* Which container the D-pad should navigate right now (most specific first) */
 function _navRoot() {
   const ov = document.getElementById('pinOverlay');
@@ -3257,10 +3275,11 @@ function _navList() {
     // Exclude VK panel children when keyboard is not open (panel slides off-screen
     // via CSS transform but buttons still have non-zero size — they're ghost candidates)
     if (!_vkOpen && _vkPanel && _vkPanel.contains(el)) return;
-    // Exclude closed slide-out panels — same off-screen-transform problem.
-    // _navRoot scopes nav INTO these when they're open; when closed their
+    // Exclude closed slide-out panels — same off-screen-transform problem as VK.
+    // _navRoot scopes nav INTO these when they're open; when closed, their
     // elements must not bleed into the main-tab nav list.
-    for (const pid of ['inlineChatSheet','chatPanel','editPanel','matchProfilePanel','detailPanel']) {
+    // To register a new slide-out panel: add its element ID to _SLIDE_PANELS.
+    for (const pid of _SLIDE_PANELS) {
       const p = document.getElementById(pid);
       if (p && !p.classList.contains('open') && p.contains(el)) return;
     }
@@ -3274,11 +3293,12 @@ function _navList() {
     // Exception: known full-row clickables — the row itself is the primary navigation target
     // even when it contains a child button.
     const native = /^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
+    // Conv-item rows and all registered grid-card types are full-row clickables:
+    // the outer div is the nav target even if it wraps a child button/link.
     const isFullRowClickable = el.classList.contains('conv-item') ||
                                el.classList.contains('msg-match-wrap') ||
                                el.classList.contains('msg-likes-wrap') ||
-                               el.classList.contains('nearby-card') ||
-                               el.classList.contains('match-card');
+                               _GRID_CARD_CLASSES.some(c => el.classList.contains(c));
     if (!native && !isFullRowClickable && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
       if (el.querySelector('button,a[href],input,select,textarea,[onclick],[tabindex]:not([tabindex="-1"])')) return;
     }
@@ -3367,8 +3387,9 @@ function _navMove(dir) {
   const curIsConvItem   = cur.classList.contains('conv-item') ||
                           cur.classList.contains('msg-match-wrap') ||
                           cur.classList.contains('msg-likes-wrap');
-  const curIsNearbyCard = cur.classList.contains('nearby-card');
-  const curIsMatchCard  = cur.classList.contains('match-card');
+  // Generic grid-card detection — matches whichever class is registered in _GRID_CARD_CLASSES
+  const curGridCardClass = _GRID_CARD_CLASSES.find(c => cur.classList.contains(c)) || null;
+
   const cards       = els.filter(e => e.classList.contains('disc-card'));
   const chips       = els.filter(e => e.classList.contains('filter-chip'));
   const navBtns     = els.filter(e => e.closest('.bottom-nav'));
@@ -3376,8 +3397,11 @@ function _navMove(dir) {
   const convItems   = els.filter(e => e.classList.contains('conv-item') ||
                                       e.classList.contains('msg-match-wrap') ||
                                       e.classList.contains('msg-likes-wrap'));
-  const nearbyCards = els.filter(e => e.classList.contains('nearby-card'));
-  const matchCards  = els.filter(e => e.classList.contains('match-card'));
+  // Pool for the specific grid-card type the user is currently on
+  const gridCards   = curGridCardClass
+    ? els.filter(e => e.classList.contains(curGridCardClass)) : [];
+  // Combined pool of all registered grid-card types — used by nav-bar UP/DOWN fallback
+  const allGridCards = els.filter(e => _GRID_CARD_CLASSES.some(c => e.classList.contains(c)));
 
   let best = null;
 
@@ -3410,20 +3434,18 @@ function _navMove(dir) {
           : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
       }
     } else if (dir === 'up') {
-      // Return to last card / nearby-card / match-card / conv-item (wherever user came from)
-      best = cards.length        ? cards[cards.length - 1]
-           : nearbyCards.length  ? nearbyCards[nearbyCards.length - 1]
-           : matchCards.length   ? matchCards[matchCards.length - 1]
-           : convItems.length    ? convItems[convItems.length - 1]
-           : chips.length        ? chips[chips.length - 1]
+      // Return to last content item (wherever user came from)
+      best = cards.length          ? cards[cards.length - 1]
+           : allGridCards.length   ? allGridCards[allGridCards.length - 1]
+           : convItems.length      ? convItems[convItems.length - 1]
+           : chips.length          ? chips[chips.length - 1]
            : _find(nonNav);
     } else {
-      // DOWN from nav bar — wrap to top of content
-      best = chips.length        ? chips[0]
-           : cards.length        ? cards[0]
-           : nearbyCards.length  ? nearbyCards[0]
-           : matchCards.length   ? matchCards[0]
-           : convItems.length    ? convItems[0]
+      // DOWN from nav bar — jump to top of content
+      best = chips.length          ? chips[0]
+           : cards.length          ? cards[0]
+           : allGridCards.length   ? allGridCards[0]
+           : convItems.length      ? convItems[0]
            : nonNav[0] || null;
     }
 
@@ -3454,53 +3476,24 @@ function _navMove(dir) {
       }
     }
 
-  } else if (curIsNearbyCard) {
-    // ── EXPLORE GRID ZONE ─────────────────────────────────────────────────
-    // Navigate within nearby-cards. Grid is 2-col so spatial _find() handles
-    // left/right/up/down correctly. At edges, drop to nav or rise to header.
+  } else if (curGridCardClass) {
+    // ── GENERIC GRID ZONE ────────────────────────────────────────────────────
+    // Handles ALL registered grid/list card types (see _GRID_CARD_CLASSES constant).
+    // Spatial _find() handles 2-col grids correctly for all four directions.
+    // To add a new card type: add its CSS class to _GRID_CARD_CLASSES — done.
     if (dir === 'up' || dir === 'down') {
-      best = _find(nearbyCards);
+      best = _find(gridCards);
       if (!best && dir === 'down') {
-        // No card below — land on the active nav tab
-        const activeNav = navBtns.find(e => e.classList.contains('active')) || navBtns[0];
-        best = activeNav || null;
+        // Bottom edge — drop to the active nav tab so user is never stranded
+        best = navBtns.find(e => e.classList.contains('active')) || navBtns[0] || null;
       }
       if (!best && dir === 'up') {
-        // No card above — rise to the view-toggle or nearby-header area
-        best = _find(nonNav.filter(e => !e.classList.contains('nearby-card')));
+        // Top edge — rise to any header/toggle above the cards
+        best = _find(nonNav.filter(e => !e.classList.contains(curGridCardClass)));
       }
     } else {
-      // LEFT / RIGHT — prefer other nearby-cards (move across grid columns).
-      // If nothing found (edge of grid), cycle nav tabs so user can switch sections.
-      best = _find(nearbyCards);
-      if (!best && navBtns.length) {
-        const activeNav = navBtns.find(e => e.classList.contains('active'));
-        const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
-        best = dir === 'right'
-          ? navBtns[(idx + 1) % navBtns.length]
-          : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
-      }
-    }
-
-  } else if (curIsMatchCard) {
-    // ── MATCHES GRID ZONE ────────────────────────────────────────────────────
-    // Navigate within match-cards. Grid is 2-col so spatial _find() handles
-    // up/down/left/right correctly. At edge, drop to nav or rise to header.
-    if (dir === 'up' || dir === 'down') {
-      best = _find(matchCards);
-      if (!best && dir === 'down') {
-        // No card below — land on the active nav tab
-        const activeNav = navBtns.find(e => e.classList.contains('active')) || navBtns[0];
-        best = activeNav || null;
-      }
-      if (!best && dir === 'up') {
-        // No card above — rise to view-toggle / liked-me section controls
-        best = _find(nonNav.filter(e => !e.classList.contains('match-card')));
-      }
-    } else {
-      // LEFT / RIGHT — prefer other match-cards (move across grid columns).
-      // If at edge, cycle nav tabs so user can switch sections.
-      best = _find(matchCards);
+      // LEFT / RIGHT — stay within the grid; at horizontal edge cycle nav tabs
+      best = _find(gridCards);
       if (!best && navBtns.length) {
         const activeNav = navBtns.find(e => e.classList.contains('active'));
         const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
@@ -3534,10 +3527,18 @@ function _navMove(dir) {
     }
 
   } else {
-    // General navigation: prefer non-bottom-nav first so the bar is a last resort.
+    // ── GENERAL NAVIGATION ────────────────────────────────────────────────────
+    // Prefer non-nav content so the bar is a last resort for spatial moves.
     best = _find(nonNav);
-    if (!best) best = _find(els);          // nothing outside nav — try everything
-    if (!best) {                           // hard wrap at absolute edges
+    // At content bottom edge: drop to nav bar instead of hard-wrapping to the
+    // opposite end of the page (what caused "user stuck" bugs on every new tab).
+    // This universal fallback means any future tab gets correct edge behaviour
+    // without needing its own zone in _navMove.
+    if (!best && dir === 'down') {
+      best = navBtns.find(e => e.classList.contains('active')) || navBtns[0] || null;
+    }
+    if (!best) best = _find(els);         // nothing in content — search everywhere
+    if (!best) {                          // absolute last resort: no nav buttons exist
       best = (dir === 'down' || dir === 'right') ? els[0] : els[els.length - 1];
     }
   }
