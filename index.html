@@ -2295,6 +2295,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <button class="detail-pass" onclick="passFromDetail()">✕ Pass</button>
           <button class="detail-like" onclick="likeFromDetail()">♥ Like</button>
         </div>
+        <button onclick="closeDetail()" style="display:block;width:100%;margin-top:0.5rem;background:none;border:none;color:var(--text-muted);font-size:0.82rem;cursor:pointer;padding:0.25rem 0;touch-action:manipulation" aria-label="Go back">← Back</button>
       </div>
     </div>
 
@@ -2341,10 +2342,12 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
          info on small screens (glasses). User scrolls to the bottom
          to reveal and tap the button. -->
     <div class="panel" id="matchProfilePanel">
+      <!-- Fixed close button: always visible regardless of scroll position -->
+      <button onclick="closeMatchProfile()" aria-label="Back" style="position:absolute;top:0.9rem;left:0.9rem;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;backdrop-filter:blur(4px);z-index:20;touch-action:manipulation">←</button>
       <div class="match-profile-scroll" id="matchProfileScroll">
         <div class="match-profile-photos" id="matchProfilePhotos">
           <img class="match-profile-photo-img" id="matchProfileImg" src="" alt="">
-          <button class="match-profile-back" onclick="closeMatchProfile()">←</button>
+          <!-- back button is now fixed outside scroll — see parent panel -->
           <div class="match-profile-photo-dots" id="matchProfileDots"></div>
           <button class="match-profile-arrow prev" id="matchProfilePrev" onclick="matchProfileNav(-1)" style="display:none">‹</button>
           <button class="match-profile-arrow next" id="matchProfileNext" onclick="matchProfileNav(1)" style="display:none">›</button>
@@ -3563,6 +3566,7 @@ function _navBack() {
   if (document.getElementById('detailPanel')?.classList.contains('open')){ closeDetail(); return true; }
   if (document.getElementById('matchProfilePanel')?.classList.contains('open')) { document.getElementById('matchProfilePanel').classList.remove('open'); _navRefresh(); return true; }
   if (document.getElementById('privacySheet')?.classList.contains('open')){ closePrivacyPanel(); return true; }
+  if (document.getElementById('voiceHelpOverlay')?.style.display === 'flex') { toggleVoiceHelp(false); return true; }
   return false;
 }
 function _navFocus() {           // land focus on the first element in context
