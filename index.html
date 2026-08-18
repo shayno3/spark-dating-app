@@ -3235,7 +3235,7 @@ const _SLIDE_PANELS = [
 /* Grid/list card CSS classes that act as full-row nav targets.
    Adding a new card type here is the ONLY change needed to register it
    in _navList (container-filter bypass) and _navMove (generic grid zone). */
-const _GRID_CARD_CLASSES = ['nearby-card', 'match-card'];
+const _GRID_CARD_CLASSES = ['nearby-card', 'match-card', 'liked-me-card'];
 
 /* Which container the D-pad should navigate right now (most specific first) */
 function _navRoot() {
@@ -3296,6 +3296,8 @@ function _navList() {
     // The img and like-btn inside each card are redundant for glasses nav (card onclick covers both).
     if (el.classList.contains('nearby-card-img')) return;
     if (el.classList.contains('nearby-like-btn')) return;
+    // Skip liked-me-like-btn — liked-me-card is the full-row nav target (opens profile to review first).
+    if (el.classList.contains('liked-me-like-btn')) return;
     // container-style clickables: skip if they wrap another interactive (pick the inner one).
     // Exception: known full-row clickables — the row itself is the primary navigation target
     // even when it contains a child button.
@@ -3305,6 +3307,7 @@ function _navList() {
     const isFullRowClickable = el.classList.contains('conv-item') ||
                                el.classList.contains('msg-match-wrap') ||
                                el.classList.contains('msg-likes-wrap') ||
+                               el.classList.contains('liked-me-card') ||
                                _GRID_CARD_CLASSES.some(c => el.classList.contains(c));
     if (!native && !isFullRowClickable && (typeof el.onclick === 'function' || el.hasAttribute('onclick'))) {
       if (el.querySelector('button,a[href],input,select,textarea,[onclick],[tabindex]:not([tabindex="-1"])')) return;
@@ -3395,6 +3398,8 @@ function _navMove(dir) {
                           cur.classList.contains('msg-match-wrap') ||
                           cur.classList.contains('msg-likes-wrap');
   const curIsMatchWrap  = cur.classList.contains('msg-match-wrap');
+  const curIsLikesWrap  = cur.classList.contains('msg-likes-wrap');
+  const curIsRadiusStepper = cur.classList.contains('age-step-btn');
   // Generic grid-card detection — matches whichever class is registered in _GRID_CARD_CLASSES
   const curGridCardClass = _GRID_CARD_CLASSES.find(c => cur.classList.contains(c)) || null;
 
@@ -3405,7 +3410,8 @@ function _navMove(dir) {
   const convItems   = els.filter(e => e.classList.contains('conv-item') ||
                                       e.classList.contains('msg-match-wrap') ||
                                       e.classList.contains('msg-likes-wrap'));
-  const matchWraps  = els.filter(e => e.classList.contains('msg-match-wrap'));
+  // Combined horizontal row: Likes bubble + match avatars navigate as one unit
+  const allMatchRowItems = els.filter(e => e.classList.contains('msg-match-wrap') || e.classList.contains('msg-likes-wrap'));
   // Pool for the specific grid-card type the user is currently on
   const gridCards   = curGridCardClass
     ? els.filter(e => e.classList.contains(curGridCardClass)) : [];
@@ -3424,8 +3430,9 @@ function _navMove(dir) {
       best = activeNav || null;
     }
     if (!best && dir === 'up') {
-      // No card above — rise to last filter chip or any non-nav element above
-      best = chips.length ? chips[chips.length - 1] : _find(nonNav);
+      // No card above — try radius bar steppers first, then rise to last filter chip
+      const stepBtns = els.filter(e => e.classList.contains('age-step-btn'));
+      best = _find(stepBtns) || (chips.length ? chips[chips.length - 1] : _find(nonNav));
     }
 
   } else if (curIsNav) {
@@ -3462,9 +3469,9 @@ function _navMove(dir) {
     // ── CONVERSATION LIST ZONE ────────────────────────────────────────────
     // msg-match-wrap (NEW MATCHES row) gets its own LEFT/RIGHT handler so the
     // user can swipe between match avatars horizontally before leaving the row.
-    if (curIsMatchWrap && (dir === 'left' || dir === 'right')) {
-      // Navigate within the horizontal NEW MATCHES avatar row
-      best = _find(matchWraps);
+    if ((curIsMatchWrap || curIsLikesWrap) && (dir === 'left' || dir === 'right')) {
+      // Navigate within the horizontal NEW MATCHES row (Likes bubble + match avatars)
+      best = _find(allMatchRowItems);
       if (!best && navBtns.length) {
         // At edge of row — fall through to nav tabs
         const activeNav = navBtns.find(e => e.classList.contains('active'));
@@ -3491,8 +3498,8 @@ function _navMove(dir) {
         best = activeNav || null;
       }
       if (!best && dir === 'up') {
-        // Top of list — nothing above; stay put (already at top)
-        best = null;
+        // Top of list — try header elements above (e.g., view toggle button)
+        best = _find(nonNav.filter(e => !convItems.includes(e)));
       }
     } else {
       // LEFT / RIGHT on conversation rows — cycle nav tabs so user can switch sections
@@ -3533,14 +3540,40 @@ function _navMove(dir) {
       }
     }
 
+  } else if (curIsRadiusStepper) {
+    // ── RADIUS BAR ZONE ──────────────────────────────────────────────────────
+    // Sits between filter chips (above) and card stack (below).
+    // LEFT / RIGHT → navigate between the − and + step buttons in the radius bar.
+    // UP           → return to last filter chip.
+    // DOWN         → jump to first disc-card (or first grid card).
+    const stepBtns = els.filter(e => e.classList.contains('age-step-btn'));
+    if (dir === 'left' || dir === 'right') {
+      best = _find(stepBtns);
+      if (!best && stepBtns.length) {
+        const idx = stepBtns.indexOf(cur);
+        best = dir === 'right'
+          ? stepBtns[(idx + 1) % stepBtns.length]
+          : stepBtns[(idx - 1 + stepBtns.length) % stepBtns.length];
+      }
+    } else if (dir === 'up') {
+      best = chips.length ? chips[chips.length - 1] : _find(nonNav);
+    } else {
+      best = cards[0] || allGridCards[0] || navBtns.find(e => e.classList.contains('active')) || navBtns[0] || null;
+    }
+
   } else if (curIsChip && (dir === 'up' || dir === 'down')) {
-    // Chip zone — vertical: jump straight to first/last card.
-    // If no cards, fall through to nav as last resort so user is never trapped.
+    // Chip zone — vertical.
+    // DOWN: radius bar → first card (radius bar sits between chips and cards)
+    // UP: view-toggle header button above chips, then fall back to last card as circular wrap
+    const midNonNav = nonNav.filter(e => !e.classList.contains('filter-chip') && !e.classList.contains('disc-card') && !e.classList.contains('age-step-btn'));
+    const stepBtns  = els.filter(e => e.classList.contains('age-step-btn'));
     if (dir === 'down') {
-      best = cards[0] || _find(nonNav);
+      // Step through: radius steppers (if visible) → first card
+      best = _find(stepBtns) || cards[0] || _find(nonNav);
       if (!best) best = navBtns[0] || null;
     } else {
-      best = cards[cards.length - 1] || _find(nonNav);
+      // Step through: header toggle above chips → last card as circular wrap
+      best = _find(midNonNav) || cards[cards.length - 1] || _find(nonNav);
       if (!best) best = navBtns[0] || null;
     }
 
@@ -6098,13 +6131,14 @@ function renderLikedMe() {
     const photo = u.photos?.[0] || avatar(u.name || '?');
     const card  = document.createElement('div');
     card.className = 'liked-me-card';
+    // Card itself opens the profile so glasses D-pad users can review before liking back
+    card.setAttribute('onclick', `openDetail('${u.uid}')`);
     card.innerHTML = `
       ${u.action === 'super' ? '<div class="liked-me-super-badge">⭐</div>' : ''}
       <img src="${photo}" alt="${u.name}" onerror="this.src='${avatar(u.name||'?')}'">
       <div class="liked-me-card-name">${u.name || '?'}</div>
       <div class="liked-me-card-age">${u.age ? u.age + ' yrs' : ''}</div>
-      <button class="liked-me-like-btn" onclick="likeBack('${u.uid}',this)">Like Back ♥</button>`;
-    card.querySelector('img').addEventListener('click', () => openDetail(u.uid));
+      <button class="liked-me-like-btn" onclick="event.stopPropagation();likeBack('${u.uid}',this)">Like Back ♥</button>`;
     row.appendChild(card);
   });
 }
