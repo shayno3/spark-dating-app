@@ -3394,6 +3394,7 @@ function _navMove(dir) {
   const curIsConvItem   = cur.classList.contains('conv-item') ||
                           cur.classList.contains('msg-match-wrap') ||
                           cur.classList.contains('msg-likes-wrap');
+  const curIsMatchWrap  = cur.classList.contains('msg-match-wrap');
   // Generic grid-card detection — matches whichever class is registered in _GRID_CARD_CLASSES
   const curGridCardClass = _GRID_CARD_CLASSES.find(c => cur.classList.contains(c)) || null;
 
@@ -3404,6 +3405,7 @@ function _navMove(dir) {
   const convItems   = els.filter(e => e.classList.contains('conv-item') ||
                                       e.classList.contains('msg-match-wrap') ||
                                       e.classList.contains('msg-likes-wrap'));
+  const matchWraps  = els.filter(e => e.classList.contains('msg-match-wrap'));
   // Pool for the specific grid-card type the user is currently on
   const gridCards   = curGridCardClass
     ? els.filter(e => e.classList.contains(curGridCardClass)) : [];
@@ -3458,9 +3460,30 @@ function _navMove(dir) {
 
   } else if (curIsConvItem) {
     // ── CONVERSATION LIST ZONE ────────────────────────────────────────────
-    // UP / DOWN  → navigate through conv-items; fall to nav bar at bottom edge.
-    // LEFT / RIGHT → move to adjacent nav tab (same as being on nav bar).
-    if (dir === 'up' || dir === 'down') {
+    // msg-match-wrap (NEW MATCHES row) gets its own LEFT/RIGHT handler so the
+    // user can swipe between match avatars horizontally before leaving the row.
+    if (curIsMatchWrap && (dir === 'left' || dir === 'right')) {
+      // Navigate within the horizontal NEW MATCHES avatar row
+      best = _find(matchWraps);
+      if (!best && navBtns.length) {
+        // At edge of row — fall through to nav tabs
+        const activeNav = navBtns.find(e => e.classList.contains('active'));
+        const idx = activeNav ? navBtns.indexOf(activeNav) : 0;
+        best = dir === 'right'
+          ? navBtns[(idx + 1) % navBtns.length]
+          : navBtns[(idx - 1 + navBtns.length) % navBtns.length];
+      }
+    } else if (curIsMatchWrap && (dir === 'up' || dir === 'down')) {
+      // UP from match row — nothing above, stay put
+      // DOWN from match row — move to first conv-item below
+      if (dir === 'down') {
+        const convRows = els.filter(e => e.classList.contains('conv-item'));
+        best = convRows[0] || navBtns.find(e => e.classList.contains('active')) || navBtns[0] || null;
+      } else {
+        best = null;
+      }
+    } else if (dir === 'up' || dir === 'down') {
+      // UP / DOWN  → navigate through conv-items; fall to nav bar at bottom edge.
       best = _find(convItems);
       if (!best && dir === 'down') {
         // Bottom of list — land on active nav tab
