@@ -36,8 +36,8 @@ const stripeSecretKey     = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 const openAiKey           = defineSecret('OPENAI_API_KEY');
 
-// Live Stripe Price ID — Spark Premium $9.99/month
-const STRIPE_PRICE_ID = 'price_1TxarFDFkYr4mQ8S5pJ9B1rP';
+// TEST Stripe Price ID — Spark Premium $9.99/month (test mode)
+const STRIPE_PRICE_ID = 'price_1TxTYKDFkYr4mQ8SAyC7K2Yl';
 
 // App URL for Stripe return redirects
 const APP_URL = 'https://smartsparks.app';
@@ -178,7 +178,10 @@ exports.createCheckoutSession = onCall(
 
       const Stripe = require('stripe');
       const keyVal = stripeSecretKey.value();
-      if (!keyVal) throw new HttpsError('internal', 'Stripe secret key is not configured.', 'Stripe secret key is not configured.');
+      if (!keyVal || !keyVal.startsWith('sk_')) {
+        console.error('createCheckoutSession: STRIPE_SECRET_KEY is missing or invalid (must start with sk_test_ or sk_live_)');
+        throw new HttpsError('internal', 'Payment service is not configured. Please contact support.', 'Payment service is not configured. Please contact support.');
+      }
       const stripe = new Stripe(keyVal);
 
       // Look up the user's Stripe customer ID, or create one.
@@ -208,10 +211,14 @@ exports.createCheckoutSession = onCall(
     } catch (err) {
       // Re-throw HttpsErrors (unauthenticated, our own internal, etc.) as-is
       if (err instanceof require('firebase-functions/v2/https').HttpsError) throw err;
-      const msg = err?.raw?.message || err?.message || 'Unable to start checkout. Please try again.';
-      console.error('createCheckoutSession error:', JSON.stringify({ msg, type: err?.type, code: err?.statusCode }));
-      // Pass msg as details (3rd arg) so client can always read it via e.details
-      throw new HttpsError('internal', msg, msg);
+      const rawMsg = err?.raw?.message || err?.message || 'Unable to start checkout. Please try again.';
+      console.error('createCheckoutSession error:', JSON.stringify({ msg: rawMsg, type: err?.type, code: err?.statusCode }));
+      // Never expose raw Stripe API key errors to users — sanitize the user-facing message
+      const isAuthErr = err?.type === 'StripeAuthenticationError' || rawMsg.toLowerCase().includes('api key');
+      const userMsg = isAuthErr
+        ? 'Payment service is not configured. Please contact support.'
+        : 'Checkout unavailable — please try again or contact support.';
+      throw new HttpsError('internal', userMsg, userMsg);
     }
   }
 );
@@ -232,7 +239,10 @@ exports.createPortalSession = onCall(
 
       const Stripe = require('stripe');
       const keyVal = stripeSecretKey.value();
-      if (!keyVal) throw new HttpsError('internal', 'Stripe secret key is not configured.', 'Stripe secret key is not configured.');
+      if (!keyVal || !keyVal.startsWith('sk_')) {
+        console.error('createPortalSession: STRIPE_SECRET_KEY is missing or invalid (must start with sk_test_ or sk_live_)');
+        throw new HttpsError('internal', 'Payment service is not configured. Please contact support.', 'Payment service is not configured. Please contact support.');
+      }
       const stripe = new Stripe(keyVal);
 
       const userSnap = await db.collection('users').doc(uid).get();
@@ -248,9 +258,14 @@ exports.createPortalSession = onCall(
     } catch (err) {
       // Re-throw HttpsErrors as-is
       if (err instanceof require('firebase-functions/v2/https').HttpsError) throw err;
-      const msg = err?.raw?.message || err?.message || 'Unable to open billing portal. Please try again.';
-      console.error('createPortalSession error:', JSON.stringify({ msg, type: err?.type, code: err?.statusCode }));
-      throw new HttpsError('internal', msg, msg);
+      const rawMsg = err?.raw?.message || err?.message || 'Unable to open billing portal. Please try again.';
+      console.error('createPortalSession error:', JSON.stringify({ msg: rawMsg, type: err?.type, code: err?.statusCode }));
+      // Never expose raw Stripe API key errors to users
+      const isAuthErr = err?.type === 'StripeAuthenticationError' || rawMsg.toLowerCase().includes('api key');
+      const userMsg = isAuthErr
+        ? 'Payment service is not configured. Please contact support.'
+        : 'Unable to open billing portal — please try again or contact support.';
+      throw new HttpsError('internal', userMsg, userMsg);
     }
   }
 );
