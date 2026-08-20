@@ -37,7 +37,7 @@ const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 const openAiKey           = defineSecret('OPENAI_API_KEY');
 
 // TEST Stripe Price ID — Spark Premium $9.99/month (test mode)
-const STRIPE_PRICE_ID = 'price_1TxTYKDFkYr4mQ8SAyC7K2Yl';
+const STRIPE_PRICE_ID = 'price_1TxarFDFkYr4mQ8S5pJ9B1rP';
 
 // App URL for Stripe return redirects
 const APP_URL = 'https://smartsparks.app';
