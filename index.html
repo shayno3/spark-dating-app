@@ -3272,7 +3272,7 @@ function _navRoot() {
   if (modeSheet && modeSheet.classList.contains('open')) return modeSheet;
   const privacy = document.getElementById('privacySheet');
   if (privacy && privacy.classList.contains('open')) return privacy.querySelector('.privacy-sheet-card') || privacy;
-  for (const id of ['inlineChatSheet', 'chatPanel', 'editPanel', 'matchProfilePanel', 'detailPanel']) {
+  for (const id of ['inlineChatSheet', 'matchProfilePanel', 'chatPanel', 'editPanel', 'detailPanel']) {
     const p = document.getElementById(id);
     if (p && p.classList.contains('open')) return p;
   }
