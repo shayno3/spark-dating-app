@@ -612,6 +612,9 @@ html, body {
    bottom nav bar (which lives outside .content-area and would otherwise bleed through) */
 .panel { display: none; flex-direction: column; position: fixed; inset: 0; background: var(--bg); z-index: 250; }
 .panel.open { display: flex; }
+/* Hide nav when full-screen chat panel is open — prevents nav from overlapping the input bar on mobile (iOS z-index bleed) */
+body:has(#chatPanel.open) .bottom-nav,
+body:has(#inlineChatPanel.open) .bottom-nav { display: none; }
 
 /* ---- INLINE CHAT SHEET (slides up from bottom on Matches tab) ---- */
 /* Full-screen so the background never bleeds through on glasses (or any screen).
