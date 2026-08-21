@@ -6323,6 +6323,7 @@ function upgradeToPremium() {
       }
       <button onclick="document.getElementById('premiumModal').remove()" style="width:100%;margin-top:1rem;background:none;border:1.5px solid rgba(255,255,255,0.15);color:var(--text-muted);border-radius:12px;padding:0.65rem;font-size:0.9rem;cursor:pointer;touch-action:manipulation">✕ Close</button>
     </div>`;
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
 }
 
