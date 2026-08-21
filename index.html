@@ -3541,19 +3541,27 @@ function _navMove(dir) {
     }
 
   } else if (curIsRadiusStepper) {
-    // ── RADIUS BAR ZONE ──────────────────────────────────────────────────────
-    // Sits between filter chips (above) and card stack (below).
-    // LEFT / RIGHT → navigate between the − and + step buttons in the radius bar.
-    // UP           → return to last filter chip.
-    // DOWN         → jump to first disc-card (or first grid card).
+    // ── RADIUS BAR / AGE PREFERENCE ZONE ─────────────────────────────────────
+    // age-step-btn is used in two contexts:
+    //   1. Discovery filter radius bar (between chips and card stack)
+    //   2. Age Preference steppers inside the Edit Profile panel
+    // When inside editPanel, use general form navigation instead of jumping to cards.
+    const inEditPanel = !!cur.closest('#editPanel');
     const stepBtns = els.filter(e => e.classList.contains('age-step-btn'));
     if (dir === 'left' || dir === 'right') {
+      // LEFT/RIGHT: navigate between stepper buttons in both contexts
       best = _find(stepBtns);
       if (!best && stepBtns.length) {
         const idx = stepBtns.indexOf(cur);
         best = dir === 'right'
           ? stepBtns[(idx + 1) % stepBtns.length]
           : stepBtns[(idx - 1 + stepBtns.length) % stepBtns.length];
+      }
+    } else if (inEditPanel) {
+      // Inside edit profile: UP/DOWN moves to adjacent form elements
+      best = _find(nonNav);
+      if (!best && dir === 'down') {
+        best = navBtns.find(e => e.classList.contains('active')) || navBtns[0] || null;
       }
     } else if (dir === 'up') {
       best = chips.length ? chips[chips.length - 1] : _find(nonNav);
