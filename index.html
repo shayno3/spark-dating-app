@@ -1252,12 +1252,20 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   .panel-header { padding-top: 0.85rem; }
   /* Fix 1+2: keep all panels within the 480px app frame on desktop.
      position:absolute children (e.g. matchProfile close btn) stay in-frame too. */
-  .panel, .inline-chat-sheet {
+  .panel {
     left: 50%;
     right: auto;
     transform: translateX(-50%);
     width: 100%;
     max-width: 480px;
+  }
+  /* inline-chat-sheet uses transform for slide-up animation — center via left+width
+     so the slide transform is NOT overridden and the sheet hides correctly when closed */
+  .inline-chat-sheet {
+    left: calc(50% - 240px);
+    right: auto;
+    width: 480px;
+    max-width: 100%;
   }
 }
 
@@ -5021,6 +5029,7 @@ function showTab(tab) {
   closeEditProfile();
   closeDetail();
   closeChat();
+  closeInlineChat();
 
   // Defer content renders so the browser paints the tab switch first (feels instant)
   requestAnimationFrame(() => {
