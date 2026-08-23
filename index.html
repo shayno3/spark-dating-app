@@ -3272,7 +3272,7 @@ function _navRoot() {
   if (modeSheet && modeSheet.classList.contains('open')) return modeSheet;
   const privacy = document.getElementById('privacySheet');
   if (privacy && privacy.classList.contains('open')) return privacy.querySelector('.privacy-sheet-card') || privacy;
-  for (const id of ['inlineChatSheet', 'matchProfilePanel', 'chatPanel', 'editPanel', 'detailPanel']) {
+  for (const id of ['inlineChatSheet', 'matchProfilePanel', 'chatPanel', 'editPanel', 'detailPanel', 'adminDetailPanel']) {
     const p = document.getElementById(id);
     if (p && p.classList.contains('open')) return p;
   }
@@ -4821,11 +4821,13 @@ async function openAdminUser(uid) {
   `;
 
   panel.classList.add('open');
+  _navRefresh();
 }
 
 function closeAdminDetail(e) {
   if (e && e.target !== document.getElementById('adminDetailPanel')) return;
   document.getElementById('adminDetailPanel')?.classList.remove('open');
+  _navRefresh();
 }
 
 let _adminComposeUid = null;
