@@ -93,8 +93,12 @@ service cloud.firestore {
     // #6: Split read → get/list: block list enumeration, allow targeted get only.
     // #7: Delete restricted to the account owner (matched via auth token email).
     // #8: Create restricted to the account owner (email in new doc must match auth token).
+    // #9: 30-day TTL — codes older than 30 days are rejected at the rules layer.
+    //     Codes written before TTL was added (no createdAt field) are still allowed
+    //     so existing paired glasses aren't broken on deploy.
     match /glassPair/{code} {
-      allow get:    if true;                           // glasses fetch a specific code pre-auth
+      allow get:    if !('createdAt' in resource.data)
+                    || request.time < resource.data.createdAt + duration.value(30, 'd'); // #9
       allow list:   if false;                          // block enumeration of all codes (#6)
       // Owner creates their own pairing record — email in doc must match their auth email
       allow create: if request.auth != null

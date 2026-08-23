@@ -3046,7 +3046,11 @@ function _genCode() {
 async function _storeGlassPair(code, email, pin, password) {
   if (!db || !email || !password) return;
   const rec = await _encryptPw(pin, password);
-  const payload = { email: email.trim().toLowerCase(), ...rec };
+  const payload = {
+    email: email.trim().toLowerCase(),
+    ...rec,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
   await db.collection('glassPair').doc(code).set(payload);
 }
 
@@ -3210,6 +3214,13 @@ function glassContinue() {
   if (typeof VK !== 'undefined' && VK.open) closeVK();
   PIN.mode = 'glasscode'; PIN.email = null; PIN.rec = null;
   _pinShow('Glasses Code', 'Tap the 6-digit code from your phone', 'Back');
+  // Add cache-clear hint: localStorage is cleared by browser updates / private mode
+  const sub = document.getElementById('pinSub');
+  if (sub) sub.innerHTML =
+    'Tap the 6-digit code from your phone' +
+    '<br><span style="font-size:0.74em;opacity:0.62;line-height:1.4;display:inline-block;margin-top:0.35rem">' +
+    'Had your PIN before? A browser update may have cleared it — enter your Glasses Code to re-link.' +
+    '</span>';
 }
 
 /* One-time offer after entering the app (on the phone) */
