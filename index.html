@@ -2021,7 +2021,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <!-- GEAR PRIVACY SHEET -->
-  <div id="privacySheet" class="privacy-sheet">
+  <div id="privacySheet" class="privacy-sheet" data-nav-panel data-nav-panel-inner=".privacy-sheet-card">
     <div class="privacy-sheet-backdrop" onclick="closePrivacyPanel()"></div>
     <div class="privacy-sheet-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
@@ -2238,7 +2238,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── ADMIN USER DETAIL PANEL (slide-up sheet) ── -->
-    <div class="admin-detail-panel" id="adminDetailPanel" onclick="closeAdminDetail(event)">
+    <div class="admin-detail-panel" id="adminDetailPanel" data-nav-panel onclick="closeAdminDetail(event)">
       <div class="admin-detail-sheet" id="adminDetailSheet">
         <div class="admin-detail-drag"></div>
         <div class="admin-detail-header" id="adminDetailHeader">
@@ -2255,7 +2255,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── CHAT PANEL ── -->
-    <div class="panel" id="chatPanel">
+    <div class="panel" id="chatPanel" data-nav-panel>
       <div class="panel-header">
         <button class="back-btn" onclick="closeChat()">←</button>
         <img class="chat-av" id="chatAv" src="" alt="">
@@ -2293,7 +2293,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── PROFILE DETAIL PANEL ── -->
-    <div class="panel" id="detailPanel">
+    <div class="panel" id="detailPanel" data-nav-panel>
       <div class="detail-scroll">
         <div class="detail-photos" id="detailPhotoWrap">
           <img class="detail-photo-img" id="detailPhoto" src="" alt="" onclick="openPhotoFull(this.src)">
@@ -2320,7 +2320,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── EDIT PROFILE PANEL ── -->
-    <div class="panel" id="editPanel" style="overflow-y:auto">
+    <div class="panel" id="editPanel" data-nav-panel style="overflow-y:auto">
       <div class="edit-header">
         <button class="back-btn" onclick="closeEditProfile()">←</button>
         <h2>Edit Profile</h2>
@@ -2330,7 +2330,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
 
     <!-- ── INLINE CHAT SHEET (Matches tab — slides up, no tab switch) ── -->
-    <div class="inline-chat-sheet" id="inlineChatSheet">
+    <div class="inline-chat-sheet" id="inlineChatSheet" data-nav-panel>
       <div class="inline-chat-drag"></div>
       <div class="panel-header">
         <button class="back-btn" onclick="closeInlineChat()" style="font-size:1.1rem">✕</button>
@@ -2361,7 +2361,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
          This prevents the Send Message button from floating over profile
          info on small screens (glasses). User scrolls to the bottom
          to reveal and tap the button. -->
-    <div class="panel" id="matchProfilePanel">
+    <div class="panel" id="matchProfilePanel" data-nav-panel>
       <!-- Fixed close button: always visible regardless of scroll position -->
       <button onclick="closeMatchProfile()" aria-label="Back" style="position:absolute;top:0.9rem;left:0.9rem;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;backdrop-filter:blur(4px);z-index:20;touch-action:manipulation">←</button>
       <div class="match-profile-scroll" id="matchProfileScroll">
@@ -2451,7 +2451,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <!-- Mode Selector Bottom Sheet -->
-  <div class="bottom-sheet-overlay" id="modeSheetOverlay" onclick="closeModeSelector(event)">
+  <div class="bottom-sheet-overlay" id="modeSheetOverlay" data-nav-panel onclick="closeModeSelector(event)">
     <div class="bottom-sheet" id="modeSheet">
       <div class="sheet-handle"></div>
       <div class="sheet-title">🎛️ Input Modes</div>
@@ -3267,14 +3267,15 @@ function _navRoot() {
   // Overlay modals that sit above open panels — must be checked before panel loop
   const rbModal = document.getElementById('reportBlockModal');
   if (rbModal) return rbModal;
-  // Scope nav to whichever panel/sheet is open so elements behind it don't get highlighted
-  const modeSheet = document.getElementById('modeSheetOverlay');
-  if (modeSheet && modeSheet.classList.contains('open')) return modeSheet;
-  const privacy = document.getElementById('privacySheet');
-  if (privacy && privacy.classList.contains('open')) return privacy.querySelector('.privacy-sheet-card') || privacy;
-  for (const id of ['inlineChatSheet', 'matchProfilePanel', 'chatPanel', 'editPanel', 'detailPanel', 'adminDetailPanel']) {
-    const p = document.getElementById(id);
-    if (p && p.classList.contains('open')) return p;
+  // Auto-detect the frontmost open nav panel.
+  // Any panel/sheet that should capture glasses nav focus must have data-nav-panel on its root element.
+  // Use data-nav-panel-inner=".selector" to scope nav to an inner card instead of the full overlay.
+  // Last in DOM order = visually frontmost (later elements win stacking ties at equal z-index).
+  const openPanels = [...document.querySelectorAll('[data-nav-panel].open')];
+  if (openPanels.length) {
+    const front = openPanels[openPanels.length - 1];
+    const innerSel = front.dataset.navPanelInner;
+    return (innerSel && front.querySelector(innerSel)) || front;
   }
   return document.body;                                            // whole app
 }
