@@ -2997,7 +2997,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
    shows a big tap-friendly PIN pad — no typing, no SMS, no captcha.
 ================================================================ */
 const PIN_LEN = 6; // 6-digit PIN — same PIN works on phone and glasses
-const PIN = { buf: '', mode: null, stage: 1, first: '', uid: null, email: null, resolve: null };
+const PIN = { buf: '', mode: null, stage: 1, first: '', uid: null, email: null, resolve: null, attempts: 0, lockedUntil: 0 };
 
 async function _pinHash(uid, pin) {
   const data = new TextEncoder().encode(uid + ':' + pin + ':spark-pin-v1');
@@ -3108,14 +3108,27 @@ function pinBack() { PIN.buf = PIN.buf.slice(0, -1); _pinDots(); }
 
 async function _pinComplete() {
   const pin = PIN.buf; PIN.buf = ''; _pinDots();
+  // Brute-force lockout: 5 wrong attempts triggers a 30-second cooldown
+  if (PIN.lockedUntil && Date.now() < PIN.lockedUntil) {
+    const secs = Math.ceil((PIN.lockedUntil - Date.now()) / 1000);
+    document.getElementById('pinSub').textContent = `Too many attempts — try again in ${secs}s`;
+    if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+    return;
+  }
   if (PIN.mode === 'unlock') {
     const h = await _pinHash(PIN.uid, pin);
     if (h === localStorage.getItem(_pinKey(PIN.uid))) {
+      PIN.attempts = 0; PIN.lockedUntil = 0;
       _pinHide();
       const res = PIN.resolve; PIN.resolve = null;
       res && res(true);
     } else {
-      document.getElementById('pinSub').textContent = 'Wrong PIN — try again';
+      PIN.attempts++;
+      if (PIN.attempts >= 5) { PIN.lockedUntil = Date.now() + 30000; PIN.attempts = 0; }
+      const attLeft = PIN.lockedUntil ? 0 : (5 - PIN.attempts);
+      document.getElementById('pinSub').textContent = PIN.lockedUntil
+        ? 'Too many attempts — wait 30 seconds'
+        : `Wrong PIN — ${attLeft} attempt${attLeft === 1 ? '' : 's'} left`;
       if (navigator.vibrate) navigator.vibrate(80);
     }
   } else if (PIN.mode === 'glasscode') {
@@ -3147,9 +3160,15 @@ async function _pinComplete() {
     document.getElementById('pinSub').textContent = 'Unlocking…';
     const r = await _glassSignIn(PIN.email, PIN.rec, pin);
     if (r.ok) {
+      PIN.attempts = 0; PIN.lockedUntil = 0;
       _pinHide(); // onAuthStateChanged takes over from here
     } else {
-      document.getElementById('pinSub').textContent = r.err;
+      PIN.attempts++;
+      if (PIN.attempts >= 5) { PIN.lockedUntil = Date.now() + 30000; PIN.attempts = 0; }
+      const attLeft = PIN.lockedUntil ? 0 : (5 - PIN.attempts);
+      document.getElementById('pinSub').textContent = PIN.lockedUntil
+        ? 'Too many attempts — wait 30 seconds'
+        : (attLeft > 0 ? `${r.err} — ${attLeft} attempt${attLeft === 1 ? '' : 's'} left` : r.err);
       if (navigator.vibrate) navigator.vibrate(80);
     }
   } else if (PIN.mode === 'setup') {
@@ -3645,12 +3664,27 @@ function _navBack() {
   if (rbModal) { rbModal.remove(); return true; }
   const verifPanel = document.getElementById('verifPanel');
   if (verifPanel) { verifPanel.remove(); return true; }
-  if (document.getElementById('inlineChatSheet')?.classList.contains('open')) { closeInlineChat(); return true; }
-  if (document.getElementById('chatPanel')?.classList.contains('open'))  { closeChat(); return true; }
-  if (document.getElementById('editPanel')?.classList.contains('open'))  { closeEditProfile(); return true; }
-  if (document.getElementById('detailPanel')?.classList.contains('open')){ closeDetail(); return true; }
-  if (document.getElementById('matchProfilePanel')?.classList.contains('open')) { document.getElementById('matchProfilePanel').classList.remove('open'); _navRefresh(); return true; }
-  if (document.getElementById('privacySheet')?.classList.contains('open')){ closePrivacyPanel(); return true; }
+  // Auto-close the frontmost open nav panel — same query as _navRoot so any panel
+  // added with data-nav-panel is automatically handled here too.
+  const _closeFns = {
+    inlineChatSheet:    () => closeInlineChat(),
+    chatPanel:          () => closeChat(),
+    editPanel:          () => closeEditProfile(),
+    detailPanel:        () => closeDetail(),
+    privacySheet:       () => closePrivacyPanel(),
+    modeSheetOverlay:   () => closeModeSelector(),
+    adminDetailPanel:   () => closeAdminDetail(),
+    convActionOverlay:  () => closeConvSheet(),
+    convConfirmOverlay: () => closeConvConfirm(),
+    matchProfilePanel:  () => { document.getElementById('matchProfilePanel').classList.remove('open'); _navRefresh(); },
+  };
+  const openPanels = [...document.querySelectorAll('[data-nav-panel].open')];
+  if (openPanels.length) {
+    const front = openPanels[openPanels.length - 1];
+    const fn = _closeFns[front.id];
+    if (fn) { fn(); } else { front.classList.remove('open'); _navRefresh(); }
+    return true;
+  }
   if (document.getElementById('voiceHelpOverlay')?.style.display === 'flex') { toggleVoiceHelp(false); return true; }
   return false;
 }
@@ -4634,7 +4668,7 @@ async function renderAdminPanel() {
     }, () => {});
 
   } catch(e) {
-    panel.innerHTML = `<div class="admin-loading">⚠️ Error loading data: ${e.message}</div>`;
+    panel.innerHTML = `<div class="admin-loading">⚠️ Error loading data: ${escHtml(String(e.message || e))}</div>`;
   }
 }
 
