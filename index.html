@@ -10258,7 +10258,7 @@ async function initPushNotifications() {
 </style>
 
 <!-- ====== CONV ACTION SHEET ====== -->
-<div class="conv-action-overlay" id="convActionOverlay" onclick="closeConvSheet()">
+<div class="conv-action-overlay" id="convActionOverlay" data-nav-panel data-nav-panel-inner=".conv-action-sheet" onclick="closeConvSheet()">
   <div class="conv-action-sheet" onclick="event.stopPropagation()">
     <div class="conv-action-drag"></div>
     <div class="conv-action-header">
@@ -10296,7 +10296,7 @@ async function initPushNotifications() {
 </div>
 
 <!-- ====== CONV CONFIRM CARD ====== -->
-<div class="conv-confirm-overlay" id="convConfirmOverlay">
+<div class="conv-confirm-overlay" id="convConfirmOverlay" data-nav-panel data-nav-panel-inner=".conv-confirm-card">
   <div class="conv-confirm-card" id="convConfirmCard" onclick="event.stopPropagation()">
     <div class="conv-confirm-icon" id="convConfirmIcon"></div>
     <div class="conv-confirm-title" id="convConfirmTitle"></div>
