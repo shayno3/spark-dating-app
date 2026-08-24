@@ -8717,6 +8717,9 @@ function openEditProfile() {
   renderChips('editChips', S.edit.interests, 'edit');
   renderEditPhotoGrid();
   document.getElementById('editPanel').classList.add('open');
+  // Hide app header so Save button is never blocked on mobile
+  const _ah = document.querySelector('.app-header');
+  if (_ah) _ah.style.display = 'none';
   initHeightPicker(u.height || '');
   _navRefresh();
 }
@@ -8730,6 +8733,9 @@ function syncEditMainPhoto() {
 
 function closeEditProfile() {
   document.getElementById('editPanel').classList.remove('open');
+  // Restore app header now that the panel is closed
+  const _ah = document.querySelector('.app-header');
+  if (_ah) _ah.style.display = '';
   _navRefresh();
 }
 
