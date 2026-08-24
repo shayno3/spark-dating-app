@@ -7429,9 +7429,14 @@ function subscribeToMessages(matchId, uid) {
         updateBadges();
         const activeTab = document.querySelector('.tab-content.active')?.id;
         if (activeTab === 'tab-messages') renderConversations();
+        // In-app toast so the user always knows who messaged them
+        const senderMatch = S.matches.find(m => m.uid === uid);
+        const senderName = senderMatch
+          ? (senderMatch.sparkSystem ? (senderMatch.sparkDisplayName || '✨ Spark Team') : (senderMatch.name || 'Someone'))
+          : 'Someone';
+        toast(`💬 New message from ${senderName}`);
         // Glasses audio alert for incoming message
         if (VOICE.active) {
-          const senderMatch = S.matches.find(m => m.uid === uid);
           glassChime('msg');
           if (senderMatch) setTimeout(() => speak(`New message from ${senderMatch.name}. Say "read messages" to hear it.`), 700);
         }
