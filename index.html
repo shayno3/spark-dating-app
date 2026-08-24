@@ -180,6 +180,8 @@ html, body {
 /* ---- PROFILE EDIT FAB ---- */
 .profile-edit-fab { position: absolute; top: 0.5rem; right: 0; width: 38px; height: 38px; border-radius: 50%; background: rgba(233,30,140,0.14); border: 1.5px solid rgba(233,30,140,0.4); color: var(--primary); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
 .app-header { padding: 0.9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
+#offlineBanner { display:none; align-items:center; justify-content:center; gap:0.4rem; background:#ef4444; color:#fff; font-size:0.8rem; font-weight:600; padding:0.35rem 1rem; text-align:center; position:sticky; top:0; z-index:51; }
+#offlineBanner.visible { display:flex; }
 .app-logo-wrap { display: flex; align-items: center; gap: 0.5rem; }
 .app-logo { font-size: 1.3rem; font-weight: 900; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
 .header-icon-btn { background: transparent; border: none; cursor: pointer; font-size: 1.25rem; padding: 0.25rem; border-radius: 8px; }
@@ -2010,6 +2012,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 ======================== -->
 <div id="mainView" class="main-view" style="display:none">
 
+  <div id="offlineBanner">📡 No connection — check your network</div>
   <div class="app-header">
     <div class="app-logo-wrap">
       <span style="font-size:1.4rem">✨</span>
@@ -4915,6 +4918,8 @@ async function adminSendMessage() {
       lastMsg: text,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp(),
       adminCreated: true,
+      sparkSystem: true,           // renders as "✨ Spark Team" in the user's inbox
+      sparkDisplayName: '✨ Spark Team',
     }, { merge: true });
     // Write to the correct messages path (same as regular chat)
     await db.collection('messages').doc(matchId).collection('msgs').add({
@@ -4922,6 +4927,7 @@ async function adminSendMessage() {
       text,
       ts: firebase.firestore.FieldValue.serverTimestamp(),
       adminMessage: true,
+      senderDisplay: '✨ Spark Team',
     });
     ta.value = '';
     toast(`✉️ Message sent to ${name}`);
@@ -5340,12 +5346,17 @@ function buildDiscCard(user) {
   const now      = Date.now();
   const isBoosted = user.boostActiveUntil > now;
 
+  const _dkm   = distanceTo(user);
+  const _dStr  = _dkm !== null ? approxDist(_dkm) : '';
+  const _subLine = user.online
+    ? `<span class="disc-online-dot"></span>Online${_dStr ? ' · ' + _dStr : ''}`
+    : (_dStr || user.city || '');
   card.innerHTML = `
     <img class="disc-card-img" src="${photo}" alt="${user.name}" loading="lazy">
     ${isBoosted ? '<div class="disc-boosted-badge">⚡ Boosted</div>' : ''}
     <div class="disc-card-body">
       <div class="disc-card-name">${user.name}${user.age ? ', ' + user.age : ''}</div>
-      <div class="disc-card-sub">${user.online ? '<span class="disc-online-dot"></span>Online' : (user.city || '')}</div>
+      <div class="disc-card-sub">${_subLine}</div>
     </div>`;
 
   card.onclick = () => openDetail(user.id);
@@ -5890,7 +5901,10 @@ function subscribeToMatches() {
           } catch(e) {}
         }
         if (!profileData) return null;
-        return { matchId: doc.id, uid: otherUid, ...profileData };
+        // Carry sparkSystem flag so renderConversations can show "✨ Spark Team" branding
+        const sparkSystem = !!data.sparkSystem;
+        const sparkDisplayName = data.sparkDisplayName || null;
+        return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, ...profileData };
       });
 
       const results = (await Promise.all(profilePromises)).filter(Boolean);
@@ -6823,7 +6837,11 @@ function renderConversations() {
   sorted.forEach(m => {
     const msgs = S.messages[m.matchId] || [];
     const last = msgs[msgs.length - 1];
-    const photo = (m.photos?.[0]) || avatar(m.name || '?');
+    // sparkSystem matches show as "✨ Spark Team" — not the admin's real profile
+    const displayName = m.sparkSystem ? (m.sparkDisplayName || '✨ Spark Team') : (m.name || '');
+    const photo = m.sparkSystem
+      ? `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" rx="30" fill="#f59e0b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="28">✨</text></svg>')}`
+      : ((m.photos?.[0]) || avatar(m.name || '?'));
     const isUnread = !!S.unread[m.uid];
     const preview = last
       ? (last.type === 'voiceNote' ? '🎙 Voice note' : escHtml(last.text || ''))
@@ -6832,11 +6850,11 @@ function renderConversations() {
     item.className = 'conv-item';
     item.innerHTML = `
       <div class="conv-av-wrap">
-        <img class="conv-av" src="${photo}" alt="${escHtml(m.name||'')}" onerror="this.src='${avatar(m.name||'?')}'">
-        ${m.online ? '<div class="conv-online-dot"></div>' : ''}
+        <img class="conv-av" src="${photo}" alt="${escHtml(displayName)}" onerror="this.src='${avatar(displayName)}'">
+        ${(!m.sparkSystem && m.online) ? '<div class="conv-online-dot"></div>' : ''}
       </div>
       <div class="conv-info">
-        <div class="conv-name">${escHtml(m.name||'')}</div>
+        <div class="conv-name">${escHtml(displayName)}</div>
         <div class="conv-preview${isUnread ? ' unread' : ''}">${preview}</div>
       </div>
       <div class="conv-meta">
@@ -7428,8 +7446,15 @@ function drainPendingMsgs() {
   if (retry.length > 0) renderActiveChatPending();
 }
 
+// Offline / online banner
+function _setOfflineBanner(isOffline) {
+  const el = document.getElementById('offlineBanner');
+  if (el) el.classList.toggle('visible', isOffline);
+}
+window.addEventListener('offline', () => { _setOfflineBanner(true); });
 // Auto-drain pending queue when the device comes back online
 window.addEventListener('online', () => {
+  _setOfflineBanner(false);
   if (S.pendingMsgs.length > 0) {
     toast('Back online — retrying unsent messages…');
     drainPendingMsgs();
