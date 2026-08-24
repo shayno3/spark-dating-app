@@ -5072,9 +5072,6 @@ function showTab(tab) {
   // Gear/settings button only visible on the Profile tab
   const gearBtn = document.getElementById('gearBtn');
   if (gearBtn) gearBtn.style.display = tab === 'profile' ? '' : 'none';
-  // Hide the Spark header on Matches, Messages and Explore — it blocks back/exit buttons on web
-  const appHeader = document.querySelector('.app-header');
-  if (appHeader) appHeader.style.display = ['matches','messages','explore'].includes(tab) ? 'none' : '';
   // Close ALL slide-in panels so the tab is never blocked
   closePrivacyPanel();
   closeEditProfile();
@@ -5091,6 +5088,9 @@ function showTab(tab) {
   closeModeSelector();                                    // no-arg → closes unconditionally
   closeAdminDetail();                                     // no-arg → closes unconditionally
   if (typeof VK !== 'undefined' && VK.open) closeVK();   // guard required — VK doesn't self-check
+  // Hide the Spark header on Matches, Messages and Explore — runs LAST so no close fn can override it
+  const appHeader = document.querySelector('.app-header');
+  if (appHeader) appHeader.style.display = ['matches','messages','explore'].includes(tab) ? 'none' : '';
 
   // Defer content renders so the browser paints the tab switch first (feels instant)
   requestAnimationFrame(() => {
@@ -8733,9 +8733,12 @@ function syncEditMainPhoto() {
 
 function closeEditProfile() {
   document.getElementById('editPanel').classList.remove('open');
-  // Restore app header now that the panel is closed
+  // Restore app header only if the current tab actually shows it
   const _ah = document.querySelector('.app-header');
-  if (_ah) _ah.style.display = '';
+  if (_ah) {
+    const hiddenTabs = ['matches','messages','explore'];
+    _ah.style.display = hiddenTabs.includes(S._activeTab) ? 'none' : '';
+  }
   _navRefresh();
 }
 
