@@ -2527,6 +2527,29 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <!-- Voice Help Overlay -->
+  <!-- Glasses first-time onboarding modal -->
+  <div id="glassesOnboarding" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,0.93);align-items:center;justify-content:center;padding:1.5rem;">
+    <div style="background:#13131f;border:1px solid rgba(233,30,140,0.35);border-radius:22px;padding:2rem 1.75rem;max-width:370px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(233,30,140,0.18);">
+      <div style="font-size:2.6rem;margin-bottom:0.4rem;">🕶️</div>
+      <h2 style="color:#E91E8C;font-size:1.25rem;font-weight:800;margin:0 0 0.3rem;">Glasses Mode</h2>
+      <p style="color:#aaa;font-size:0.83rem;margin:0 0 1.25rem;line-height:1.5;">Hands-free control with your voice.<br>Say <strong style="color:#fff">"Hey Spark"</strong> to wake the mic, then your command.</p>
+      <div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1.3rem;text-align:left;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8rem;line-height:2;">
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Hey Spark</td><td style="color:#ccc;">wake the mic</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Like / Pass / Super</td><td style="color:#ccc;">swipe on profiles</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Matches / Messages</td><td style="color:#ccc;">switch tabs</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Read messages</td><td style="color:#ccc;">hear new messages</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Open [name]</td><td style="color:#ccc;">open a conversation</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Read bio</td><td style="color:#ccc;">hear the profile</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Next photo / Rewind</td><td style="color:#ccc;">browse photos</td></tr>
+          <tr><td style="color:#E91E8C;white-space:nowrap;padding-right:0.75rem;font-weight:700;">Help</td><td style="color:#ccc;">hear all commands</td></tr>
+        </table>
+      </div>
+      <button onclick="dismissGlassesOnboarding()" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#E91E8C,#ff6eb4);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;letter-spacing:0.02em;">Got it — activate 🕶️</button>
+      <p style="color:#555;font-size:0.72rem;margin:0.75rem 0 0;">You can say "help" any time to hear commands again.</p>
+    </div>
+  </div>
+
   <div id="voiceHelpOverlay">
     <div class="help-header">
       <span style="font-size:1.3rem">🕶️</span>
@@ -2535,8 +2558,8 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
     <div class="help-body">
       <p style="color:var(--text-muted);font-size:0.83rem;margin-bottom:1.25rem;line-height:1.5">
-        Speak these commands hands-free. Audio plays through your glasses speakers.
-        Say commands clearly — no wake word needed.
+        Say <strong style="color:#E91E8C">"Hey Spark"</strong> to wake the mic, then your command.
+        Audio plays through your glasses speakers.
       </p>
 
       <div class="help-section">
@@ -9057,7 +9080,9 @@ const VOICE = {
   synth: window.speechSynthesis, speaking: false,
   listening: false, helpVisible: false, voices: [],
   lastActivityAt: 0,   // M7: timestamp of last recognition event
-  watchdog: null       // M7: interval that detects silent disconnection
+  watchdog: null,      // M7: interval that detects silent disconnection
+  awake: false,        // Wake word: true = actively accepting commands
+  wakeTimer: null      // Auto-sleep timer after last command
 };
 
 if (VOICE.synth) {
@@ -9071,7 +9096,7 @@ function glassChime(type = 'msg') {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     // match = 3-note ascending (C5-E5-G5), msg = 2-note (E5-G5)
-    const notes = type === 'match' ? [523.25, 659.25, 783.99] : [659.25, 783.99];
+    const notes = type === 'match' ? [523.25, 659.25, 783.99] : type === 'wake' ? [880] : [659.25, 783.99];
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator(), gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
@@ -9117,6 +9142,24 @@ function initRecognition() {
     const confidence = result[0].confidence ?? 1; // some browsers omit confidence (treat as certain)
     if (confidence < 0.65) return;     // ignore low-confidence — filters background noise / mishears
     const transcript = result[0].transcript.trim().toLowerCase();
+
+    // ── Wake word gate ──────────────────────────────────────────────────────
+    if (/\b(hey spark|hi spark|okay spark|ok spark|wake up)\b/.test(transcript)) {
+      VOICE.awake = true;
+      clearTimeout(VOICE.wakeTimer);
+      VOICE.wakeTimer = setTimeout(() => { VOICE.awake = false; updateVoiceUI(); }, 7000);
+      glassChime('wake');
+      setTimeout(() => speak('Yes?'), 200);
+      updateVoiceUI();
+      return;
+    }
+    if (!VOICE.awake) return; // waiting for wake word — ignore all other audio
+
+    // Reset sleep timer on each real command
+    clearTimeout(VOICE.wakeTimer);
+    VOICE.wakeTimer = setTimeout(() => { VOICE.awake = false; updateVoiceUI(); }, 7000);
+    // ───────────────────────────────────────────────────────────────────────
+
     processVoiceCommand(transcript);
   };
   rec.onerror = (e) => {
@@ -9317,6 +9360,11 @@ function _glassesShowConnected() {
 
 function toggleGlassesMode(force) {
   const newState = force !== undefined ? force : !VOICE.active;
+  // First-time onboarding — show tutorial before activating
+  if (newState && !localStorage.getItem('sparkGlassesOnboarded')) {
+    showGlassesOnboarding(() => toggleGlassesMode(true));
+    return;
+  }
   VOICE.active = newState;
   const btn    = document.getElementById('glassesModeBtn');
   const bar    = document.getElementById('voiceStatusBar');
@@ -9345,10 +9393,11 @@ function toggleGlassesMode(force) {
       }
     }, 5000);
     const uid = currentCardId();
-    speak(uid ? `Glasses mode on. ${announceCurrentCard()}` : 'Glasses mode activated. Go to Discover to start swiping. Say "help" for commands.', true);
+    speak(uid ? `Glasses mode on. Say Hey Spark to give a command. ${announceCurrentCard()}` : 'Glasses mode activated. Say Hey Spark to wake the mic, then your command. Say help for a full list.', true);
     toast('🕶️ Glasses Mode ON');
   } else {
     if (VOICE.watchdog) { clearInterval(VOICE.watchdog); VOICE.watchdog = null; }  // M7
+    VOICE.awake = false; clearTimeout(VOICE.wakeTimer); VOICE.wakeTimer = null;  // reset wake state
     stopSpeaking();
     try { VOICE.recognition?.stop(); } catch(e) {}
     VOICE.listening = false;
@@ -9388,8 +9437,10 @@ function updateVoiceUI() {
   if (!dot || !txt) return;
   if (VOICE.speaking) {
     dot.className = 'v-dot speaking'; txt.textContent = 'Speaking…'; if (waves) waves.style.display = 'flex';
-  } else if (VOICE.active) {
+  } else if (VOICE.active && VOICE.awake) {
     dot.className = 'v-dot listening'; txt.textContent = 'Listening — say a command'; if (waves) waves.style.display = 'flex';
+  } else if (VOICE.active) {
+    dot.className = 'v-dot'; txt.textContent = "Say 'Hey Spark' to activate"; if (waves) waves.style.display = 'none';
   } else {
     dot.className = 'v-dot'; txt.textContent = 'Voice ready'; if (waves) waves.style.display = 'none';
   }
@@ -9402,6 +9453,20 @@ function showCmdFeedback(cmd) {
   el.classList.add('show');
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function showGlassesOnboarding(callback) {
+  const el = document.getElementById('glassesOnboarding');
+  if (!el) { if (callback) callback(); return; }
+  el.style.display = 'flex';
+  el._onboardCallback = callback || null;
+}
+function dismissGlassesOnboarding() {
+  const el = document.getElementById('glassesOnboarding');
+  if (!el) return;
+  el.style.display = 'none';
+  try { localStorage.setItem('sparkGlassesOnboarded', '1'); } catch(e) {}
+  if (typeof el._onboardCallback === 'function') { const cb = el._onboardCallback; el._onboardCallback = null; cb(); }
 }
 
 function toggleVoiceHelp(show) {
