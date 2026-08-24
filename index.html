@@ -2002,6 +2002,32 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <button class="pill-btn" onclick="selectPill('intent','Friends first',this)">🤝 Friends first</button>
       <button class="pill-btn" onclick="selectPill('intent','Open to anything',this)">🌈 Open to anything</button>
     </div>
+    <label class="form-label" style="margin-top:1rem">Drinking <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sDrinkingGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('drinking','Socially',this)">🍷 Socially</button>
+      <button class="pill-btn" onclick="selectPill('drinking','Often',this)">🍻 Often</button>
+      <button class="pill-btn" onclick="selectPill('drinking','Sober Life',this)">🚫 Sober Life</button>
+    </div>
+    <label class="form-label" style="margin-top:1rem">Smoking <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sSmokingGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('smoking','Social',this)">🚬 Social</button>
+      <button class="pill-btn" onclick="selectPill('smoking','Never',this)">🚭 Never</button>
+      <button class="pill-btn" onclick="selectPill('smoking','Trying to Quit',this)">💪 Trying to Quit</button>
+    </div>
+    <label class="form-label" style="margin-top:1rem">Kids <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sKidsGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('kids','Have kids',this)">👧 Have kids</button>
+      <button class="pill-btn" onclick="selectPill('kids','No kids',this)">🚼 No kids</button>
+      <button class="pill-btn" onclick="selectPill('kids','Want kids',this)">🍼 Want kids</button>
+      <button class="pill-btn" onclick="selectPill('kids','Open to it',this)">🌱 Open to it</button>
+    </div>
+    <label class="form-label" style="margin-top:1rem">Exercise <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sExerciseGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('exercise','Daily',this)">🏋️ Daily</button>
+      <button class="pill-btn" onclick="selectPill('exercise','A few times a week',this)">🏃 A few times a week</button>
+      <button class="pill-btn" onclick="selectPill('exercise','Sometimes',this)">🚶 Sometimes</button>
+      <button class="pill-btn" onclick="selectPill('exercise','Rarely',this)">😅 Rarely</button>
+    </div>
     <label class="form-label" style="margin-top:1rem">Bio <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(<span id="bioCharCount">0</span>/500)</span></label>
     <div class="bio-voice-wrap">
       <textarea class="form-textarea" id="sBio" placeholder="What are you passionate about? What makes you unique? What are you looking for?…" maxlength="500" oninput="document.getElementById('bioCharCount').textContent=this.value.length" style="padding-bottom:2.8rem"></textarea>
@@ -2150,7 +2176,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         </div>
 
         <!-- Who Liked You — shown when "New ✨" filter is active -->
-        <div id="whoLikedYouSection" class="wly-section" style="display:none"></div>
+        <div id="whoLikedYouSection" class="wly-section"></div>
       </div>
     </div>
 
@@ -4440,7 +4466,11 @@ async function finishSetup() {
     seeking:   S.setup.seeking || S.user.seeking || 'Everyone',
     height:    S.user.height   || '',
     zodiac:    S.user.zodiac   || S.setup.zodiac  || '',
-    intent:    S.setup.intent  || '',
+    intent:    S.setup.intent    || '',
+    drinking:  S.setup.drinking  || '',
+    smoking:   S.setup.smoking   || '',
+    kids:      S.setup.kids      || '',
+    exercise:  S.setup.exercise  || '',
     city:      S.user.city   || '',
     state:     S.user.state  || '',
     bio:       bio           || '',
@@ -6156,13 +6186,15 @@ function openDetail(uid) {
   document.getElementById('detailNameLine').innerHTML = `${escHtml(u.name)}, ${u.age}${u.verified ? ' <span class="verified-badge-lg" title="Verified profile">✓</span>' : ''}`;
   document.getElementById('detailLocLine').innerHTML = `📍 ${u.city}, ${u.state}${u.online?' &nbsp;<span class="online-dot"></span> Online now':''}`;
   const extraTags = [
-    ...(u.height      ? [`<span class="tag-pill">📏 ${escHtml(u.height)}</span>`]      : []),
-    ...(u.zodiac      ? [`<span class="tag-pill">${escHtml(u.zodiac)}</span>`]          : []),
-    ...(u.intent      ? [`<span class="tag-pill">💫 ${escHtml(u.intent)}</span>`]      : []),
-    ...(u.orientation ? [`<span class="tag-pill">🌈 ${escHtml(u.orientation)}</span>`] : []),
-    ...(u.relStatus   ? [`<span class="tag-pill">💑 ${escHtml(u.relStatus)}</span>`]   : []),
-    ...(u.drinking    ? [`<span class="tag-pill">🍷 ${escHtml(u.drinking)}</span>`]    : []),
-    ...(u.smoking     ? [`<span class="tag-pill">🚬 ${escHtml(u.smoking)}</span>`]     : []),
+    ...(u.height      ? [`<span class="tag-pill">📏 ${escHtml(fmtHeight(u.height))}</span>`] : []),
+    ...(u.zodiac      ? [`<span class="tag-pill">${escHtml(u.zodiac)}</span>`]                : []),
+    ...(u.intent      ? [`<span class="tag-pill">💫 ${escHtml(u.intent)}</span>`]            : []),
+    ...(u.orientation ? [`<span class="tag-pill">🌈 ${escHtml(u.orientation)}</span>`]       : []),
+    ...(u.relStatus   ? [`<span class="tag-pill">💑 ${escHtml(u.relStatus)}</span>`]         : []),
+    ...(u.drinking    ? [`<span class="tag-pill">🍷 ${escHtml(u.drinking)}</span>`]          : []),
+    ...(u.smoking     ? [`<span class="tag-pill">🚬 ${escHtml(u.smoking)}</span>`]           : []),
+    ...(u.kids        ? [`<span class="tag-pill">👶 ${escHtml(u.kids)}</span>`]              : []),
+    ...(u.exercise    ? [`<span class="tag-pill">🏃 ${escHtml(u.exercise)}</span>`]          : []),
     ...(u.interests||[]).map(t=>`<span class="tag-pill">${escHtml(t)}</span>`)
   ];
   document.getElementById('detailTags').innerHTML  = extraTags.join('');
@@ -6349,15 +6381,15 @@ function renderWhoLikedYou() {
   let cardsHtml = visible.map(u => {
     const photo   = u.photos?.[0] || avatar(u.name || '?');
     const isSup   = u.action === 'super';
+    // Profile identity (photo/name/age) is blurred for free users — premium reveals it
     const imgCls  = isPremium ? 'wly-card-photo' : 'wly-card-photo blurred';
     const nameCls = isPremium ? 'wly-card-name'  : 'wly-card-name blurred';
     const ageCls  = isPremium ? 'wly-card-age'   : 'wly-card-age blurred';
     const name    = u.name || '?';
     const age     = u.age ? `${u.age} yrs` : '';
     const lockOverlay = isPremium ? '' : `<div class="wly-lock-overlay"><div class="wly-lock-icon">🔒</div></div>`;
-    const btn = isPremium
-      ? `<button class="wly-like-btn" id="wlybtn-${u.uid}" onclick="wlyLikeBack('${u.uid}',this)">Like Back ♥</button>`
-      : `<button class="wly-upgrade-btn" onclick="upgradeToPremium()">Unlock ✨</button>`;
+    // Like Back is FREE for everyone — only identity reveal is premium-gated
+    const btn = `<button class="wly-like-btn" id="wlybtn-${u.uid}" onclick="wlyLikeBack('${u.uid}',this)">Like Back ♥</button>`;
 
     return `
       <div class="wly-card" onclick="${isPremium ? `openDetail('${u.uid}')` : 'upgradeToPremium()'}">
@@ -6374,14 +6406,15 @@ function renderWhoLikedYou() {
 
   const countLabel = `${visible.length} person${visible.length !== 1 ? 's' : ''} liked you`;
 
+  // Premium upsell: teaser to reveal who they are (Like Back is already free)
   let ctaBanner = '';
   if (!isPremium) {
     ctaBanner = `
       <div class="wly-cta-banner">
         <div class="wly-cta-icon">✨</div>
         <div class="wly-cta-title">See Who Likes You</div>
-        <div class="wly-cta-sub">Upgrade to Spark Premium to see exactly who liked your profile and like them back instantly.</div>
-        <button class="btn-primary" style="max-width:220px" onclick="upgradeToPremium()">Upgrade to Premium ✨</button>
+        <div class="wly-cta-sub">You can like anyone back for free! Upgrade to Spark Premium to see exactly who liked your profile.</div>
+        <button class="btn-primary" style="max-width:220px" onclick="upgradeToPremium()">Reveal Profiles ✨</button>
       </div>`;
   }
 
@@ -8770,6 +8803,14 @@ function openEditProfile() {
     <div class="pill-select-group" id="editSmokingGroup">
       ${[['Social 🚬','Social'],['Never 🚭','Never'],['Trying to Quit 💪','Trying to Quit']].map(([label,v])=>`<button class="pill-select-btn${u.smoking===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editSmokingGroup',this)">${label}</button>`).join('')}
     </div>
+    <label class="form-label">Kids</label>
+    <div class="pill-select-group" id="editKidsGroup">
+      ${[['👧 Have kids','Have kids'],['🚼 No kids','No kids'],['🍼 Want kids','Want kids'],['🌱 Open to it','Open to it']].map(([label,v])=>`<button class="pill-select-btn${u.kids===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editKidsGroup',this)">${label}</button>`).join('')}
+    </div>
+    <label class="form-label">Exercise</label>
+    <div class="pill-select-group" id="editExerciseGroup">
+      ${[['🏋️ Daily','Daily'],['🏃 A few times a week','A few times a week'],['🚶 Sometimes','Sometimes'],['😅 Rarely','Rarely']].map(([label,v])=>`<button class="pill-select-btn${u.exercise===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editExerciseGroup',this)">${label}</button>`).join('')}
+    </div>
     <label class="form-label">City</label>
     <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">State</label>
@@ -8890,7 +8931,9 @@ async function saveProfile() {
     orientation:     pillGroupValue('editOrientationGroup') || S.user.orientation || '',
     relStatus:       pillGroupValue('editRelStatusGroup')   || S.user.relStatus   || '',
     drinking:        pillGroupValue('editDrinkingGroup')    || S.user.drinking    || '',
-    smoking:         pillGroupValue('editSmokingGroup')     || S.user.smoking     || ''
+    smoking:         pillGroupValue('editSmokingGroup')     || S.user.smoking     || '',
+    kids:            pillGroupValue('editKidsGroup')        || S.user.kids        || '',
+    exercise:        pillGroupValue('editExerciseGroup')    || S.user.exercise    || ''
   };
   if (S.location?.lat) {
     updates.lat           = S.location.lat;
@@ -8955,6 +8998,13 @@ function updateBadges() {
       existing.remove();
     }
   }
+}
+
+function fmtHeight(h) {
+  if (!h) return '';
+  // Already formatted (e.g. "5'10\"" or "177 cm") — return as-is
+  if (typeof h === 'string') return h;
+  return h;
 }
 
 function avatar(name) {
