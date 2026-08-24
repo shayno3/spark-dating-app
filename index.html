@@ -2554,23 +2554,22 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
   <!-- Voice Help Overlay -->
   <!-- Glasses first-time onboarding modal -->
-  <div id="glassesOnboarding" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.93);align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto;">
-    <div style="background:#13131f;border:1px solid rgba(233,30,140,0.35);border-radius:22px;padding:2rem 1.75rem;max-width:370px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(233,30,140,0.18);margin:auto;flex-shrink:0;">
-      <div style="font-size:2.6rem;margin-bottom:0.4rem;">🕶️</div>
-      <h2 style="color:#E91E8C;font-size:1.25rem;font-weight:800;margin:0 0 0.3rem;">Glasses Mode</h2>
-      <p style="color:#aaa;font-size:0.83rem;margin:0 0 1.25rem;line-height:1.5;">Hands-free control with your voice.<br>Say <strong style="color:#fff">"Hey Spark"</strong> to wake the mic, then your command.</p>
-      <div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:0.85rem 1rem;margin-bottom:1.3rem;text-align:left;display:flex;flex-direction:column;gap:0.3rem;">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Hey Spark</span><span style="color:#888;font-size:0.75rem;">wake the mic</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Like / Pass / Super</span><span style="color:#888;font-size:0.75rem;">swipe profiles</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Matches / Messages</span><span style="color:#888;font-size:0.75rem;">switch tabs</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Read messages</span><span style="color:#888;font-size:0.75rem;">hear messages</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Open [name]</span><span style="color:#888;font-size:0.75rem;">open a chat</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Read bio</span><span style="color:#888;font-size:0.75rem;">hear profile</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Next / Rewind</span><span style="color:#888;font-size:0.75rem;">browse photos</span></div>
-        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.25rem 0;"><span style="color:#E91E8C;font-weight:700;font-size:0.82rem;">Help</span><span style="color:#888;font-size:0.75rem;">all commands</span></div>
+  <div id="glassesOnboarding" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,0.93);align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#13131f;border:1px solid rgba(233,30,140,0.35);border-radius:22px;padding:1.25rem 1.5rem 1.5rem;max-width:370px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(233,30,140,0.18);max-height:calc(var(--vh,1vh)*100 - 2rem);overflow-y:auto;-webkit-overflow-scrolling:touch;">
+      <div style="font-size:2.2rem;margin-bottom:0.2rem;">🕶️</div>
+      <h2 style="color:#E91E8C;font-size:1.15rem;font-weight:800;margin:0 0 0.2rem;">Glasses Mode</h2>
+      <p style="color:#aaa;font-size:0.8rem;margin:0 0 0.85rem;line-height:1.45;">Hands-free control with your voice.<br>Say <strong style="color:#fff">"Hey Spark"</strong> to wake the mic, then your command.</p>
+      <div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:0.6rem 0.85rem;margin-bottom:0.9rem;text-align:left;display:flex;flex-direction:column;gap:0.15rem;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Hey Spark</span><span style="color:#888;font-size:0.72rem;">wake the mic</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Like / Pass / Super</span><span style="color:#888;font-size:0.72rem;">swipe profiles</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Matches / Messages</span><span style="color:#888;font-size:0.72rem;">switch tabs</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Read messages</span><span style="color:#888;font-size:0.72rem;">hear messages</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Open [name]</span><span style="color:#888;font-size:0.72rem;">open a chat</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Read bio</span><span style="color:#888;font-size:0.72rem;">hear profile</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Next / Rewind</span><span style="color:#888;font-size:0.72rem;">browse photos</span></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0.18rem 0;"><span style="color:#E91E8C;font-weight:700;font-size:0.79rem;">Help</span><span style="color:#888;font-size:0.72rem;">all commands</span></div>
       </div>
-      <button onclick="dismissGlassesOnboarding()" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#E91E8C,#ff6eb4);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;letter-spacing:0.02em;">Got it — activate 🕶️</button>
-      <p style="color:#555;font-size:0.72rem;margin:0.75rem 0 0;">You can say "help" any time to hear commands again.</p>
+      <button onclick="dismissGlassesOnboarding()" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#E91E8C,#ff6eb4);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;letter-spacing:0.02em;touch-action:manipulation;">Got it — activate 🕶️</button>
     </div>
   </div>
 
@@ -3365,6 +3364,8 @@ function _navRoot() {
   if (vk && vk.classList.contains('vk-open'))                      // virtual keyboard
     return document.getElementById('vkOverlay') || vk;
   // Overlay modals that sit above open panels — must be checked before panel loop
+  const glassOB = document.getElementById('glassesOnboarding');
+  if (glassOB && glassOB.style.display === 'flex') return glassOB;
   const rbModal = document.getElementById('reportBlockModal');
   if (rbModal) return rbModal;
   // Auto-detect the frontmost open nav panel.
@@ -3411,8 +3412,6 @@ function _navList() {
       const p = document.getElementById(pid);
       if (p && !p.classList.contains('open') && p.contains(el)) return;
     }
-    // Skip the conversation ⋮ menu button — not useful on glasses (no long-press/context menu)
-    if (el.classList.contains('conv-menu-btn')) return;
     // Skip nearby-card child elements — the card itself is the nav target.
     // The img and like-btn inside each card are redundant for glasses nav (card onclick covers both).
     if (el.classList.contains('nearby-card-img')) return;
