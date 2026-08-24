@@ -1465,6 +1465,18 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 #app.glasses-mode .card-stack {
   height: clamp(240px, calc(var(--vh, 1vh) * 100 - 350px), 420px);
 }
+/* Larger text throughout the app in glasses mode — easier to read on small lens display */
+#app.glasses-mode .card-name        { font-size: 1.45rem !important; }
+#app.glasses-mode .card-sub         { font-size: 1.05rem !important; }
+#app.glasses-mode .nav-btn span     { font-size: 0.75rem !important; }
+#app.glasses-mode .conv-name        { font-size: 1.1rem  !important; }
+#app.glasses-mode .conv-preview     { font-size: 0.92rem !important; }
+#app.glasses-mode .disc-card-name   { font-size: 1.05rem !important; }
+#app.glasses-mode .disc-card-sub    { font-size: 0.88rem !important; }
+#app.glasses-mode .match-card-name  { font-size: 1.0rem  !important; }
+#app.glasses-mode #voiceStatusText  { font-size: 0.92rem !important; }
+#app.glasses-mode .detail-name      { font-size: 1.5rem  !important; }
+#app.glasses-mode .detail-sub       { font-size: 1.05rem !important; }
 @keyframes glassesGlow {
   0%,100% { box-shadow: 0 0 0 2px #6C63FF, 0 0 40px rgba(108,99,255,0.35); }
   50%      { box-shadow: 0 0 0 3px #9C27B0, 0 0 60px rgba(156,39,176,0.5); }
@@ -9102,6 +9114,8 @@ function initRecognition() {
     VOICE.lastActivityAt = Date.now();  // M7
     _glassesShowConnected();            // M7: clear any disconnect banner
     const result     = e.results[e.results.length - 1];
+    const confidence = result[0].confidence ?? 1; // some browsers omit confidence (treat as certain)
+    if (confidence < 0.65) return;     // ignore low-confidence — filters background noise / mishears
     const transcript = result[0].transcript.trim().toLowerCase();
     processVoiceCommand(transcript);
   };
@@ -9241,8 +9255,27 @@ function processVoiceCommand(raw) {
     speak(`You have ${S.matches.length} match${S.matches.length!==1?'es':''} and ${unread} unread message${unread!==1?'s':''}.`);
     return;
   }
-  if (/\b(next profile|refresh|show another|another)\b/.test(cmd)) {
+  if (/\b(next profile|refresh|show another|another profile)\b/.test(cmd)) {
     swipe('pass'); setTimeout(() => speak(announceCurrentCard()), 500); return;
+  }
+  // Photo navigation — works when a profile detail is open
+  if (/\b(next photo|next picture|next pic|second photo|more photos)\b/.test(cmd)) {
+    if (typeof detailPhotoNav === 'function' && document.getElementById('detailPhoto')) {
+      detailPhotoNav(1);
+      const total = (typeof _detailPhotos !== 'undefined' ? _detailPhotos.length : 0);
+      const idx   = (typeof _detailPhotoIndex !== 'undefined' ? _detailPhotoIndex + 1 : '');
+      speak(total > 1 ? `Photo ${idx} of ${total}.` : 'No more photos.');
+    } else { speak('Open a profile first to browse photos.'); }
+    return;
+  }
+  if (/\b(rewind|previous photo|prev photo|go back|last photo|first photo)\b/.test(cmd)) {
+    if (typeof detailPhotoNav === 'function' && document.getElementById('detailPhoto')) {
+      detailPhotoNav(-1);
+      const total = (typeof _detailPhotos !== 'undefined' ? _detailPhotos.length : 0);
+      const idx   = (typeof _detailPhotoIndex !== 'undefined' ? _detailPhotoIndex + 1 : '');
+      speak(total > 1 ? `Photo ${idx} of ${total}.` : 'First photo.');
+    } else { speak('Open a profile first to browse photos.'); }
+    return;
   }
   if (/\b(repeat|again|say again)\b/.test(cmd)) { speak(announceCurrentCard()); return; }
   if (/\b(stop|mute|quiet|silence|shut up|stop talking)\b/.test(cmd)) { stopSpeaking(); return; }
@@ -9254,11 +9287,13 @@ function processVoiceCommand(raw) {
 
 function announceCurrentCard() {
   const uid = currentCardId();
-  if (!uid) return 'No more profiles. Check back soon!';
+  if (!uid) return 'No more profiles right now.';
   const u = findUser(uid);
   if (!u) return '';
-  const bio = u.bio ? u.bio.split('.')[0].trim() + '.' : '';
-  return `Now showing ${u.name}, ${u.age}, from ${u.city}, ${u.state}. ${bio} Say "like", "pass", or "read bio".`;
+  // Keep it brief — name, age, distance or city. Full bio on request.
+  const distKm  = typeof distanceTo === 'function' ? distanceTo(u) : null;
+  const location = distKm !== null ? approxDist(distKm) : (u.city || '');
+  return `${u.name}, ${u.age}${location ? ', ' + location : ''}. Like, pass, or say "read bio".`;
 }
 function announceCardOnReveal() {
   if (!VOICE.active) return;
@@ -9520,18 +9555,27 @@ async function toggleNeuralBand(force) {
 }
 
 async function requestMotionPermission() {
+  // iOS 13+ requires a user-gesture call to DeviceMotionEvent.requestPermission()
+  // The Neural Band toggle button IS a user gesture, so this fires correctly from there.
   if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
     try {
       const res = await DeviceMotionEvent.requestPermission();
-      if (res !== 'granted') { toast('Motion sensor access denied — check Settings › Safari › Motion'); return false; }
-    } catch(e) { toast('Could not request motion permission'); return false; }
+      if (res === 'granted') return true;
+      // Denied — give a clear path to fix it
+      toast('Motion access denied. Go to Settings → Safari → Motion & Orientation Access → ON, then reload.');
+      return false;
+    } catch(e) {
+      // Permission can throw if called outside a user gesture (e.g. on page load)
+      toast('Tap the Neural Band toggle to enable motion sensors on iOS.');
+      return false;
+    }
   }
   if (typeof DeviceMotionEvent === 'undefined') {
-    toast('Motion sensors unavailable. Neural mode uses keyboard: → like, ← pass, ↑ super like');
+    toast('Motion sensors unavailable — using keyboard fallback: → like, ← pass, ↑ super like');
     addNeuralKeyboardFallback();
     return true;
   }
-  return true;
+  return true; // Android / non-iOS — no permission required
 }
 
 let _keyFallbackAdded = false;
