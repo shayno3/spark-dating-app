@@ -2551,8 +2551,16 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       </div>
 
       <div class="help-section">
-        <div class="help-section-title">💬 Messaging (while in chat)</div>
-        <div class="cmd-row"><div class="cmd-pill">"send [message]"</div><div class="cmd-desc">Sends that text — e.g. "send hey, how's your day going?"</div></div>
+        <div class="help-section-title">💬 Messaging</div>
+        <div class="cmd-row"><div class="cmd-pill">"read messages"</div><div class="cmd-desc">Hear your latest unread messages read aloud (also: "check messages", "any messages")</div></div>
+        <div class="cmd-row"><div class="cmd-pill">"open [name]"</div><div class="cmd-desc">Open a chat by saying their name — e.g. "open Sarah" (also: "chat with Sarah", "talk to Sarah")</div></div>
+        <div class="cmd-row"><div class="cmd-pill">"send [message]"</div><div class="cmd-desc">Send a message once a chat is open — e.g. "send hey, how's your day going?"</div></div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">🔊 Audio Alerts</div>
+        <div class="cmd-row"><div class="cmd-pill">New match</div><div class="cmd-desc">3-note chime plays automatically when you get a new match</div></div>
+        <div class="cmd-row"><div class="cmd-pill">New message</div><div class="cmd-desc">2-note chime + name announcement when a message arrives</div></div>
       </div>
 
       <div class="help-section">
@@ -5939,6 +5947,7 @@ function subscribeToMatches() {
         S.newMatches.add(first.uid);
         S.pendingMatchId = first.uid;
         showMatchOverlay(first.uid);
+        glassChime('match'); // 3-note ascending chime on new match
         // Track for Messages badge — cleared when user opens Messages tab
         newMatches.forEach(m => S.newMatchMsgs.add(m.uid));
       }
@@ -7351,6 +7360,12 @@ function subscribeToMessages(matchId, uid) {
         updateBadges();
         const activeTab = document.querySelector('.tab-content.active')?.id;
         if (activeTab === 'tab-messages') renderConversations();
+        // Glasses audio alert for incoming message
+        if (VOICE.active) {
+          const senderMatch = S.matches.find(m => m.uid === uid);
+          glassChime('msg');
+          if (senderMatch) setTimeout(() => speak(`New message from ${senderMatch.name}. Say "read messages" to hear it.`), 700);
+        }
       }
     }, e => console.warn('messages listener:', e));
 }
@@ -9038,6 +9053,25 @@ if (VOICE.synth) {
   VOICE.voices = VOICE.synth.getVoices();
 }
 
+// Soft chime through glasses speakers — no audio file needed
+function glassChime(type = 'msg') {
+  if (!VOICE.active) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // match = 3-note ascending (C5-E5-G5), msg = 2-note (E5-G5)
+    const notes = type === 'match' ? [523.25, 659.25, 783.99] : [659.25, 783.99];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.18;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.start(t); osc.stop(t + 0.6);
+    });
+  } catch(e) {}
+}
 function speak(text, interrupt = false) {
   if (!VOICE.synth) return;
   if (interrupt) VOICE.synth.cancel();
@@ -9090,23 +9124,26 @@ function processVoiceCommand(raw) {
   showCmdFeedback(raw);
   const cmd = raw.toLowerCase();
 
-  if (/\b(like|love|yes|heart|right|match)\b/.test(cmd)) {
-    const uid = currentCardId();
-    const u   = findUser(uid);
+  const _tab = S._activeTab || '';
+
+  // ── Context-gated swipe commands — only on Discover ──────────────────────
+  if (/\b(like|love|yes|heart|right)\b/.test(cmd) && !/\b(i like|would like)\b/.test(cmd)) {
+    if (_tab !== 'discover') { speak('Switch to Discover first, then say like.'); return; }
+    const uid = currentCardId(), u = findUser(uid);
     if (uid) { swipe('like'); speak(u ? `Liked ${u.name}!` : 'Liked!'); }
     else speak('No profile to like right now');
     return;
   }
-  if (/\b(nope|pass|no|next|skip|left|dislike|reject)\b/.test(cmd)) {
-    const uid = currentCardId();
-    const u   = findUser(uid);
+  if (/\b(nope|pass|no|skip|left|dislike|reject)\b/.test(cmd)) {
+    if (_tab !== 'discover') { speak('Switch to Discover to pass on profiles.'); return; }
+    const uid = currentCardId(), u = findUser(uid);
     if (uid) { swipe('pass'); speak(u ? `Passed on ${u.name}` : 'Passed'); }
     else speak('No profile to pass on');
     return;
   }
   if (/\bsuper\b/.test(cmd)) {
-    const uid = currentCardId();
-    const u   = findUser(uid);
+    if (_tab !== 'discover') { speak('Switch to Discover to super like.'); return; }
+    const uid = currentCardId(), u = findUser(uid);
     if (uid) { swipe('super'); speak(u ? `Super liked ${u.name}!` : 'Super like sent!'); }
     return;
   }
@@ -9159,23 +9196,44 @@ function processVoiceCommand(raw) {
     speak(`Your profile, ${S.user?.name || 'loading'}.`);
     return;
   }
-  // Send message in chat
-  const sendMatch = cmd.match(/^(?:send|text|message|say)\s+(?:message\s+)?(.+)/);
+  // ── Read messages aloud ────────────────────────────────────────────────────
+  if (/\b(read messages|read inbox|check messages|any messages|new messages|unread messages|what did.*say)\b/.test(cmd)) {
+    const unreadMatches = S.matches.filter(m => S.unread[m.uid]);
+    if (!unreadMatches.length) { speak('No new messages right now.'); return; }
+    let tts = '';
+    unreadMatches.slice(0, 3).forEach(m => {
+      const msgs = S.messages[m.matchId] || [];
+      const last = [...msgs].reverse().find(msg => msg.from !== S.user?.id);
+      if (last?.text) tts += `${m.sparkSystem ? 'Spark Team' : m.name} says: ${last.text}. `;
+    });
+    speak(tts || `You have ${unreadMatches.length} unread message${unreadMatches.length > 1 ? 's' : ''}. Opening messages tab.`, true);
+    if (!tts) showTab('messages');
+    return;
+  }
+
+  // ── Open conversation by name — "open Sarah", "chat with Sarah" ───────────
+  const openNameMatch = cmd.match(/^(?:open|chat with|talk to|message)\s+([a-z][a-z\s\-']{1,30})$/);
+  if (openNameMatch) {
+    const query = openNameMatch[1].trim();
+    const found = S.matches.find(m => {
+      const n = (m.name || '').toLowerCase();
+      return n.startsWith(query) || n === query || query.startsWith(n.split(' ')[0]);
+    });
+    if (found) { openChat(found.uid); speak(`Opening chat with ${found.name}.`); }
+    else speak(`No match named ${openNameMatch[1]}. Say "matches" to hear your match list.`);
+    return;
+  }
+
+  // ── Send message — context-gated: must be in an active chat ───────────────
+  const sendMatch = cmd.match(/^(?:send|text|say)\s+(?:message\s+)?(.+)/);
   if (sendMatch) {
-    const msgText = sendMatch[1].trim();
-    if (S.activeChatId) {
-      const chatInput = document.getElementById('chatInput');
-      if (chatInput) { chatInput.value = msgText; sendMsg(); speak(`Sent: ${msgText}`); }
-    } else {
-      const recentMatch = S.matches[S.matches.length - 1];
-      if (recentMatch) {
-        openChat(recentMatch.uid);
-        setTimeout(() => {
-          const ci = document.getElementById('chatInput');
-          if (ci) { ci.value = msgText; sendMsg(); speak(`Sent to ${recentMatch.name}: ${msgText}`); }
-        }, 400);
-      } else { speak('No active chat. Match with someone first.'); }
+    if (!S.activeChatId) {
+      speak('Open a conversation first. Say "open" followed by a name, then say your message.');
+      return;
     }
+    const msgText = sendMatch[1].trim();
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) { chatInput.value = msgText; sendMsg(); speak(`Sent: ${msgText}`); }
     return;
   }
   if (/\b(status|how many|count|stats|summary)\b/.test(cmd)) {
