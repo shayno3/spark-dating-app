@@ -4366,8 +4366,8 @@ async function handlePhotos(event, mode) {
 // R2_WORKER_URL  : the Worker URL from Cloudflare (e.g. https://spark-r2.username.workers.dev)
 // R2_UPLOAD_SECRET: the SPARK_SECRET env var you set on the Worker
 // Leave as-is to continue using Firebase Storage (zero change to existing behaviour).
-const R2_WORKER_URL     = 'https://spark-r2-upload.shayno3.workers.dev';
-const R2_UPLOAD_SECRET  = '09db102dcee85f90cfb49df03e3b1975db372c9f1af3a7e9491c8496ff269f33';
+const R2_WORKER_URL     = 'REPLACE_WITH_R2_WORKER_URL';
+const R2_UPLOAD_SECRET  = 'REPLACE_WITH_R2_UPLOAD_SECRET';
 const VISION_WORKER_URL = 'REPLACE_WITH_VISION_WORKER_URL'; // Cloud Vision proxy worker
 const _r2Active = R2_WORKER_URL !== 'REPLACE_WITH_R2_WORKER_URL';
 
@@ -10700,28 +10700,40 @@ async function initPushNotifications() {
 function openFilterSheet() {
   const overlay = document.getElementById('dfsOverlay');
   if (!overlay) return;
-  // Sync steppers with current S state
+  // Copy live filter state into a draft — pills edit the draft, not S directly.
+  // This means closing without Apply leaves the grid untouched.
+  S._draftFilter = {
+    lookingFor:     S.filterLookingFor,
+    drinking:       S.filterDrinking,
+    smoking:        S.filterSmoking,
+    exercise:       S.filterExercise,
+    recentlyActive: S.filterRecentlyActive,
+    verifiedOnly:   S.filterVerifiedOnly,
+    minAge:         S.minAge,
+    maxAge:         S.maxAge,
+    radius:         S.radius,
+  };
+  // Sync steppers with draft state
   const minEl  = document.getElementById('dfsAgeMinVal');
   const maxEl  = document.getElementById('dfsAgeMaxVal');
   const distEl = document.getElementById('dfsDistVal');
-  if (minEl)  minEl.textContent  = S.minAge  || 18;
-  if (maxEl)  maxEl.textContent  = (S.maxAge  >= 80) ? '80+' : (S.maxAge  || 80);
-  if (distEl) distEl.textContent = S.radius   || 50;
+  if (minEl)  minEl.textContent  = S._draftFilter.minAge  || 18;
+  if (maxEl)  maxEl.textContent  = (S._draftFilter.maxAge >= 80) ? '80+' : (S._draftFilter.maxAge || 80);
+  if (distEl) distEl.textContent = S._draftFilter.radius  || 50;
   // Sync pill selections
   document.querySelectorAll('[data-dfs-lf]').forEach(el => {
-    el.classList.toggle('sel', el.dataset.dfsLf === S.filterLookingFor);
+    el.classList.toggle('sel', el.dataset.dfsLf === S._draftFilter.lookingFor);
   });
   ['drinking','smoking','exercise'].forEach(cat => {
-    const field = 'filter' + cat.charAt(0).toUpperCase() + cat.slice(1);
     document.querySelectorAll(`[data-dfs-ls="${cat}"]`).forEach(el => {
-      el.classList.toggle('sel', el.dataset.dfsLsVal === S[field]);
+      el.classList.toggle('sel', el.dataset.dfsLsVal === S._draftFilter[cat]);
     });
   });
   // Sync premium lock icons
   const lockActive   = document.getElementById('dfsLockActive');
   const lockVerified = document.getElementById('dfsLockVerified');
-  if (lockActive)   lockActive.textContent   = S.isPremium ? (S.filterRecentlyActive ? '✅' : '⭕') : '🔒';
-  if (lockVerified) lockVerified.textContent = S.isPremium ? (S.filterVerifiedOnly   ? '✅' : '⭕') : '🔒';
+  if (lockActive)   lockActive.textContent   = S.isPremium ? (S._draftFilter.recentlyActive ? '✅' : '⭕') : '🔒';
+  if (lockVerified) lockVerified.textContent = S.isPremium ? (S._draftFilter.verifiedOnly   ? '✅' : '⭕') : '🔒';
   updateDfsMatchCount();
   overlay.classList.add('open');
   if (typeof _navRefresh === 'function') _navRefresh();
@@ -10731,6 +10743,7 @@ function closeFilterSheet() {
   const overlay = document.getElementById('dfsOverlay');
   if (!overlay) return;
   overlay.classList.remove('open');
+  S._draftFilter = null; // discard any uncommitted changes
   if (typeof _navRefresh === 'function') _navRefresh();
 }
 
@@ -10759,50 +10772,61 @@ function stepFilterDist(delta) {
 }
 
 function selectFilterLF(val) {
-  // Single-select (free users); pill toggles
-  const current = S.filterLookingFor;
-  S.filterLookingFor = (current === val) ? null : val;
-  // Re-render pills
+  // Single-select (pill toggles). Edits the draft, NOT S directly.
+  if (!S._draftFilter) return;
+  S._draftFilter.lookingFor = (S._draftFilter.lookingFor === val) ? null : val;
   document.querySelectorAll('[data-dfs-lf]').forEach(el => {
-    el.classList.toggle('sel', el.dataset.dfsLf === S.filterLookingFor);
+    el.classList.toggle('sel', el.dataset.dfsLf === S._draftFilter.lookingFor);
   });
   updateDfsMatchCount();
 }
 
 function toggleFilterLS(category, val) {
-  // Single-select per category (free users share same behaviour for simplicity)
-  const field = 'filter' + category.charAt(0).toUpperCase() + category.slice(1);
-  S[field] = (S[field] === val) ? null : val;
+  // Single-select per category. Edits the draft, NOT S directly.
+  if (!S._draftFilter) return;
+  S._draftFilter[category] = (S._draftFilter[category] === val) ? null : val;
   document.querySelectorAll(`[data-dfs-ls="${category}"]`).forEach(el => {
-    el.classList.toggle('sel', el.dataset.dfsLsVal === S[field]);
+    el.classList.toggle('sel', el.dataset.dfsLsVal === S._draftFilter[category]);
   });
   updateDfsMatchCount();
 }
 
 function toggleFilterPremium(flag) {
   if (!S.isPremium) { upgradeToPremium(); return; }
-  S[flag] = !S[flag];
+  if (!S._draftFilter) return;
+  const draftKey = flag === 'filterRecentlyActive' ? 'recentlyActive' : 'verifiedOnly';
+  S._draftFilter[draftKey] = !S._draftFilter[draftKey];
   const el = document.getElementById('dfs-' + flag);
-  if (el) el.classList.toggle('active', S[flag]);
-  // Update lock/check icon
+  if (el) el.classList.toggle('active', S._draftFilter[draftKey]);
   const lockId = flag === 'filterRecentlyActive' ? 'dfsLockActive' : 'dfsLockVerified';
   const lockEl = document.getElementById(lockId);
-  if (lockEl) lockEl.textContent = S[flag] ? '✅' : '⭕';
+  if (lockEl) lockEl.textContent = S._draftFilter[draftKey] ? '✅' : '⭕';
   updateDfsMatchCount();
 }
 
 function applyDiscoverFilters() {
-  // Read stepper values back into S
-  const minEl = document.getElementById('dfsAgeMinVal');
-  const maxEl = document.getElementById('dfsAgeMaxVal');
+  if (!S._draftFilter) return;
+  // Read stepper values into draft first
+  const minEl  = document.getElementById('dfsAgeMinVal');
+  const maxEl  = document.getElementById('dfsAgeMaxVal');
   const distEl = document.getElementById('dfsDistVal');
-  if (minEl) S.minAge = parseInt(minEl.textContent) || S.minAge;
+  if (minEl) S._draftFilter.minAge = parseInt(minEl.textContent) || S._draftFilter.minAge || 18;
   if (maxEl) {
     const raw = maxEl.textContent;
-    S.maxAge = raw === '80+' ? 80 : (parseInt(raw) || S.maxAge);
+    S._draftFilter.maxAge = raw === '80+' ? 80 : (parseInt(raw) || S._draftFilter.maxAge || 80);
   }
-  if (distEl) S.radius = parseInt(distEl.textContent) || S.radius;
-
+  if (distEl) S._draftFilter.radius = parseInt(distEl.textContent) || S._draftFilter.radius || 50;
+  // Commit draft → live S
+  S.filterLookingFor     = S._draftFilter.lookingFor;
+  S.filterDrinking       = S._draftFilter.drinking;
+  S.filterSmoking        = S._draftFilter.smoking;
+  S.filterExercise       = S._draftFilter.exercise;
+  S.filterRecentlyActive = S._draftFilter.recentlyActive;
+  S.filterVerifiedOnly   = S._draftFilter.verifiedOnly;
+  S.minAge               = S._draftFilter.minAge;
+  S.maxAge               = S._draftFilter.maxAge;
+  S.radius               = S._draftFilter.radius;
+  S._draftFilter = null;
   saveFilterPrefs();
   updateFilterDot();
   renderDiscover();
@@ -10811,28 +10835,79 @@ function applyDiscoverFilters() {
 }
 
 function resetDiscoverFilters() {
+  // Reset live S state fully
   S.filterLookingFor     = null;
   S.filterDrinking       = null;
   S.filterSmoking        = null;
   S.filterExercise       = null;
   S.filterRecentlyActive = false;
   S.filterVerifiedOnly   = false;
-  // Reset steppers to current S values
-  const minEl = document.getElementById('dfsAgeMinVal');
-  const maxEl = document.getElementById('dfsAgeMaxVal');
+  S.minAge               = 18;
+  S.maxAge               = 80;
+  S.radius               = 50;
+  // Also reset draft so steppers/pills reflect cleared state
+  S._draftFilter = {
+    lookingFor: null, drinking: null, smoking: null, exercise: null,
+    recentlyActive: false, verifiedOnly: false,
+    minAge: 18, maxAge: 80, radius: 50,
+  };
+  // Sync steppers display
+  const minEl  = document.getElementById('dfsAgeMinVal');
+  const maxEl  = document.getElementById('dfsAgeMaxVal');
   const distEl = document.getElementById('dfsDistVal');
-  if (minEl) minEl.textContent = S.minAge || 18;
-  if (maxEl) maxEl.textContent = (S.maxAge >= 80) ? '80+' : (S.maxAge || 80);
-  if (distEl) distEl.textContent = S.radius || 50;
+  if (minEl)  minEl.textContent  = '18';
+  if (maxEl)  maxEl.textContent  = '80+';
+  if (distEl) distEl.textContent = '50';
   // Reset all pill selections
   document.querySelectorAll('[data-dfs-lf],[data-dfs-ls]').forEach(el => el.classList.remove('sel'));
+  // Reset premium toggles
+  const lockActive   = document.getElementById('dfsLockActive');
+  const lockVerified = document.getElementById('dfsLockVerified');
+  if (lockActive)   lockActive.textContent   = S.isPremium ? '⭕' : '🔒';
+  if (lockVerified) lockVerified.textContent = S.isPremium ? '⭕' : '🔒';
   saveFilterPrefs();
   updateFilterDot();
   updateDfsMatchCount();
+  renderDiscover();  // immediately refresh the grid
 }
 
 function updateDfsMatchCount() {
-  const count = getProspects().length;
+  // Preview count using draft filter state so the number reflects what Apply would show
+  const draft = S._draftFilter;
+  let count;
+  if (!draft) {
+    count = getProspects().length;
+  } else {
+    // Temporarily read stepper values into draft for the preview count
+    const minEl  = document.getElementById('dfsAgeMinVal');
+    const maxEl  = document.getElementById('dfsAgeMaxVal');
+    const distEl = document.getElementById('dfsDistVal');
+    const previewMinAge = minEl ? (parseInt(minEl.textContent) || draft.minAge || 18) : (draft.minAge || 18);
+    const previewMaxAge = maxEl ? (maxEl.textContent === '80+' ? 80 : (parseInt(maxEl.textContent) || draft.maxAge || 80)) : (draft.maxAge || 80);
+    const previewRadius = distEl ? (parseInt(distEl.textContent) || draft.radius || 50) : (draft.radius || 50);
+    // Count against draft filters (without mutating S)
+    const now = Date.now();
+    count = (S.profiles || []).filter(u => {
+      if (!S.user || u.id === S.user.id) return false;
+      if (u.deleted || u.banned || u.invisible) return false;
+      if (u.age < previewMinAge) return false;
+      if (previewMaxAge < 80 && u.age > previewMaxAge) return false;
+      if (S.user.seeking && S.user.seeking !== 'Everyone') {
+        const want = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
+        if (u.gender !== want) return false;
+      }
+      if (draft.lookingFor && u.lookingFor !== draft.lookingFor) return false;
+      if (draft.drinking   && u.drinking   !== draft.drinking)   return false;
+      if (draft.smoking    && u.smoking    !== draft.smoking)     return false;
+      if (draft.exercise   && u.exercise   !== draft.exercise)    return false;
+      if (draft.recentlyActive && S.isPremium) {
+        const ls = u.lastSeen?.toDate ? u.lastSeen.toDate() : (u.lastSeen ? new Date(u.lastSeen) : null);
+        if (!ls || (Date.now() - ls.getTime()) > 86400000) return false;
+      }
+      if (draft.verifiedOnly && S.isPremium && !u.verified) return false;
+      return true;
+    }).length;
+  }
   const el = document.getElementById('dfsMatchCount');
   if (el) el.innerHTML = `<span>${count}</span> profile${count !== 1 ? 's' : ''} match your filters`;
 }
@@ -10881,6 +10956,8 @@ async function loadFilterPrefs(uid) {
     if (prefs.maxAge         !== undefined) S.maxAge               = prefs.maxAge;
     if (prefs.radius         !== undefined) S.radius               = prefs.radius;
     updateFilterDot();
+    // Re-render so the grid reflects any restored filter values
+    renderDiscover();
   } catch(e) {
     console.warn('loadFilterPrefs error:', e);
   }
