@@ -1235,6 +1235,65 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 .age-step-btn:active, .age-step-btn.kbd-focus { background: var(--primary); border-color: var(--primary); color: #fff; }
 .age-step-val { min-width: 32px; text-align: center; font-weight: 800; font-size: 0.9rem; color: var(--text); }
 .radius-label { font-size: 0.75rem; color: var(--primary); white-space: nowrap; flex-shrink: 0; font-weight: 700; min-width: 90px; }
+/* ── DISCOVER FILTER SHEET ── */
+.dfs-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); z-index: 450; opacity: 0; pointer-events: none; transition: opacity 0.22s; }
+.dfs-overlay.open { opacity: 1; pointer-events: all; }
+.dfs-card { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-elevated); border-radius: 22px 22px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; max-height: 88vh; transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.32,0.72,0,1); z-index: 451; }
+.dfs-overlay.open .dfs-card { transform: translateY(0); }
+.dfs-handle-wrap { display: flex; justify-content: center; padding: 0.7rem 0 0.2rem; flex-shrink: 0; }
+.dfs-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); }
+.dfs-head { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 1.25rem 0.75rem; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.dfs-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+.dfs-reset { font-size: 0.8rem; font-weight: 700; color: var(--primary); background: none; border: none; cursor: pointer; padding: 0.3rem 0.5rem; border-radius: 8px; font-family: inherit; touch-action: manipulation; }
+.dfs-body { overflow-y: auto; padding: 0.75rem 1.25rem 0.5rem; display: flex; flex-direction: column; gap: 1rem; flex: 1; -webkit-overflow-scrolling: touch; }
+.dfs-section { display: flex; flex-direction: column; gap: 0.45rem; }
+.dfs-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted); }
+.dfs-divider { height: 1px; background: var(--border); margin: 0 -1.25rem; }
+/* Steppers — 40×40 for glasses tap accuracy, touch-action:manipulation */
+.dfs-stepper-group { display: flex; flex-direction: column; gap: 0.45rem; }
+.dfs-stepper-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0.45rem 0.75rem; }
+.dfs-stepper-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); flex: 1; }
+.dfs-stepper-ctrl { display: flex; align-items: center; gap: 0.55rem; }
+.dfs-step-val { min-width: 54px; text-align: center; font-size: 0.88rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.dfs-step-btn { width: 40px; height: 40px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--primary); font-size: 1.2rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.12s, border-color 0.12s; font-family: inherit; touch-action: manipulation; line-height: 1; }
+.dfs-step-btn:active, .dfs-step-btn.kbd-focus { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* Pills */
+.dfs-pill-note { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 0.35rem; }
+.dfs-prem-chip { background: rgba(245,166,35,0.12); border: 1px solid rgba(245,166,35,0.3); color: #F5A623; font-size: 0.6rem; font-weight: 900; padding: 0.1rem 0.4rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+.dfs-pill-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.dfs-pill { padding: 0.4rem 0.85rem; border-radius: 20px; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.15s; font-family: inherit; white-space: nowrap; touch-action: manipulation; }
+.dfs-pill.sel { background: rgba(233,30,140,0.12); border-color: rgba(233,30,140,0.5); color: var(--primary); }
+/* Lifestyle sub-pills */
+.dfs-ls-block { display: flex; flex-direction: column; gap: 0.45rem; }
+.dfs-ls-row { display: flex; align-items: center; gap: 0.5rem; }
+.dfs-ls-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; min-width: 68px; flex-shrink: 0; }
+.dfs-ls-pills { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.dfs-ls-pill { padding: 0.3rem 0.62rem; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.15s; font-family: inherit; touch-action: manipulation; }
+.dfs-ls-pill.sel { background: rgba(233,30,140,0.1); border-color: rgba(233,30,140,0.4); color: var(--primary); }
+/* Premium gate rows */
+.dfs-prem-section { display: flex; flex-direction: column; gap: 0.45rem; }
+.dfs-prem-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0.9rem; border-radius: 14px; cursor: pointer; touch-action: manipulation; transition: opacity 0.15s; }
+.dfs-prem-row.gold { background: rgba(245,166,35,0.05); border: 1.5px solid rgba(245,166,35,0.18); }
+.dfs-prem-row.blue { background: rgba(24,119,242,0.05); border: 1.5px solid rgba(24,119,242,0.18); }
+.dfs-prem-row:active { opacity: 0.75; }
+.dfs-prem-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+.dfs-prem-row.gold .dfs-prem-icon { background: rgba(245,166,35,0.12); }
+.dfs-prem-row.blue .dfs-prem-icon { background: rgba(24,119,242,0.1); }
+.dfs-prem-text { flex: 1; }
+.dfs-prem-title { font-size: 0.82rem; font-weight: 800; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.dfs-prem-sub { font-size: 0.7rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.1rem; line-height: 1.35; }
+.dfs-badge-gold { background: linear-gradient(135deg,#F5A623,#E91E8C); color: #fff; font-size: 0.58rem; font-weight: 900; padding: 0.1rem 0.4rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+.dfs-badge-blue { background: #1877F2; color: #fff; font-size: 0.58rem; font-weight: 900; padding: 0.1rem 0.4rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+.dfs-prem-lock { font-size: 0.9rem; color: var(--text-muted); opacity: 0.6; }
+/* Footer */
+.dfs-footer { padding: 0.8rem 1.25rem max(0.8rem, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0; }
+.dfs-match-count { text-align: center; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+.dfs-match-count span { color: var(--primary); font-weight: 800; }
+.dfs-apply-btn { width: 100%; padding: 0.8rem; border-radius: 14px; border: none; background: var(--gradient); color: #fff; font-size: 0.95rem; font-weight: 800; cursor: pointer; font-family: inherit; touch-action: manipulation; }
+/* Filter icon badge */
+.filter-icon-btn { position: relative; }
+.filter-icon-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); border: 1.5px solid var(--bg); display: none; }
+.filter-icon-dot.show { display: block; }
 .radius-value { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 .radius-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; outline: none; cursor: pointer; background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--pct,9%), rgba(255,255,255,0.12) var(--pct,9%), rgba(255,255,255,0.12) 100%); }
 .radius-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 2px 8px rgba(233,30,140,0.55); }
@@ -2152,8 +2211,14 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="discover-wrap">
         <div class="view-toggle-row" style="padding-top:0.6rem;padding-bottom:0.4rem">
           <div class="view-toggle-title">Discover ✨</div>
-          <button id="viewToggle_discover" class="view-toggle-btn" title="Toggle grid / list view"
-            onclick="setViewMode('discover', S.viewMode.discover==='grid'?'list':'grid')">☰</button>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <button class="view-toggle-btn filter-icon-btn" onclick="openFilterSheet()" title="Filters" style="touch-action:manipulation">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><circle cx="8" cy="6" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="12" x2="21" y2="12"/><circle cx="16" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="18" x2="21" y2="18"/><circle cx="8" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <span class="filter-icon-dot" id="filterIconDot"></span>
+            </button>
+            <button id="viewToggle_discover" class="view-toggle-btn" title="Toggle grid / list view"
+              onclick="setViewMode('discover', S.viewMode.discover==='grid'?'list':'grid')">☰</button>
+          </div>
         </div>
         <div class="filter-bar">
           <button id="chipAll"    class="filter-chip active" onclick="setFilter('all',this)">All 🌎</button>
@@ -2241,8 +2306,14 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <div class="nearby-city-line" id="nearbyCityLine">📍 Loading…</div>
           <div class="nearby-count" id="nearbyCount"></div>
         </div>
-        <button id="viewToggle_explore" class="view-toggle-btn" title="Toggle grid / list view"
-          onclick="setViewMode('explore', S.viewMode.explore==='grid'?'list':'grid')">☰</button>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <button class="view-toggle-btn filter-icon-btn" onclick="openFilterSheet()" title="Filters" style="touch-action:manipulation">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><circle cx="8" cy="6" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="12" x2="21" y2="12"/><circle cx="16" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="18" x2="21" y2="18"/><circle cx="8" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span class="filter-icon-dot" id="filterIconDotExplore"></span>
+          </button>
+          <button id="viewToggle_explore" class="view-toggle-btn" title="Toggle grid / list view"
+            onclick="setViewMode('explore', S.viewMode.explore==='grid'?'list':'grid')">☰</button>
+        </div>
       </div>
       <div class="nearby-grid" id="nearbyGrid"></div>
     </div>
@@ -2840,7 +2911,14 @@ const S = {
       const saved = JSON.parse(localStorage.getItem('spark_viewMode') || '{}');
       return { discover: 'list', matches: 'grid', messages: 'list', explore: 'grid', ...saved };
     } catch { return { discover: 'list', matches: 'grid', messages: 'list', explore: 'grid' }; }
-  })()
+  })(),
+  // Discover filter sheet prefs — persisted to Firestore users/{uid}.filterPrefs
+  filterLookingFor:     null,    // string or null (free = single select)
+  filterDrinking:       null,    // string or null
+  filterSmoking:        null,    // string or null
+  filterExercise:       null,    // string or null
+  filterRecentlyActive: false,   // Premium: only show profiles active in last 24h
+  filterVerifiedOnly:   false,   // Premium: only show verified profiles
 };
 
 /* ================================================================
@@ -3049,6 +3127,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           S.superLikeUsedDate = snap.data()?.superLikeUsedDate || null;
           _updateRewindBtn();
           enterMainApp();
+          loadFilterPrefs(firebaseUser.uid);
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
           // Brand-new user — show setup wizard
@@ -5171,6 +5250,7 @@ function showTab(tab) {
   const gearBtn = document.getElementById('gearBtn');
   if (gearBtn) gearBtn.style.display = tab === 'profile' ? '' : 'none';
   // Close ALL slide-in panels so the tab is never blocked
+  closeFilterSheet();
   closePrivacyPanel();
   closeEditProfile();
   closeDetail();
@@ -5325,6 +5405,21 @@ function getProspects() {
                        : S.user.seeking === 'Women' ? 'Woman'
                        : S.user.seeking;
       if (u.gender !== wantGender) return false;
+    }
+
+    // ── Discover filter sheet preferences ─────────────────────────────────
+    if (S.filterLookingFor && u.lookingFor !== S.filterLookingFor) return false;
+    if (S.filterDrinking   && u.drinking   !== S.filterDrinking)   return false;
+    if (S.filterSmoking    && u.smoking    !== S.filterSmoking)     return false;
+    if (S.filterExercise   && u.exercise   !== S.filterExercise)    return false;
+    // Premium-gated: Recently Active (last 24h)
+    if (S.filterRecentlyActive && S.isPremium) {
+      const lastSeen = u.lastSeen?.toDate ? u.lastSeen.toDate() : (u.lastSeen ? new Date(u.lastSeen) : null);
+      if (!lastSeen || (Date.now() - lastSeen.getTime()) > 24 * 60 * 60 * 1000) return false;
+    }
+    // Premium-gated: Verified users only
+    if (S.filterVerifiedOnly && S.isPremium) {
+      if (!u.verified) return false;
     }
 
     // ── Tab-specific filters ───────────────────────────────────────────────
@@ -10439,6 +10534,199 @@ async function initPushNotifications() {
     if (b) b.style.display = 'flex';
   }, 4000);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DISCOVER FILTER SHEET
+   ═══════════════════════════════════════════════════════════════ */
+
+function openFilterSheet() {
+  const overlay = document.getElementById('dfsOverlay');
+  if (!overlay) return;
+  // Sync steppers with current S state
+  const minEl  = document.getElementById('dfsAgeMinVal');
+  const maxEl  = document.getElementById('dfsAgeMaxVal');
+  const distEl = document.getElementById('dfsDistVal');
+  if (minEl)  minEl.textContent  = S.minAge  || 18;
+  if (maxEl)  maxEl.textContent  = (S.maxAge  >= 80) ? '80+' : (S.maxAge  || 80);
+  if (distEl) distEl.textContent = S.radius   || 50;
+  // Sync pill selections
+  document.querySelectorAll('[data-dfs-lf]').forEach(el => {
+    el.classList.toggle('sel', el.dataset.dfsLf === S.filterLookingFor);
+  });
+  ['drinking','smoking','exercise'].forEach(cat => {
+    const field = 'filter' + cat.charAt(0).toUpperCase() + cat.slice(1);
+    document.querySelectorAll(`[data-dfs-ls="${cat}"]`).forEach(el => {
+      el.classList.toggle('sel', el.dataset.dfsLsVal === S[field]);
+    });
+  });
+  // Sync premium lock icons
+  const lockActive   = document.getElementById('dfsLockActive');
+  const lockVerified = document.getElementById('dfsLockVerified');
+  if (lockActive)   lockActive.textContent   = S.isPremium ? (S.filterRecentlyActive ? '✅' : '⭕') : '🔒';
+  if (lockVerified) lockVerified.textContent = S.isPremium ? (S.filterVerifiedOnly   ? '✅' : '⭕') : '🔒';
+  updateDfsMatchCount();
+  overlay.classList.add('open');
+  if (typeof _navRefresh === 'function') _navRefresh();
+}
+
+function closeFilterSheet() {
+  const overlay = document.getElementById('dfsOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  if (typeof _navRefresh === 'function') _navRefresh();
+}
+
+function stepFilterAge(field, delta) {
+  // field: 'min' or 'max'
+  const minEl = document.getElementById('dfsAgeMinVal');
+  const maxEl = document.getElementById('dfsAgeMaxVal');
+  let min = parseInt(minEl.textContent) || 18;
+  let max = parseInt(maxEl.textContent) || 80;
+  if (field === 'min') {
+    min = Math.min(Math.max(18, min + delta), max - 1);
+    minEl.textContent = min;
+  } else {
+    max = Math.max(Math.min(80, max + delta), min + 1);
+    maxEl.textContent = max === 80 ? '80+' : max;
+  }
+  updateDfsMatchCount();
+}
+
+function stepFilterDist(delta) {
+  const el = document.getElementById('dfsDistVal');
+  let val = parseInt(el.textContent) || 50;
+  val = Math.min(Math.max(5, val + delta), 250);
+  el.textContent = val;
+  updateDfsMatchCount();
+}
+
+function selectFilterLF(val) {
+  // Single-select (free users); pill toggles
+  const current = S.filterLookingFor;
+  S.filterLookingFor = (current === val) ? null : val;
+  // Re-render pills
+  document.querySelectorAll('[data-dfs-lf]').forEach(el => {
+    el.classList.toggle('sel', el.dataset.dfsLf === S.filterLookingFor);
+  });
+  updateDfsMatchCount();
+}
+
+function toggleFilterLS(category, val) {
+  // Single-select per category (free users share same behaviour for simplicity)
+  const field = 'filter' + category.charAt(0).toUpperCase() + category.slice(1);
+  S[field] = (S[field] === val) ? null : val;
+  document.querySelectorAll(`[data-dfs-ls="${category}"]`).forEach(el => {
+    el.classList.toggle('sel', el.dataset.dfsLsVal === S[field]);
+  });
+  updateDfsMatchCount();
+}
+
+function toggleFilterPremium(flag) {
+  if (!S.isPremium) { upgradeToPremium(); return; }
+  S[flag] = !S[flag];
+  const el = document.getElementById('dfs-' + flag);
+  if (el) el.classList.toggle('active', S[flag]);
+  // Update lock/check icon
+  const lockId = flag === 'filterRecentlyActive' ? 'dfsLockActive' : 'dfsLockVerified';
+  const lockEl = document.getElementById(lockId);
+  if (lockEl) lockEl.textContent = S[flag] ? '✅' : '⭕';
+  updateDfsMatchCount();
+}
+
+function applyDiscoverFilters() {
+  // Read stepper values back into S
+  const minEl = document.getElementById('dfsAgeMinVal');
+  const maxEl = document.getElementById('dfsAgeMaxVal');
+  const distEl = document.getElementById('dfsDistVal');
+  if (minEl) S.minAge = parseInt(minEl.textContent) || S.minAge;
+  if (maxEl) {
+    const raw = maxEl.textContent;
+    S.maxAge = raw === '80+' ? 80 : (parseInt(raw) || S.maxAge);
+  }
+  if (distEl) S.radius = parseInt(distEl.textContent) || S.radius;
+
+  saveFilterPrefs();
+  updateFilterDot();
+  renderDiscover();
+  renderNearby();
+  closeFilterSheet();
+}
+
+function resetDiscoverFilters() {
+  S.filterLookingFor     = null;
+  S.filterDrinking       = null;
+  S.filterSmoking        = null;
+  S.filterExercise       = null;
+  S.filterRecentlyActive = false;
+  S.filterVerifiedOnly   = false;
+  // Reset steppers to current S values
+  const minEl = document.getElementById('dfsAgeMinVal');
+  const maxEl = document.getElementById('dfsAgeMaxVal');
+  const distEl = document.getElementById('dfsDistVal');
+  if (minEl) minEl.textContent = S.minAge || 18;
+  if (maxEl) maxEl.textContent = (S.maxAge >= 80) ? '80+' : (S.maxAge || 80);
+  if (distEl) distEl.textContent = S.radius || 50;
+  // Reset all pill selections
+  document.querySelectorAll('[data-dfs-lf],[data-dfs-ls]').forEach(el => el.classList.remove('sel'));
+  saveFilterPrefs();
+  updateFilterDot();
+  updateDfsMatchCount();
+}
+
+function updateDfsMatchCount() {
+  const count = getProspects().length;
+  const el = document.getElementById('dfsMatchCount');
+  if (el) el.innerHTML = `<span>${count}</span> profile${count !== 1 ? 's' : ''} match your filters`;
+}
+
+function updateFilterDot() {
+  const active = !!(S.filterLookingFor || S.filterDrinking || S.filterSmoking ||
+                    S.filterExercise || S.filterRecentlyActive || S.filterVerifiedOnly);
+  document.querySelectorAll('.filter-icon-dot').forEach(d => d.classList.toggle('show', active));
+}
+
+async function saveFilterPrefs() {
+  const uid = S.user?.id;
+  if (!uid || !db) return;
+  try {
+    await db.collection('users').doc(uid).update({
+      filterPrefs: {
+        lookingFor:     S.filterLookingFor,
+        drinking:       S.filterDrinking,
+        smoking:        S.filterSmoking,
+        exercise:       S.filterExercise,
+        recentlyActive: S.filterRecentlyActive,
+        verifiedOnly:   S.filterVerifiedOnly,
+        minAge:         S.minAge,
+        maxAge:         S.maxAge,
+        radius:         S.radius,
+      }
+    });
+  } catch(e) {
+    console.warn('saveFilterPrefs error:', e);
+  }
+}
+
+async function loadFilterPrefs(uid) {
+  if (!uid || !db) return;
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    const prefs = snap.data()?.filterPrefs;
+    if (!prefs) return;
+    if (prefs.lookingFor     !== undefined) S.filterLookingFor     = prefs.lookingFor;
+    if (prefs.drinking       !== undefined) S.filterDrinking       = prefs.drinking;
+    if (prefs.smoking        !== undefined) S.filterSmoking        = prefs.smoking;
+    if (prefs.exercise       !== undefined) S.filterExercise       = prefs.exercise;
+    if (prefs.recentlyActive !== undefined) S.filterRecentlyActive = prefs.recentlyActive;
+    if (prefs.verifiedOnly   !== undefined) S.filterVerifiedOnly   = prefs.verifiedOnly;
+    if (prefs.minAge         !== undefined) S.minAge               = prefs.minAge;
+    if (prefs.maxAge         !== undefined) S.maxAge               = prefs.maxAge;
+    if (prefs.radius         !== undefined) S.radius               = prefs.radius;
+    updateFilterDot();
+  } catch(e) {
+    console.warn('loadFilterPrefs error:', e);
+  }
+}
 </script>
 
 <input type="file" id="setupPhotoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(event,'setup')">
@@ -10652,6 +10940,136 @@ async function initPushNotifications() {
     <div class="delete-modal-actions">
       <button class="btn-delete-confirm" onclick="confirmDeleteAccount()">🗑️ Yes, Delete My Account</button>
       <button class="btn-delete-cancel" onclick="closeDeleteModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DISCOVER FILTER SHEET ── -->
+<div id="dfsOverlay" class="dfs-overlay" data-nav-panel data-nav-panel-inner=".dfs-card"
+     onclick="if(event.target===this)closeFilterSheet()">
+  <div class="dfs-card">
+    <div class="dfs-handle-wrap"><div class="dfs-handle"></div></div>
+    <div class="dfs-head">
+      <div class="dfs-title">🎯 Filter Profiles</div>
+      <button class="dfs-reset" onclick="resetDiscoverFilters()">Reset</button>
+    </div>
+    <div class="dfs-body">
+
+      <!-- AGE RANGE -->
+      <div class="dfs-section">
+        <div class="dfs-label">Age Range</div>
+        <div class="dfs-stepper-group">
+          <div class="dfs-stepper-row">
+            <span class="dfs-stepper-label">Min age</span>
+            <div class="dfs-stepper-ctrl">
+              <button class="dfs-step-btn" onclick="stepFilterAge('min',-1)">−</button>
+              <div class="dfs-step-val" id="dfsAgeMinVal">18</div>
+              <button class="dfs-step-btn" onclick="stepFilterAge('min',1)">+</button>
+            </div>
+          </div>
+          <div class="dfs-stepper-row">
+            <span class="dfs-stepper-label">Max age</span>
+            <div class="dfs-stepper-ctrl">
+              <button class="dfs-step-btn" onclick="stepFilterAge('max',-1)">−</button>
+              <div class="dfs-step-val" id="dfsAgeMaxVal">80+</div>
+              <button class="dfs-step-btn" onclick="stepFilterAge('max',1)">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- DISTANCE -->
+      <div class="dfs-section">
+        <div class="dfs-label">Max Distance (km)</div>
+        <div class="dfs-stepper-row">
+          <span class="dfs-stepper-label">Distance</span>
+          <div class="dfs-stepper-ctrl">
+            <button class="dfs-step-btn" onclick="stepFilterDist(-5)">−</button>
+            <div class="dfs-step-val" id="dfsDistVal">50</div>
+            <button class="dfs-step-btn" onclick="stepFilterDist(5)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- LOOKING FOR -->
+      <div class="dfs-section">
+        <div class="dfs-label">Looking For</div>
+        <div class="dfs-pill-row">
+          <button class="dfs-pill" data-dfs-lf="Something Casual" onclick="selectFilterLF('Something Casual')">Casual</button>
+          <button class="dfs-pill" data-dfs-lf="Relationship" onclick="selectFilterLF('Relationship')">Relationship</button>
+          <button class="dfs-pill" data-dfs-lf="Friends" onclick="selectFilterLF('Friends')">Friends</button>
+          <button class="dfs-pill" data-dfs-lf="Not Sure Yet" onclick="selectFilterLF('Not Sure Yet')">Not Sure</button>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- LIFESTYLE -->
+      <div class="dfs-section">
+        <div class="dfs-label">Lifestyle</div>
+        <div class="dfs-ls-block">
+          <div class="dfs-ls-row">
+            <span class="dfs-ls-label">Drinking</span>
+            <div class="dfs-ls-pills">
+              <button class="dfs-ls-pill" data-dfs-ls="drinking" data-dfs-ls-val="Never" onclick="toggleFilterLS('drinking','Never')">Never</button>
+              <button class="dfs-ls-pill" data-dfs-ls="drinking" data-dfs-ls-val="Sometimes" onclick="toggleFilterLS('drinking','Sometimes')">Sometimes</button>
+              <button class="dfs-ls-pill" data-dfs-ls="drinking" data-dfs-ls-val="Socially" onclick="toggleFilterLS('drinking','Socially')">Socially</button>
+              <button class="dfs-ls-pill" data-dfs-ls="drinking" data-dfs-ls-val="Regularly" onclick="toggleFilterLS('drinking','Regularly')">Regularly</button>
+            </div>
+          </div>
+          <div class="dfs-ls-row">
+            <span class="dfs-ls-label">Smoking</span>
+            <div class="dfs-ls-pills">
+              <button class="dfs-ls-pill" data-dfs-ls="smoking" data-dfs-ls-val="Non-smoker" onclick="toggleFilterLS('smoking','Non-smoker')">Non-smoker</button>
+              <button class="dfs-ls-pill" data-dfs-ls="smoking" data-dfs-ls-val="Occasionally" onclick="toggleFilterLS('smoking','Occasionally')">Occasionally</button>
+              <button class="dfs-ls-pill" data-dfs-ls="smoking" data-dfs-ls-val="Smoker" onclick="toggleFilterLS('smoking','Smoker')">Smoker</button>
+            </div>
+          </div>
+          <div class="dfs-ls-row">
+            <span class="dfs-ls-label">Exercise</span>
+            <div class="dfs-ls-pills">
+              <button class="dfs-ls-pill" data-dfs-ls="exercise" data-dfs-ls-val="Rarely" onclick="toggleFilterLS('exercise','Rarely')">Rarely</button>
+              <button class="dfs-ls-pill" data-dfs-ls="exercise" data-dfs-ls-val="Sometimes" onclick="toggleFilterLS('exercise','Sometimes')">Sometimes</button>
+              <button class="dfs-ls-pill" data-dfs-ls="exercise" data-dfs-ls-val="Often" onclick="toggleFilterLS('exercise','Often')">Often</button>
+              <button class="dfs-ls-pill" data-dfs-ls="exercise" data-dfs-ls-val="Daily" onclick="toggleFilterLS('exercise','Daily')">Daily</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- PREMIUM FILTERS -->
+      <div class="dfs-section">
+        <div class="dfs-label">Premium Filters <span class="dfs-prem-chip">✨ PRO</span></div>
+        <div class="dfs-prem-section">
+          <div class="dfs-prem-row gold" id="dfs-filterRecentlyActive" onclick="toggleFilterPremium('filterRecentlyActive')">
+            <div class="dfs-prem-icon">⚡</div>
+            <div class="dfs-prem-text">
+              <div class="dfs-prem-title">Recently Active <span class="dfs-badge-gold">Premium</span></div>
+              <div class="dfs-prem-sub">Show only profiles active in the last 24 hours</div>
+            </div>
+            <div class="dfs-prem-lock" id="dfsLockActive">🔒</div>
+          </div>
+          <div class="dfs-prem-row blue" id="dfs-filterVerifiedOnly" onclick="toggleFilterPremium('filterVerifiedOnly')">
+            <div class="dfs-prem-icon">✅</div>
+            <div class="dfs-prem-text">
+              <div class="dfs-prem-title">Verified Only <span class="dfs-badge-blue">Premium</span></div>
+              <div class="dfs-prem-sub">Only show photo-verified profiles</div>
+            </div>
+            <div class="dfs-prem-lock" id="dfsLockVerified">🔒</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="dfs-footer">
+      <div class="dfs-match-count" id="dfsMatchCount"><span>—</span> profiles match your filters</div>
+      <button class="dfs-apply-btn" onclick="applyDiscoverFilters()">Apply Filters</button>
     </div>
   </div>
 </div>
