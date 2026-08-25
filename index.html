@@ -4362,12 +4362,46 @@ async function handlePhotos(event, mode) {
   event.target.value = '';
 }
 
+// ── R2 config — fill these in once your Worker is deployed ─────────────────
+// R2_WORKER_URL  : the Worker URL from Cloudflare (e.g. https://spark-r2.username.workers.dev)
+// R2_UPLOAD_SECRET: the SPARK_SECRET env var you set on the Worker
+// Leave as-is to continue using Firebase Storage (zero change to existing behaviour).
+const R2_WORKER_URL     = 'REPLACE_WITH_R2_WORKER_URL';
+const R2_UPLOAD_SECRET  = 'REPLACE_WITH_R2_UPLOAD_SECRET';
+const VISION_WORKER_URL = 'REPLACE_WITH_VISION_WORKER_URL'; // Cloud Vision proxy worker
+const _r2Active = R2_WORKER_URL !== 'REPLACE_WITH_R2_WORKER_URL';
+
 async function uploadPhoto(blob, uid, index) {
-  if (!storage) return blobToDataUrl(blob); // fallback if Storage not ready
+  // ── R2 path (used once Worker URL + secret are configured) ───────────────
+  if (_r2Active) {
+    const form = new FormData();
+    form.append('file', new File([blob], `photo_${index}.jpg`, { type: 'image/jpeg' }));
+    form.append('uid', uid);
+    const res = await fetch(`${R2_WORKER_URL}/upload`, {
+      method: 'POST',
+      headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET },
+      body: form,
+    });
+    if (!res.ok) throw new Error('R2 upload failed: ' + res.status);
+    const { url } = await res.json();
+    return url; // permanent CDN URL stored in Firestore
+
+    // Optional: run Vision API moderation before returning URL
+    // Uncomment and set VISION_WORKER_URL + secret when ready:
+    // const modRes = await fetch(`${VISION_WORKER_URL}/moderate`, {
+    //   method: 'POST', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ imageUrl: url })
+    // });
+    // const mod = await modRes.json();
+    // if (!mod.safe) { fetch(`${R2_WORKER_URL}/delete`, { method:'DELETE', headers:{'X-Spark-Secret':R2_UPLOAD_SECRET,'Content-Type':'application/json'}, body: JSON.stringify({key}) }); throw new Error('Photo rejected: ' + mod.reason); }
+  }
+
+  // ── Firebase Storage fallback (default while R2 is not yet configured) ───
+  if (!storage) return blobToDataUrl(blob);
   const path = `photos/${uid}/${index}_${Date.now()}.jpg`;
   const ref  = storage.ref(path);
   await ref.put(blob, { contentType: 'image/jpeg' });
-  return ref.getDownloadURL(); // permanent HTTPS URL stored in Firestore
+  return ref.getDownloadURL();
 }
 
 async function resolvePhotos(photoArr, uid) {
