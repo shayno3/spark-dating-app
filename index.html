@@ -25,6 +25,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-performance-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-remote-config-compat.js"></script>
+<!-- Cloudflare Turnstile — bot protection for login & register. async defer so it never blocks page load -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -1914,6 +1918,16 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <svg id="loginPw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
     </div>
+    <!-- Cloudflare Turnstile — invisible bot check. Widget only appears if Cloudflare
+         detects suspicious behaviour. Replace data-sitekey with your key from:
+         Cloudflare Dashboard → Turnstile → Add site → copy Site Key -->
+    <div id="turnstile-login"
+         class="cf-turnstile"
+         data-sitekey="REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY"
+         data-theme="dark"
+         data-size="compact"
+         data-callback="onTurnstileLogin"
+         style="margin-bottom:0.5rem;display:flex;justify-content:center"></div>
     <button class="btn-primary" onclick="login()">Sign In 🔥</button>
     <p style="text-align:center;margin-top:0.6rem"><button type="button" onclick="forgotPassword()" style="background:none;border:none;color:var(--accent);font-size:0.82rem;cursor:pointer;text-decoration:underline;padding:0">Forgot password?</button></p>
     <p style="text-align:center;color:var(--text-muted);font-size:0.78rem;margin-top:0.25rem">Demo: Sign up first, then sign back in</p>
@@ -1936,6 +1950,14 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <input type="checkbox" id="termsAgreeCheck" style="width:1.1rem;height:1.1rem;accent-color:var(--spark);cursor:pointer;flex-shrink:0;margin-top:0.15rem;border-radius:3px">
       <span>I agree to Spark's <a href="/terms.html" target="_blank" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">Terms &amp; Conditions</a>, <a href="/privacy.html" target="_blank" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">Privacy Policy</a>, and <a href="/aup.html" target="_blank" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">Acceptable Use Policy</a></span>
     </label>
+    <!-- Cloudflare Turnstile — same site key as login widget above -->
+    <div id="turnstile-register"
+         class="cf-turnstile"
+         data-sitekey="REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY"
+         data-theme="dark"
+         data-size="compact"
+         data-callback="onTurnstileRegister"
+         style="margin-bottom:0.5rem;display:flex;justify-content:center"></div>
     <button class="btn-primary" onclick="register()">Create Account →</button>
   </div>
 
@@ -2802,7 +2824,7 @@ const FIREBASE_CONFIG = {
    INIT
 ================================================================ */
 const FB_READY = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-let auth, db, messaging, analytics, storage, functions;
+let auth, db, messaging, analytics, storage, functions, perf, remoteConfig;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -2810,12 +2832,32 @@ if (FB_READY) {
   // blocking ALL callable function calls (including Stripe checkout) because
   // firebase-functions-compat v9.22.2 propagates the token error into the call chain.
   // App Check is not enforced server-side so removing it has no security impact.
-  auth      = firebase.auth();
-  db        = firebase.firestore();
-  messaging = firebase.messaging();
-  analytics = firebase.analytics();
-  storage   = firebase.storage();
-  functions = firebase.functions();
+  auth         = firebase.auth();
+  db           = firebase.firestore();
+  messaging    = firebase.messaging();
+  analytics    = firebase.analytics();
+  storage      = firebase.storage();
+  functions    = firebase.functions();
+
+  // ── Performance Monitoring ──────────────────────────────────────────────────
+  // Auto-instruments page load, first paint, first contentful paint, and all
+  // fetch/XHR network requests. Zero config needed beyond this line.
+  perf = firebase.performance();
+
+  // ── Remote Config ───────────────────────────────────────────────────────────
+  remoteConfig = firebase.remoteConfig();
+  // Fetch at most once per hour in production (1 minute during dev)
+  remoteConfig.settings.minimumFetchIntervalMillis = 3600000;
+  // Safe defaults — the app works perfectly if Remote Config can't be reached
+  remoteConfig.defaultConfig = {
+    filter_sheet_enabled:    true,   // show the Discover filter sheet icon
+    premium_features_enabled: true,  // show Premium badges / upgrade prompts
+    maintenance_mode:        false,  // set true in dashboard to show maintenance banner
+    maintenance_message:     'Spark is currently under maintenance. Please try again soon.',
+    max_profile_photos:      6,      // max photos per profile
+    discover_radius_max:     200,    // km — cap on the distance stepper
+    min_app_version:         '1.0',  // future: force-upgrade old clients
+  };
 } else {
   // Show the setup guide; hide the app shell
   document.getElementById('app').style.display = 'none';
@@ -2825,6 +2867,48 @@ if (FB_READY) {
 // Analytics helper — safe to call even if analytics is not ready
 function logEv(name, params) {
   try { if (analytics) analytics.logEvent(name, params || {}); } catch(e) {}
+}
+
+// ── Remote Config: fetch fresh values from Firebase Console ─────────────────
+// Call once at app start. Changes pushed in the Firebase Console take effect
+// within 1 hour for live users (immediately for new sessions after fetchAndActivate).
+async function fetchRemoteConfig() {
+  if (!remoteConfig) return;
+  try {
+    await remoteConfig.fetchAndActivate();
+
+    // Maintenance mode — show a banner and block the UI if enabled in dashboard
+    if (remoteConfig.getValue('maintenance_mode').asBoolean()) {
+      const msg = remoteConfig.getValue('maintenance_message').asString()
+        || 'Spark is under maintenance — please try again soon.';
+      // Show full-screen maintenance overlay
+      let overlay = document.getElementById('maintenanceOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'maintenanceOverlay';
+        overlay.style.cssText = [
+          'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column',
+          'align-items:center;justify-content:center;background:#0F0F1A;padding:2rem;text-align:center'
+        ].join(';');
+        overlay.innerHTML = `
+          <div style="font-size:2.5rem;margin-bottom:1rem">🔧</div>
+          <div style="font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:0.5rem">Under Maintenance</div>
+          <div style="color:#9BA3AF;font-size:0.9rem;max-width:280px;line-height:1.6">${msg}</div>`;
+        document.body.appendChild(overlay);
+      }
+    }
+
+    // Apply dynamic Remote Config values to live state
+    const rcMaxPhotos  = remoteConfig.getValue('max_profile_photos').asNumber();
+    const rcRadiusMax  = remoteConfig.getValue('discover_radius_max').asNumber();
+    if (rcMaxPhotos  > 0) window._rcMaxPhotos  = rcMaxPhotos;
+    if (rcRadiusMax  > 0) window._rcRadiusMax  = rcRadiusMax;
+
+    // Hide filter icon if admin has disabled the filter sheet remotely
+    if (!remoteConfig.getValue('filter_sheet_enabled').asBoolean()) {
+      document.querySelectorAll('.filter-icon-btn').forEach(b => b.style.display = 'none');
+    }
+  } catch(e) { /* Fail silently — defaults are already in place */ }
 }
 
 // Allow pasting config at runtime (setup guide button)
@@ -3128,6 +3212,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           _updateRewindBtn();
           enterMainApp();
           loadFilterPrefs(firebaseUser.uid);
+          fetchRemoteConfig(); // fetch fresh Remote Config flags on every login
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
           // Brand-new user — show setup wizard
@@ -4067,16 +4152,45 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// ── Cloudflare Turnstile ─────────────────────────────────────────────────────
+// Replace this string with your Site Key from Cloudflare Dashboard → Turnstile.
+// While the key is still the placeholder the check is completely bypassed —
+// login and register work exactly as before, so nothing breaks during setup.
+const TURNSTILE_SITE_KEY = 'REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY';
+const _turnstileActive   = TURNSTILE_SITE_KEY !== 'REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY';
+
+let _tsLoginToken    = null; // token set by Turnstile after a successful challenge
+let _tsRegisterToken = null;
+
+function onTurnstileLogin(token)    { _tsLoginToken    = token; }
+function onTurnstileRegister(token) { _tsRegisterToken = token; }
+
+// Reset Turnstile widget after a failed attempt so the user can retry
+function _tsReset(widgetId) {
+  try { if (_turnstileActive && typeof turnstile !== 'undefined') turnstile.reset(widgetId); }
+  catch(e) {}
+}
+
 async function login() {
   if (!auth) { toast('Firebase not configured yet'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   const pw    = document.getElementById('loginPw').value;
   if (!email || !pw) { toast('Please fill in email and password'); return; }
+
+  // Turnstile gate — skip entirely while site key is still the placeholder
+  if (_turnstileActive && typeof turnstile !== 'undefined' && !_tsLoginToken) {
+    toast('Please complete the security check'); return;
+  }
+
   try {
     await auth.signInWithEmailAndPassword(email, pw);
     logEv('login', { method: 'email' });
     S._pw = pw; S._authEmail = email; // held in memory only, for glasses-PIN setup
-  } catch(e) { toast(fbErrMsg(e)); }
+    _tsLoginToken = null; // consume token — one-use only
+  } catch(e) {
+    _tsReset('turnstile-login'); // let user retry the challenge
+    toast(fbErrMsg(e));
+  }
 }
 
 async function register() {
@@ -4095,13 +4209,23 @@ async function register() {
     toast('Please agree to the Terms & Conditions to create an account');
     return;
   }
+
+  // Turnstile gate — skip entirely while site key is still the placeholder
+  if (_turnstileActive && typeof turnstile !== 'undefined' && !_tsRegisterToken) {
+    toast('Please complete the security check'); return;
+  }
+
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     await cred.user.updateProfile({ displayName: name });
     logEv('sign_up', { method: 'email' });
     S._pw = pw; S._authEmail = email; // held in memory only, for glasses-PIN setup
+    _tsRegisterToken = null; // consume token — one-use only
     // onAuthStateChanged fires → detects no Firestore profile → shows setup
-  } catch(e) { toast(fbErrMsg(e)); }
+  } catch(e) {
+    _tsReset('turnstile-register');
+    toast(fbErrMsg(e));
+  }
 }
 
 async function signInWithGoogle() {
