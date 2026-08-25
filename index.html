@@ -1923,7 +1923,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
          Cloudflare Dashboard → Turnstile → Add site → copy Site Key -->
     <div id="turnstile-login"
          class="cf-turnstile"
-         data-sitekey="REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY"
+         data-sitekey="0x4AAAAAAAAAEcL7Xjvi-oawvsZ"
          data-theme="dark"
          data-size="compact"
          data-callback="onTurnstileLogin"
@@ -1953,7 +1953,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <!-- Cloudflare Turnstile — same site key as login widget above -->
     <div id="turnstile-register"
          class="cf-turnstile"
-         data-sitekey="REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY"
+         data-sitekey="0x4AAAAAAAAAEcL7Xjvi-oawvsZ"
          data-theme="dark"
          data-size="compact"
          data-callback="onTurnstileRegister"
@@ -4156,8 +4156,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // Replace this string with your Site Key from Cloudflare Dashboard → Turnstile.
 // While the key is still the placeholder the check is completely bypassed —
 // login and register work exactly as before, so nothing breaks during setup.
-const TURNSTILE_SITE_KEY = 'REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY';
-const _turnstileActive   = TURNSTILE_SITE_KEY !== 'REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY';
+const TURNSTILE_SITE_KEY = '0x4AAAAAAAAAEcL7Xjvi-oawvsZ';
+const _turnstileActive   = true; // real key is set — bot protection is live
 
 let _tsLoginToken    = null; // token set by Turnstile after a successful challenge
 let _tsRegisterToken = null;
@@ -4171,15 +4171,42 @@ function _tsReset(widgetId) {
   catch(e) {}
 }
 
+// Server-side Turnstile token verification via the R2 Worker
+async function _tsVerify(token) {
+  try {
+    const res = await fetch(`${R2_WORKER_URL}/verify-turnstile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch(e) {
+    console.warn('Turnstile server verify failed, falling back to client-only', e);
+    return true; // fail-open: don't block legit users if Worker is unreachable
+  }
+}
+
 async function login() {
   if (!auth) { toast('Firebase not configured yet'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   const pw    = document.getElementById('loginPw').value;
   if (!email || !pw) { toast('Please fill in email and password'); return; }
 
-  // Turnstile gate — skip entirely while site key is still the placeholder
+  // Turnstile gate — require completed challenge
   if (_turnstileActive && typeof turnstile !== 'undefined' && !_tsLoginToken) {
     toast('Please complete the security check'); return;
+  }
+
+  // Server-side token verification
+  if (_turnstileActive && _tsLoginToken) {
+    const ok = await _tsVerify(_tsLoginToken);
+    if (!ok) {
+      toast('Security check failed — please try again');
+      _tsLoginToken = null;
+      _tsReset('turnstile-login');
+      return;
+    }
   }
 
   try {
@@ -4210,9 +4237,20 @@ async function register() {
     return;
   }
 
-  // Turnstile gate — skip entirely while site key is still the placeholder
+  // Turnstile gate — require completed challenge
   if (_turnstileActive && typeof turnstile !== 'undefined' && !_tsRegisterToken) {
     toast('Please complete the security check'); return;
+  }
+
+  // Server-side token verification
+  if (_turnstileActive && _tsRegisterToken) {
+    const ok = await _tsVerify(_tsRegisterToken);
+    if (!ok) {
+      toast('Security check failed — please try again');
+      _tsRegisterToken = null;
+      _tsReset('turnstile-register');
+      return;
+    }
   }
 
   try {
@@ -4366,7 +4404,7 @@ async function handlePhotos(event, mode) {
 // R2_WORKER_URL  : the Worker URL from Cloudflare (e.g. https://spark-r2.username.workers.dev)
 // R2_UPLOAD_SECRET: the SPARK_SECRET env var you set on the Worker
 // Leave as-is to continue using Firebase Storage (zero change to existing behaviour).
-const R2_WORKER_URL     = 'REPLACE_WITH_R2_WORKER_URL';
+const R2_WORKER_URL     = 'https://spark-r2-upload.shayno3.workers.dev';
 const R2_UPLOAD_SECRET  = 'REPLACE_WITH_R2_UPLOAD_SECRET';
 const VISION_WORKER_URL = 'REPLACE_WITH_VISION_WORKER_URL'; // Cloud Vision proxy worker
 const _r2Active = R2_WORKER_URL !== 'REPLACE_WITH_R2_WORKER_URL';
