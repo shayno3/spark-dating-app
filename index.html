@@ -4366,8 +4366,8 @@ async function handlePhotos(event, mode) {
 // R2_WORKER_URL  : the Worker URL from Cloudflare (e.g. https://spark-r2.username.workers.dev)
 // R2_UPLOAD_SECRET: the SPARK_SECRET env var you set on the Worker
 // Leave as-is to continue using Firebase Storage (zero change to existing behaviour).
-const R2_WORKER_URL     = 'REPLACE_WITH_R2_WORKER_URL';
-const R2_UPLOAD_SECRET  = 'REPLACE_WITH_R2_UPLOAD_SECRET';
+const R2_WORKER_URL     = 'https://spark-r2-upload.shayno3.workers.dev';
+const R2_UPLOAD_SECRET  = '09db102dcee85f90cfb49df03e3b1975db372c9f1af3a7e9491c8496ff269f33';
 const VISION_WORKER_URL = 'REPLACE_WITH_VISION_WORKER_URL'; // Cloud Vision proxy worker
 const _r2Active = R2_WORKER_URL !== 'REPLACE_WITH_R2_WORKER_URL';
 
