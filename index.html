@@ -1873,6 +1873,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <input type="checkbox" id="ageVerifyCheck" style="width:1.1rem;height:1.1rem;accent-color:var(--spark);cursor:pointer;flex-shrink:0;border-radius:3px">
       <span>I confirm I am <strong style="color:var(--text)">18 years of age or older</strong></span>
     </label>
+    <label style="display:flex;align-items:flex-start;gap:0.6rem;font-size:0.83rem;color:var(--text-muted);cursor:pointer;margin:0 0 0.25rem">
+      <input type="checkbox" id="termsAgreeCheck" style="width:1.1rem;height:1.1rem;accent-color:var(--spark);cursor:pointer;flex-shrink:0;margin-top:0.15rem;border-radius:3px">
+      <span>I agree to Spark's <a href="/terms.html" target="_blank" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">Terms &amp; Conditions</a>, <a href="/privacy.html" target="_blank" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">Privacy Policy</a>, and <a href="/aup.html" target="_blank" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">Acceptable Use Policy</a></span>
+    </label>
     <button class="btn-primary" onclick="register()">Create Account →</button>
   </div>
 
@@ -4006,6 +4010,10 @@ async function register() {
   if (pw.length < 6) { toast('Password must be at least 6 characters'); return; }
   if (!document.getElementById('ageVerifyCheck').checked) {
     toast('Please confirm you are 18 years of age or older');
+    return;
+  }
+  if (!document.getElementById('termsAgreeCheck').checked) {
+    toast('Please agree to the Terms & Conditions to create an account');
     return;
   }
   try {
