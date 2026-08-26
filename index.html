@@ -233,6 +233,21 @@ html, body {
 .admin-stat-val.green { color:#22c55e; }
 .admin-stat-val.gold  { color:#f59e0b; }
 .admin-stat-val.blue  { color:#60a5fa; }
+.admin-stat-val.red   { color:#ef4444; }
+.admin-vision-badge { display:inline-flex; align-items:center; gap:0.3rem; font-size:0.68rem; font-weight:700; padding:0.18rem 0.5rem; border-radius:20px; margin-left:auto; }
+.admin-vision-badge.ok { background:rgba(34,197,94,0.15); color:#22c55e; }
+.admin-vision-badge.err { background:rgba(239,68,68,0.15); color:#ef4444; }
+.admin-vision-badge.checking { background:rgba(251,191,36,0.15); color:#f59e0b; }
+.admin-mod-section { padding:0.85rem 1rem 0; }
+.admin-mod-list { display:flex; flex-direction:column; }
+.admin-mod-item { display:flex; align-items:center; gap:0.7rem; padding:0.55rem 0; border-bottom:1px solid var(--border); cursor:pointer; }
+.admin-mod-item:last-child { border-bottom:none; }
+.admin-mod-av { width:34px; height:34px; border-radius:50%; object-fit:cover; background:var(--bg-card); border:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; }
+.admin-mod-info { flex:1; min-width:0; }
+.admin-mod-name { font-size:0.82rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.admin-mod-reason { font-size:0.68rem; color:#ef4444; font-weight:700; }
+.admin-mod-time { font-size:0.65rem; color:var(--text-muted); flex-shrink:0; }
+.admin-photo-flag { position:absolute; bottom:4px; right:26px; background:rgba(239,68,68,0.85); color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:0.65rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .admin-stat-label { font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-top:0.3rem; }
 .admin-stat-delta { font-size:0.65rem; font-weight:700; margin-top:0.2rem; color:#22c55e; }
 .admin-search-section { padding:0.85rem 1rem 0; }
@@ -4431,6 +4446,14 @@ async function uploadPhoto(blob, uid, index) {
     const mod = await modRes.json();
     if (!mod.safe) {
       fetch(`${R2_WORKER_URL}/delete`, { method: 'DELETE', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' }, body: JSON.stringify({ key: url.split('/').slice(-2).join('/') }) });
+      if (typeof db !== 'undefined' && db) {
+        db.collection('moderation_events').add({
+          uid: uid,
+          reason: mod.reason,
+          imageUrl: url,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+      }
       throw new Error('Photo rejected by moderation: ' + mod.reason);
     }
     return url; // permanent CDN URL stored in Firestore
@@ -4918,6 +4941,7 @@ async function renderAdminPanel() {
             <span class="admin-live-label">Live</span>
             <div class="admin-live-dot"></div>
           </div>
+          <span class="admin-vision-badge checking" id="adminVisionBadge">🛡 Vision…</span>
         </div>
       </div>
       <div class="admin-stat-grid">
@@ -4940,6 +4964,11 @@ async function renderAdminPanel() {
           <div class="admin-stat-val blue">${newToday}</div>
           <div class="admin-stat-label">New Today</div>
           <div class="admin-stat-delta">${newYest > 0 ? (newToday >= newYest ? '↑' : '↓') + ' ' + Math.abs(newToday-newYest) + ' vs yesterday' : newToday + ' joined today'}</div>
+        </div>
+        <div class="admin-stat-card" id="aStatRejected" style="grid-column:span 2">
+          <div class="admin-stat-val red" id="aStatRejectedVal">…</div>
+          <div class="admin-stat-label">Photos Rejected by Moderation</div>
+          <div class="admin-stat-delta" id="aStatRejectedSub">Loading…</div>
         </div>
       </div>
       <div class="admin-search-section">
@@ -4973,6 +5002,12 @@ async function renderAdminPanel() {
               </div>`).join('')}
         </div>
       </div>
+      <div class="admin-mod-section" id="adminModSection">
+        <div class="admin-section-label"><span>🛡</span> Recent Moderation Events</div>
+        <div class="admin-mod-list" id="adminModList">
+          <div class="admin-activity-item"><div class="admin-activity-text" style="color:var(--text-muted)">Loading…</div></div>
+        </div>
+      </div>
       <div class="admin-users-section">
         <div class="admin-list-header">
           <div class="admin-section-label" style="margin-bottom:0" id="adminListLabel">All Users</div>
@@ -4991,6 +5026,60 @@ async function renderAdminPanel() {
     _adminState.search = '';
     _adminState.sort = 'newest';
     adminRenderList();
+
+    // Vision worker health check
+    (async () => {
+      const badge = document.getElementById('adminVisionBadge');
+      if (!badge) return;
+      try {
+        const r = await fetch(VISION_WORKER_URL + '/ping', {
+          method: 'POST',
+          headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png' })
+        });
+        const data = await r.json().catch(() => ({}));
+        badge.className = 'admin-vision-badge ok';
+        badge.textContent = '🛡 Vision OK';
+      } catch(e) {
+        badge.className = 'admin-vision-badge err';
+        badge.textContent = '🛡 Vision Offline';
+      }
+    })();
+
+    // Subscribe to moderation events
+    if (S.listeners.adminMod) S.listeners.adminMod();
+    S.listeners.adminMod = db.collection('moderation_events').orderBy('timestamp','desc').limit(10).onSnapshot(snap => {
+      const total = snap.size;
+      const valEl = document.getElementById('aStatRejectedVal');
+      const subEl = document.getElementById('aStatRejectedSub');
+      if (valEl) valEl.textContent = total;
+      if (subEl) subEl.textContent = total === 0 ? 'No rejections yet' : `${total} rejection${total === 1 ? '' : 's'} logged`;
+      const listEl = document.getElementById('adminModList');
+      if (!listEl) return;
+      if (snap.empty) {
+        listEl.innerHTML = '<div class="admin-activity-item"><div class="admin-activity-text" style="color:var(--text-muted)">No moderation events yet</div></div>';
+        return;
+      }
+      listEl.innerHTML = snap.docs.map(doc => {
+        const d = doc.data();
+        const u = (window._adminUsers || []).find(x => x.id === d.uid);
+        const name = u ? (u.name || u.email || d.uid) : d.uid;
+        const photo = u?.photos?.[0] || '';
+        const ts = d.timestamp ? new Date(d.timestamp.toMillis ? d.timestamp.toMillis() : d.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+        const av = photo ? `<img class="admin-mod-av" src="${photo}" onerror="this.outerHTML='<div class=admin-mod-av>${(name[0]||'?').toUpperCase()}</div>'">` : `<div class="admin-mod-av">${(name[0]||'?').toUpperCase()}</div>`;
+        return `<div class="admin-mod-item" onclick="openDetail('${d.uid}')">
+          ${av}
+          <div class="admin-mod-info">
+            <div class="admin-mod-name">${name}</div>
+            <div class="admin-mod-reason">${d.reason || 'flagged'}</div>
+          </div>
+          <div class="admin-mod-time">${ts}</div>
+        </div>`;
+      }).join('');
+    }, () => {
+      const listEl = document.getElementById('adminModList');
+      if (listEl) listEl.innerHTML = '<div class="admin-activity-item"><div class="admin-activity-text" style="color:var(--text-muted)">No moderation data</div></div>';
+    });
 
     // Subscribe to live user changes
     if (S.listeners.adminUsers) S.listeners.adminUsers();
@@ -5194,6 +5283,7 @@ async function openAdminUser(uid) {
         <div class="admin-photo-wrap">
           <img src="${p}" alt="Photo ${i+1}" onerror="this.parentElement.style.display='none'">
           <button class="admin-photo-del" onclick="adminDeletePhoto('${uid}',${i})" title="Delete photo">✕</button>
+          <button class="admin-photo-flag" onclick="adminFlagPhoto('${uid}',${i})" title="Flag as inappropriate">🚩</button>
         </div>`).join('')}</div>`
     : `<div class="admin-no-photos">No photos uploaded</div>`;
 
@@ -5303,6 +5393,24 @@ async function adminSendMessage() {
     adminCloseCompose();
   } catch (e) {
     toast('⚠️ Send failed: ' + e.message);
+  }
+}
+
+async function adminFlagPhoto(uid, photoIndex) {
+  if (!confirm('Flag this photo as inappropriate? It will be logged as a moderation event.')) return;
+  if (!db) return;
+  const u = (window._adminUsers || []).find(x => x.id === uid);
+  const imageUrl = u?.photos?.[photoIndex] || '';
+  try {
+    await db.collection('moderation_events').add({
+      uid,
+      reason: 'manually flagged by admin',
+      imageUrl,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('Photo flagged and logged.');
+  } catch(e) {
+    toast('Error flagging photo: ' + e.message);
   }
 }
 
