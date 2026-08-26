@@ -5032,8 +5032,13 @@ async function renderAdminPanel() {
       const badge = document.getElementById('adminVisionBadge');
       if (!badge) return;
       try {
-        // Any HTTP response (even 405) confirms the worker is reachable
-        const r = await fetch(VISION_WORKER_URL, { method: 'GET' });
+        // POST is in CORS allowed methods — any response confirms the worker is reachable
+        const r = await fetch(VISION_WORKER_URL + '/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        // 401 = worker alive but no auth — that's fine for a health check
         badge.className = 'admin-vision-badge ok';
         badge.textContent = '🛡 Vision OK';
       } catch(e) {
