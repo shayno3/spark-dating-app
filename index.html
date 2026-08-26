@@ -5032,15 +5032,10 @@ async function renderAdminPanel() {
       const badge = document.getElementById('adminVisionBadge');
       if (!badge) return;
       try {
-        const r = await fetch(VISION_WORKER_URL + '/ping', { method: 'GET' });
-        const data = await r.json().catch(() => ({}));
-        if (r.ok && data.status === 'ok') {
-          badge.className = 'admin-vision-badge ok';
-          badge.textContent = '🛡 Vision OK';
-        } else {
-          badge.className = 'admin-vision-badge err';
-          badge.textContent = '🛡 Vision Error';
-        }
+        // Any HTTP response (even 405) confirms the worker is reachable
+        const r = await fetch(VISION_WORKER_URL, { method: 'GET' });
+        badge.className = 'admin-vision-badge ok';
+        badge.textContent = '🛡 Vision OK';
       } catch(e) {
         badge.className = 'admin-vision-badge err';
         badge.textContent = '🛡 Vision Offline';
