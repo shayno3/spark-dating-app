@@ -5032,14 +5032,15 @@ async function renderAdminPanel() {
       const badge = document.getElementById('adminVisionBadge');
       if (!badge) return;
       try {
-        const r = await fetch(VISION_WORKER_URL + '/ping', {
-          method: 'POST',
-          headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png' })
-        });
+        const r = await fetch(VISION_WORKER_URL + '/ping', { method: 'GET' });
         const data = await r.json().catch(() => ({}));
-        badge.className = 'admin-vision-badge ok';
-        badge.textContent = '🛡 Vision OK';
+        if (r.ok && data.status === 'ok') {
+          badge.className = 'admin-vision-badge ok';
+          badge.textContent = '🛡 Vision OK';
+        } else {
+          badge.className = 'admin-vision-badge err';
+          badge.textContent = '🛡 Vision Error';
+        }
       } catch(e) {
         badge.className = 'admin-vision-badge err';
         badge.textContent = '🛡 Vision Offline';
