@@ -300,6 +300,26 @@ html, body {
 .admin-empty-state { text-align:center; padding:2.5rem 1rem; color:var(--text-muted); font-size:0.85rem; }
 .admin-monitoring-banner { background:rgba(96,165,250,0.08); border:1px solid rgba(96,165,250,0.2); border-radius:10px; padding:0.55rem 0.75rem; font-size:0.74rem; color:#60a5fa; font-weight:600; display:flex; align-items:center; gap:0.45rem; }
 
+/* ---- ADMIN REMOTE CONFIG ---- */
+.admin-rc-section { padding:0.85rem 1rem 0; }
+.admin-rc-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:0.25rem 0.85rem; }
+.admin-rc-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.75rem 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.admin-rc-row:last-child { border-bottom:none; }
+.admin-rc-row-col { flex-direction:column; align-items:flex-start; }
+.admin-rc-label { flex:1; }
+.admin-rc-label > div:first-child { font-size:0.85rem; font-weight:600; color:var(--text); }
+.admin-rc-help { font-size:0.68rem; color:var(--text-muted); margin-top:2px; }
+.admin-rc-toggle { position:relative; display:inline-flex; align-items:center; cursor:pointer; }
+.admin-rc-toggle input { opacity:0; width:0; height:0; position:absolute; }
+.admin-rc-thumb { display:inline-block; width:42px; height:24px; background:rgba(255,255,255,0.12); border-radius:12px; transition:background 0.2s; flex-shrink:0; position:relative; }
+.admin-rc-thumb::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform 0.2s; }
+.admin-rc-toggle input:checked + .admin-rc-thumb { background:#22c55e; }
+.admin-rc-toggle input:checked + .admin-rc-thumb::after { transform:translateX(18px); }
+.admin-rc-num { width:80px; background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.85rem; padding:0.35rem 0.6rem; font-family:inherit; outline:none; text-align:right; }
+.admin-rc-num:focus { border-color:rgba(245,158,11,0.5); }
+.admin-rc-txt { width:100%; background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.82rem; padding:0.4rem 0.6rem; font-family:inherit; outline:none; resize:vertical; margin-top:0.4rem; }
+.admin-rc-txt:focus { border-color:rgba(245,158,11,0.5); }
+
 /* ---- ADMIN USER DETAIL PANEL ---- */
 .admin-detail-panel { position: fixed; inset: 0; z-index: 8500; background: rgba(10,10,20,0.6); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.22s; }
 .admin-detail-panel.open { opacity: 1; pointer-events: all; }
@@ -2926,6 +2946,39 @@ async function fetchRemoteConfig() {
   } catch(e) { /* Fail silently — defaults are already in place */ }
 }
 
+// ── Firestore-based Remote Config ──────────────────────────────────────────
+// Admin edits these values from the in-app admin panel; no Firebase Console needed.
+async function fetchFirestoreConfig() {
+  if (!db) return;
+  try {
+    const snap = await db.collection('app').doc('config').get();
+    if (!snap.exists) return;
+    window._firestoreRC = snap.data();
+    const rc = window._firestoreRC;
+    // Maintenance mode
+    if (rc.maintenanceMode) {
+      const msg = rc.maintenanceMessage || 'Spark is under maintenance — please try again soon.';
+      let ov = document.getElementById('maintenanceOverlay');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'maintenanceOverlay';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0F0F1A;padding:2rem;text-align:center';
+        ov.innerHTML = '<div style="font-size:2.5rem;margin-bottom:1rem">🔧</div><div style="font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:0.5rem">Under Maintenance</div><div style="color:#9BA3AF;font-size:0.9rem;max-width:280px;line-height:1.6">' + msg + '</div>';
+        document.body.appendChild(ov);
+      }
+    }
+    // Premium gate — false means grant premium to all users (e.g. during a promotion)
+    if (rc.premiumGateEnabled === false) S.isPremium = true;
+    // Photo limit and radius cap
+    if (rc.maxProfilePhotos  > 0) window._rcMaxPhotos  = rc.maxProfilePhotos;
+    if (rc.discoverRadiusMax > 0) window._rcRadiusMax  = rc.discoverRadiusMax;
+    // Filter sheet toggle
+    if (rc.filterSheetEnabled === false) {
+      document.querySelectorAll('.filter-icon-btn').forEach(b => b.style.display = 'none');
+    }
+  } catch(e) { /* Fail silently */ }
+}
+
 // Allow pasting config at runtime (setup guide button)
 function applyPastedConfig() {
   const raw = document.getElementById('fbConfigPaste').value.trim();
@@ -3227,7 +3280,8 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           _updateRewindBtn();
           enterMainApp();
           loadFilterPrefs(firebaseUser.uid);
-          fetchRemoteConfig(); // fetch fresh Remote Config flags on every login
+          fetchRemoteConfig();     // fetch Firebase Remote Config on every login
+          fetchFirestoreConfig(); // fetch Firestore admin Remote Config (editable in-app)
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
           // Brand-new user — show setup wizard
@@ -5019,6 +5073,10 @@ async function renderAdminPanel() {
           <div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>
           No users match your search
         </div>
+      </div>
+      <div class="admin-rc-section" id="adminRCSection">
+        <div class="admin-section-label"><span>🎛</span> Remote Config</div>
+        <div id="adminRCBody"><div class="admin-activity-text" style="color:var(--text-muted);padding:0.75rem 0">Loading…</div></div>
       </div>`;
 
     _adminState.filter = 'all';
@@ -5026,6 +5084,7 @@ async function renderAdminPanel() {
     _adminState.search = '';
     _adminState.sort = 'newest';
     adminRenderList();
+    _loadAdminRC();
 
     // Vision worker health check
     (async () => {
@@ -5243,6 +5302,82 @@ function adminRenderList() {
   }
   if (emptyEl) emptyEl.style.display = 'none';
   listEl.innerHTML = users.slice(0, 100).map(_adminBuildRow).join('');
+}
+
+/* ================================================================
+   ADMIN REMOTE CONFIG
+================================================================ */
+async function _loadAdminRC() {
+  const body = document.getElementById('adminRCBody');
+  if (!body || !db) return;
+  try {
+    const snap = await db.collection('app').doc('config').get();
+    const rc   = snap.exists ? snap.data() : {};
+    window._firestoreRC = rc;
+
+    const bool = (key, label, help) => `
+      <div class="admin-rc-row">
+        <div class="admin-rc-label">
+          <div>${label}</div>
+          <div class="admin-rc-help">${help}</div>
+        </div>
+        <label class="admin-rc-toggle">
+          <input type="checkbox" id="rc-${key}" ${rc[key] !== false ? 'checked' : ''} onchange="saveAdminRC('${key}', this.checked)">
+          <span class="admin-rc-thumb"></span>
+        </label>
+      </div>`;
+
+    const num = (key, label, help, min, max, def) => `
+      <div class="admin-rc-row">
+        <div class="admin-rc-label">
+          <div>${label}</div>
+          <div class="admin-rc-help">${help}</div>
+        </div>
+        <input class="admin-rc-num" type="number" id="rc-${key}" value="${rc[key] !== undefined ? rc[key] : def}" min="${min}" max="${max}"
+          onchange="saveAdminRC('${key}', +this.value)">
+      </div>`;
+
+    const txt = (key, label, help) => `
+      <div class="admin-rc-row admin-rc-row-col">
+        <div class="admin-rc-label">
+          <div>${label}</div>
+          <div class="admin-rc-help">${help}</div>
+        </div>
+        <textarea class="admin-rc-txt" id="rc-${key}" rows="2" onchange="saveAdminRC('${key}', this.value)">${escHtml(rc[key] || '')}</textarea>
+      </div>`;
+
+    body.innerHTML = `
+      <div class="admin-rc-card">
+        ${bool('premiumGateEnabled', 'Premium Gate', 'Turn off to give all users free premium access')}
+        ${bool('filterSheetEnabled', 'Filter Sheet', 'Turn off to hide the Discover filter icon for everyone')}
+        ${bool('maintenanceMode', 'Maintenance Mode', 'Turn on to block the app and show a message to all users')}
+        ${txt('maintenanceMessage', 'Maintenance Message', 'Message shown when Maintenance Mode is on')}
+        ${num('maxProfilePhotos', 'Max Profile Photos', 'Max photos per profile (default 6)', 1, 20, 6)}
+        ${num('discoverRadiusMax', 'Discovery Radius Max (km)', 'Cap on the distance slider in Discover (default 200)', 10, 1000, 200)}
+        ${num('rolloutPercent', 'Rollout %', 'Experimental: % of users who see new features (0–100)', 0, 100, 100)}
+        <div id="adminRCSaveMsg" style="color:#10B981;font-size:0.78rem;text-align:right;padding:0.25rem 0;min-height:1.2em"></div>
+      </div>`;
+  } catch(e) {
+    body.innerHTML = '<div style="color:var(--text-muted);padding:0.5rem 0">Could not load config: ' + escHtml(String(e.message || e)) + '</div>';
+  }
+}
+
+async function saveAdminRC(key, value) {
+  if (!db || auth.currentUser?.uid !== ADMIN_UID) return;
+  try {
+    const update = {};
+    update[key] = value;
+    await db.collection('app').doc('config').set(update, { merge: true });
+    if (window._firestoreRC) window._firestoreRC[key] = value;
+    const msg = document.getElementById('adminRCSaveMsg');
+    if (msg) {
+      msg.textContent = '✓ ' + key + ' saved';
+      setTimeout(() => { const m = document.getElementById('adminRCSaveMsg'); if (m) m.textContent = ''; }, 2500);
+    }
+  } catch(e) {
+    const msg = document.getElementById('adminRCSaveMsg');
+    if (msg) msg.textContent = '⚠️ Save failed: ' + (e.message || e);
+  }
 }
 
 /* Legacy alias kept so any existing call sites still work */
