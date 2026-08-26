@@ -4405,8 +4405,8 @@ async function handlePhotos(event, mode) {
 // R2_UPLOAD_SECRET: the SPARK_SECRET env var you set on the Worker
 // Leave as-is to continue using Firebase Storage (zero change to existing behaviour).
 const R2_WORKER_URL     = 'https://spark-r2-upload.shayno3.workers.dev';
-const R2_UPLOAD_SECRET  = 'REPLACE_WITH_R2_UPLOAD_SECRET';
-const VISION_WORKER_URL = 'REPLACE_WITH_VISION_WORKER_URL'; // Cloud Vision proxy worker
+const R2_UPLOAD_SECRET  = 'MM6RL3zO7pT8IhkkiFrI5WEyfbVXIPtZN8eLBrLtm7g';
+const VISION_WORKER_URL = 'https://spark-vision-worker.shayno3.workers.dev'; // Cloud Vision proxy worker
 const _r2Active = R2_WORKER_URL !== 'REPLACE_WITH_R2_WORKER_URL';
 
 async function uploadPhoto(blob, uid, index) {
@@ -4422,16 +4422,18 @@ async function uploadPhoto(blob, uid, index) {
     });
     if (!res.ok) throw new Error('R2 upload failed: ' + res.status);
     const { url } = await res.json();
-    return url; // permanent CDN URL stored in Firestore
 
-    // Optional: run Vision API moderation before returning URL
-    // Uncomment and set VISION_WORKER_URL + secret when ready:
-    // const modRes = await fetch(`${VISION_WORKER_URL}/moderate`, {
-    //   method: 'POST', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ imageUrl: url })
-    // });
-    // const mod = await modRes.json();
-    // if (!mod.safe) { fetch(`${R2_WORKER_URL}/delete`, { method:'DELETE', headers:{'X-Spark-Secret':R2_UPLOAD_SECRET,'Content-Type':'application/json'}, body: JSON.stringify({key}) }); throw new Error('Photo rejected: ' + mod.reason); }
+    // Run Vision API moderation before returning URL
+    const modRes = await fetch(`${VISION_WORKER_URL}/moderate`, {
+      method: 'POST', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl: url })
+    });
+    const mod = await modRes.json();
+    if (!mod.safe) {
+      fetch(`${R2_WORKER_URL}/delete`, { method: 'DELETE', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' }, body: JSON.stringify({ key: url.split('/').slice(-2).join('/') }) });
+      throw new Error('Photo rejected by moderation: ' + mod.reason);
+    }
+    return url; // permanent CDN URL stored in Firestore
   }
 
   // ── Firebase Storage fallback (default while R2 is not yet configured) ───
