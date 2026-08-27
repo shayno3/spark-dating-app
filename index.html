@@ -9469,6 +9469,18 @@ function openEditProfile() {
     <div class="pill-select-group" id="editExerciseGroup">
       ${[['🏋️ Daily','Daily'],['🏃 A few times a week','A few times a week'],['🚶 Sometimes','Sometimes'],['😅 Rarely','Rarely']].map(([label,v])=>`<button class="pill-select-btn${u.exercise===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editExerciseGroup',this)">${label}</button>`).join('')}
     </div>
+    <label class="form-label">Ethnicity</label>
+    <div class="pill-select-group" id="editEthnicityGroup">
+      ${[['Asian','Asian'],['Black','Black'],['Hispanic','Hispanic'],['Indian','Indian'],['Middle Eastern','Middle Eastern'],['Native American','Native American'],['Pacific Islander','Pacific Islander'],['White','White'],['Mixed','Mixed']].map(([label,v])=>`<button class="pill-select-btn${u.ethnicity===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editEthnicityGroup',this)">${label}</button>`).join('')}
+    </div>
+    <label class="form-label">Religion</label>
+    <div class="pill-select-group" id="editReligionGroup">
+      ${[['Agnostic','Agnostic'],['Atheist','Atheist'],['Buddhist','Buddhist'],['Christian','Christian'],['Hindu','Hindu'],['Jewish','Jewish'],['Muslim','Muslim'],['Sikh','Sikh'],['Spiritual','Spiritual'],['Other','Other']].map(([label,v])=>`<button class="pill-select-btn${u.religion===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editReligionGroup',this)">${label}</button>`).join('')}
+    </div>
+    <label class="form-label">Wants Kids</label>
+    <div class="pill-select-group" id="editWantsKidsGroup">
+      ${[['Want kids','Want kids'],['Open to kids','Open to kids'],['Do not want kids','Do not want kids'],['Not sure','Not sure']].map(([label,v])=>`<button class="pill-select-btn${u.wantsKids===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editWantsKidsGroup',this)">${label}</button>`).join('')}
+    </div>
     <label class="form-label">City</label>
     <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
     <label class="form-label">State</label>
