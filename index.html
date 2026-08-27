@@ -636,14 +636,6 @@ html, body {
 .unread-badge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--primary); color: white; font-size: 0.68rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
 
 /* Chat profile card */
-.chat-profile-card { display: flex; align-items: center; gap: 0.85rem; padding: 0.75rem 1rem; background: var(--bg-card); border-bottom: 1px solid var(--border); flex-shrink: 0; cursor: pointer; }
-.chat-profile-card:active { background: rgba(255,255,255,0.05); }
-.chat-profile-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
-.chat-profile-info { flex: 1; min-width: 0; }
-.chat-profile-nameage { font-size: 1rem; font-weight: 800; margin-bottom: 0.15rem; }
-.chat-profile-loc { font-size: 0.77rem; color: var(--text-muted); margin-bottom: 0.1rem; }
-.chat-profile-date { font-size: 0.73rem; color: var(--text-muted); }
-.chat-profile-chevron { color: var(--text-muted); font-size: 1.2rem; flex-shrink: 0; }
 
 /* Date separator */
 .msg-date-sep { text-align: center; font-size: 0.72rem; color: var(--text-muted); font-weight: 600; margin: 0.5rem 0; letter-spacing: 0.03em; }
@@ -2449,15 +2441,6 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         </div>
         <button class="header-icon-btn" onclick="viewChatProfile()" title="View Profile">👤</button>
         <button class="header-icon-btn chat-more-btn" onclick="openChatMenu()" title="More options" id="chatMoreBtn">⋮</button>
-      </div>
-      <div class="chat-profile-card" id="chatProfileCard" onclick="viewChatProfile()" style="display:none">
-        <img class="chat-profile-thumb" id="chatProfileThumb" src="" alt="">
-        <div class="chat-profile-info">
-          <div class="chat-profile-nameage" id="chatProfileNameAge"></div>
-          <div class="chat-profile-loc" id="chatProfileLoc"></div>
-          <div class="chat-profile-date" id="chatProfileDate"></div>
-        </div>
-        <span class="chat-profile-chevron">›</span>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-pill-bar" id="chatPillBar">
@@ -7813,22 +7796,6 @@ function openChat(uid) {
   document.getElementById('chatAv').onerror = function(){ this.src = avatar(match.name||'?'); };
   document.getElementById('chatHeadName').textContent = match.name || '';
 
-  // ── Profile card ──
-  const card = document.getElementById('chatProfileCard');
-  if (card) {
-    const thumb = document.getElementById('chatProfileThumb');
-    if (thumb) { thumb.src = photo; thumb.onerror = function(){ this.src = avatar(match.name||'?'); }; }
-    const nameAge = [match.name, match.age].filter(Boolean).join(', ');
-    const el = id => document.getElementById(id);
-    if (el('chatProfileNameAge')) el('chatProfileNameAge').textContent = nameAge;
-    if (el('chatProfileLoc')) el('chatProfileLoc').textContent =
-      [match.city, match.state].filter(Boolean).join(', ') || '';
-    if (el('chatProfileDate') && match.matchedAt) {
-      const d = new Date(match.matchedAt);
-      el('chatProfileDate').textContent = 'Matched ' + d.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
-    }
-    card.style.display = 'flex';
-  }
 
   document.getElementById('chatPanel').classList.add('open');
   // Floating VK removed from chat — VK is in the pill bar
