@@ -413,6 +413,7 @@ html, body {
 .act-pass { width: 58px; height: 58px; background: #222236; font-size: 1.4rem; }
 .act-super { width: 48px; height: 48px; background: #181830; font-size: 1.2rem; border: 2px solid #6C63FF; }
 .act-like { width: 68px; height: 68px; background: var(--gradient-btn); font-size: 1.8rem; }
+.likes-left-badge { display:none; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800; color:white; padding:3px 9px; border-radius:20px; letter-spacing:0.02em; pointer-events:none; }
 .act-rewind { width: 44px; height: 44px; background: #181830; font-size: 1.1rem; border: 2px solid #444; opacity: 0.45; transition: opacity 0.2s, transform 0.18s, box-shadow 0.18s; }
 .act-rewind.ready { opacity: 1; border-color: #A78BFA; }
 .swipe-hint { font-size: 0.72rem; color: var(--text-muted); text-align: center; padding-bottom: 0.5rem; letter-spacing: 0.04em; }
@@ -2297,6 +2298,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <div class="card-stack" id="cardStack"></div>
           <div id="actionRow" class="action-row" style="display:none">
             <button class="act-btn act-rewind" id="rewindBtn" onclick="rewind()" title="Undo last swipe">↩</button>
+            <div id="likesLeftBadge" class="likes-left-badge" style="display:none"></div>
             <button class="act-btn act-pass" onclick="swipe('pass')" title="Pass">✕</button>
             <button class="act-btn act-super" onclick="swipe('super')" title="Super Like">⭐</button>
             <button class="act-btn act-like" onclick="swipe('like')" title="Like">♥</button>
@@ -3034,6 +3036,8 @@ const S = {
   likedMeViewed: new Set(), // L3: UIDs seen in WLY panel this session — excluded from badge count
   isPremium:    false,      // true once user has Spark Premium — unlocks Who Liked You full view
   superLikeUsedDate: null, // ISO date string (YYYY-MM-DD) of last super like — free users get 1/day
+  dailyLikesCount:  0,           // regular likes used today (free users capped at DAILY_LIKE_LIMIT)
+  dailyLikesDate:   null,        // ISO date (YYYY-MM-DD) of current like-count window
   lastSwiped:   null,       // { uid, action } — enables Rewind for premium users
   matchReadAt:  {},         // matchId → Date — when the other person last read this chat
   listeners:    {},         // Firestore unsubscribe fns
@@ -3259,6 +3263,15 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
           S.isPremium = snap.data()?.isPremium === true;
+          const fd = snap.data();
+          if (fd?.dailyLikesDate) {
+            const today = new Date().toISOString().slice(0, 10);
+            if (fd.dailyLikesDate === today) {
+              S.dailyLikesCount = fd.dailyLikesCount || 0;
+              S.dailyLikesDate  = today;
+            }
+          }
+          setTimeout(_updateLikesCounter, 0);
           S.superLikeUsedDate = snap.data()?.superLikeUsedDate || null;
           _updateRewindBtn();
           enterMainApp();
@@ -6130,6 +6143,54 @@ function _updateRewindBtn() {
   if (btn) btn.classList.toggle('ready', !!(S.lastSwiped && S.isPremium));
 }
 
+function _updateLikesCounter() {
+  const el = document.getElementById('likesLeftBadge');
+  if (!el) return;
+  if (S.isPremium) { el.style.display = 'none'; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  if (S.dailyLikesDate !== today) { S.dailyLikesCount = 0; S.dailyLikesDate = today; }
+  const left = Math.max(0, DAILY_LIKE_LIMIT - S.dailyLikesCount);
+  el.style.display = left <= 10 ? 'flex' : 'none'; // show when running low
+  el.textContent = left === 0 ? '0 ❤️ left' : left + ' ❤️ left';
+  el.style.background = left === 0 ? 'rgba(220,50,50,0.85)' : left <= 5 ? 'rgba(220,100,20,0.85)' : 'rgba(233,30,140,0.75)';
+}
+
+async function _saveDailyLikes() {
+  const uid = S.user?.id;
+  if (!uid || !db) return;
+  try {
+    await db.collection('users').doc(uid).update({
+      dailyLikesCount: S.dailyLikesCount,
+      dailyLikesDate:  S.dailyLikesDate,
+    });
+  } catch(e) { console.warn('_saveDailyLikes:', e); }
+}
+
+function _showLikesExhaustedModal() {
+  const existing = document.getElementById('likesExhaustedModal');
+  if (existing) { existing.remove(); }
+  const modal = document.createElement('div');
+  modal.id = 'likesExhaustedModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,26,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem;';
+  modal.innerHTML = `
+    <div style="background:var(--bg-card);border-radius:22px;padding:2rem 1.5rem;max-width:320px;width:100%;text-align:center;border:1.5px solid rgba(233,30,140,0.4);position:relative;">
+      <button onclick="document.getElementById('likesExhaustedModal').remove()" style="position:absolute;top:0.75rem;right:0.9rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+      <div style="font-size:2.8rem;margin-bottom:0.5rem">❤️</div>
+      <div style="font-size:1.15rem;font-weight:900;color:var(--text);margin-bottom:0.4rem">You're out of likes!</div>
+      <div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1.4rem;line-height:1.5">You've used all ${DAILY_LIKE_LIMIT} of your free likes today.<br>Come back tomorrow — or go Premium for unlimited likes.</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.2rem;text-align:left">
+        <div style="display:flex;align-items:center;gap:0.55rem"><span>♾️</span><span style="font-size:0.82rem">Unlimited likes every day</span></div>
+        <div style="display:flex;align-items:center;gap:0.55rem"><span>👁️</span><span style="font-size:0.82rem">See everyone who liked you</span></div>
+        <div style="display:flex;align-items:center;gap:0.55rem"><span>↩️</span><span style="font-size:0.82rem">Rewind accidental passes</span></div>
+        <div style="display:flex;align-items:center;gap:0.55rem"><span>⚡</span><span style="font-size:0.82rem">Boost your profile to the top</span></div>
+      </div>
+      <button class="btn-primary" onclick="document.getElementById('likesExhaustedModal').remove();upgradeToPremium()" style="width:100%;font-size:1rem;padding:0.85rem">Get Premium — $9.99/mo</button>
+      <button onclick="document.getElementById('likesExhaustedModal').remove()" style="width:100%;margin-top:0.75rem;background:none;border:1.5px solid rgba(255,255,255,0.12);color:var(--text-muted);border-radius:12px;padding:0.6rem;font-size:0.88rem;cursor:pointer;">Come back tomorrow</button>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
 async function rewind() {
   if (!S.isPremium) { upgradeToPremium(); return; }
   if (!S.lastSwiped) { toast('Nothing to undo'); return; }
@@ -6156,6 +6217,7 @@ async function rewind() {
 
 // H6: swipe-in-progress lock — prevents the same card being actioned twice
 // during the 400ms fly-away animation (rapid taps, keyboard, glasses commands).
+const DAILY_LIKE_LIMIT = 15; // free users get 15 regular likes per day
 let _swipeInProgress = false;
 
 async function swipe(action) {
@@ -6177,6 +6239,20 @@ async function swipe(action) {
       setTimeout(() => upgradeToPremium(), 600);
       return;
     }
+  }
+
+  // Daily like limit — free users get DAILY_LIKE_LIMIT likes/day; premium = unlimited
+  if (action === 'like' && !S.isPremium) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (S.dailyLikesDate !== today) { S.dailyLikesCount = 0; S.dailyLikesDate = today; }
+    if (S.dailyLikesCount >= DAILY_LIKE_LIMIT) {
+      _swipeInProgress = false;
+      _showLikesExhaustedModal();
+      return;
+    }
+    S.dailyLikesCount++;
+    _saveDailyLikes();
+    _updateLikesCounter();
   }
 
   if (action === 'like' || action === 'super') {
@@ -7003,19 +7079,28 @@ function upgradeToPremium() {
       <button onclick="document.getElementById('premiumModal').remove()" style="position:absolute;top:0.75rem;right:0.9rem;background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
       <div style="font-size:3rem;margin-bottom:0.6rem">✨</div>
       <div style="font-size:1.3rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.4rem">Spark Premium</div>
-      <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.5">See everyone who liked you, like them back instantly, and unlock unlimited swipes.</div>
-      <div style="display:flex;flex-direction:column;gap:0.7rem;margin-bottom:1.25rem">
+      <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;line-height:1.5">Unlock unlimited likes, see who's into you, boost your profile, and more.</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.25rem">
         <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
-          <span style="font-size:1.1rem">👁️</span><span style="font-size:0.82rem">See who liked your profile</span>
+          <span style="font-size:1.1rem">♾️</span><span style="font-size:0.82rem"><strong>Unlimited likes</strong> every day</span>
         </div>
         <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
-          <span style="font-size:1.1rem">♥</span><span style="font-size:0.82rem">Like them back with one tap</span>
+          <span style="font-size:1.1rem">👁️</span><span style="font-size:0.82rem">See <strong>everyone</strong> who liked your profile</span>
         </div>
         <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
-          <span style="font-size:1.1rem">♾️</span><span style="font-size:0.82rem">Unlimited swipes every day</span>
+          <span style="font-size:1.1rem">↩️</span><span style="font-size:0.82rem">Rewind accidental passes</span>
         </div>
         <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
-          <span style="font-size:1.1rem">⭐</span><span style="font-size:0.82rem">1 free Super Like per day</span>
+          <span style="font-size:1.1rem">⚡</span><span style="font-size:0.82rem">Boost your profile to the top of discovery</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">💬</span><span style="font-size:0.82rem">Read receipts — know when messages are seen</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">🎛️</span><span style="font-size:0.82rem">Advanced filters — intent, lifestyle & more</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.6rem;text-align:left">
+          <span style="font-size:1.1rem">⭐</span><span style="font-size:0.82rem">Daily Super Like included</span>
         </div>
       </div>
       ${S.isPremium
