@@ -2152,6 +2152,38 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <button class="pill-btn" onclick="selectPill('exercise','Sometimes',this)">🚶 Sometimes</button>
       <button class="pill-btn" onclick="selectPill('exercise','Rarely',this)">😅 Rarely</button>
     </div>
+    <label class="form-label" style="margin-top:1rem">Ethnicity <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sEthnicityGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('ethnicity','Black / African American',this)">🌍 Black / Afr. Amer.</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','White / Caucasian',this)">⚪ White / Caucasian</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Hispanic / Latino',this)">🌮 Hispanic / Latino</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Asian',this)">🌸 Asian</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Middle Eastern',this)">🌙 Middle Eastern</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Native American',this)">🦅 Native American</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Pacific Islander',this)">🌊 Pacific Islander</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Multiracial',this)">🌈 Multiracial</button>
+      <button class="pill-btn" onclick="selectPill('ethnicity','Other',this)">✨ Other</button>
+    </div>
+    <label class="form-label" style="margin-top:1rem">Religion <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sReligionGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('religion','Christian',this)">✝️ Christian</button>
+      <button class="pill-btn" onclick="selectPill('religion','Catholic',this)">⛪ Catholic</button>
+      <button class="pill-btn" onclick="selectPill('religion','Muslim',this)">☪️ Muslim</button>
+      <button class="pill-btn" onclick="selectPill('religion','Jewish',this)">✡️ Jewish</button>
+      <button class="pill-btn" onclick="selectPill('religion','Hindu',this)">🕉️ Hindu</button>
+      <button class="pill-btn" onclick="selectPill('religion','Buddhist',this)">☸️ Buddhist</button>
+      <button class="pill-btn" onclick="selectPill('religion','Spiritual',this)">🌟 Spiritual</button>
+      <button class="pill-btn" onclick="selectPill('religion','Agnostic',this)">🤔 Agnostic</button>
+      <button class="pill-btn" onclick="selectPill('religion','Atheist',this)">⚛️ Atheist</button>
+      <button class="pill-btn" onclick="selectPill('religion','Other',this)">✨ Other</button>
+    </div>
+    <label class="form-label" style="margin-top:1rem">Wants Kids <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <div class="pill-group" id="sWantsKidsGroup" style="flex-wrap:wrap;gap:0.4rem">
+      <button class="pill-btn" onclick="selectPill('wantsKids','Yes',this)">💛 Yes</button>
+      <button class="pill-btn" onclick="selectPill('wantsKids','No',this)">🚫 No</button>
+      <button class="pill-btn" onclick="selectPill('wantsKids','Open to It',this)">🌱 Open to It</button>
+      <button class="pill-btn" onclick="selectPill('wantsKids','Not Sure Yet',this)">🤷 Not Sure Yet</button>
+    </div>
     <label class="form-label" style="margin-top:1rem">Bio <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(<span id="bioCharCount">0</span>/500)</span></label>
     <div class="bio-voice-wrap">
       <textarea class="form-textarea" id="sBio" placeholder="What are you passionate about? What makes you unique? What are you looking for?…" maxlength="500" oninput="document.getElementById('bioCharCount').textContent=this.value.length" style="padding-bottom:2.8rem"></textarea>
@@ -3058,6 +3090,10 @@ const S = {
   filterExercise:       null,    // string or null
   filterRecentlyActive: false,   // Premium: only show profiles active in last 24h
   filterVerifiedOnly:   false,   // Premium: only show verified profiles
+  filterEthnicity:      [],      // array (multi-select) — [] = any
+  filterReligion:       null,    // string or null
+  filterKids:           null,    // string or null
+  filterWantsKids:      null,    // string or null
 };
 
 /* ================================================================
@@ -4839,6 +4875,9 @@ async function finishSetup() {
     smoking:   S.setup.smoking   || '',
     kids:      S.setup.kids      || '',
     exercise:  S.setup.exercise  || '',
+    ethnicity: S.setup.ethnicity || '',
+    religion:  S.setup.religion  || '',
+    wantsKids: S.setup.wantsKids || '',
     city:      S.user.city   || '',
     state:     S.user.state  || '',
     bio:       bio           || '',
@@ -5850,6 +5889,10 @@ function getProspects() {
     if (S.filterDrinking   && u.drinking   !== S.filterDrinking)   return false;
     if (S.filterSmoking    && u.smoking    !== S.filterSmoking)     return false;
     if (S.filterExercise   && u.exercise   !== S.filterExercise)    return false;
+    if (S.filterEthnicity?.length && u.ethnicity && !S.filterEthnicity.includes(u.ethnicity)) return false;
+    if (S.filterReligion   && u.religion   !== S.filterReligion)    return false;
+    if (S.filterKids       && u.kids       !== S.filterKids)        return false;
+    if (S.filterWantsKids  && u.wantsKids  !== S.filterWantsKids)   return false;
     // Premium-gated: Recently Active (last 24h)
     if (S.filterRecentlyActive && S.isPremium) {
       const lastSeen = u.lastSeen?.toDate ? u.lastSeen.toDate() : (u.lastSeen ? new Date(u.lastSeen) : null);
@@ -6809,6 +6852,9 @@ function openDetail(uid) {
     ...(u.smoking     ? [`<span class="tag-pill">🚬 ${escHtml(u.smoking)}</span>`]           : []),
     ...(u.kids        ? [`<span class="tag-pill">👶 ${escHtml(u.kids)}</span>`]              : []),
     ...(u.exercise    ? [`<span class="tag-pill">🏃 ${escHtml(u.exercise)}</span>`]          : []),
+    ...(u.ethnicity   ? [`<span class="tag-pill">🌍 ${escHtml(u.ethnicity)}</span>`]         : []),
+    ...(u.religion    ? [`<span class="tag-pill">🙏 ${escHtml(u.religion)}</span>`]          : []),
+    ...(u.wantsKids   ? [`<span class="tag-pill">💛 Wants kids: ${escHtml(u.wantsKids)}</span>`] : []),
     ...(u.interests||[]).map(t=>`<span class="tag-pill">${escHtml(t)}</span>`)
   ];
   document.getElementById('detailTags').innerHTML  = extraTags.join('');
@@ -9545,7 +9591,10 @@ async function saveProfile() {
     drinking:        pillGroupValue('editDrinkingGroup')    || S.user.drinking    || '',
     smoking:         pillGroupValue('editSmokingGroup')     || S.user.smoking     || '',
     kids:            pillGroupValue('editKidsGroup')        || S.user.kids        || '',
-    exercise:        pillGroupValue('editExerciseGroup')    || S.user.exercise    || ''
+    exercise:        pillGroupValue('editExerciseGroup')    || S.user.exercise    || '',
+    ethnicity:       pillGroupValue('editEthnicityGroup')   || S.user.ethnicity   || '',
+    religion:        pillGroupValue('editReligionGroup')    || S.user.religion    || '',
+    wantsKids:       pillGroupValue('editWantsKidsGroup')   || S.user.wantsKids   || ''
   };
   if (S.location?.lat) {
     updates.lat           = S.location.lat;
@@ -11045,6 +11094,10 @@ function openFilterSheet() {
     exercise:       S.filterExercise,
     recentlyActive: S.filterRecentlyActive,
     verifiedOnly:   S.filterVerifiedOnly,
+    ethnicity:      [...(S.filterEthnicity||[])],
+    religion:       S.filterReligion,
+    filterKids:     S.filterKids,
+    wantsKids:      S.filterWantsKids,
     minAge:         S.minAge,
     maxAge:         S.maxAge,
     radius:         S.radius,
@@ -11070,6 +11123,18 @@ function openFilterSheet() {
   const lockVerified = document.getElementById('dfsLockVerified');
   if (lockActive)   lockActive.textContent   = S.isPremium ? (S._draftFilter.recentlyActive ? '✅' : '⭕') : '🔒';
   if (lockVerified) lockVerified.textContent = S.isPremium ? (S._draftFilter.verifiedOnly   ? '✅' : '⭕') : '🔒';
+  document.querySelectorAll('[data-dfs-eth]').forEach(el => {
+    el.classList.toggle('sel', (S._draftFilter.ethnicity||[]).includes(el.dataset.dfsEth));
+  });
+  document.querySelectorAll('[data-dfs-rel]').forEach(el => {
+    el.classList.toggle('sel', el.dataset.dfsRel === S._draftFilter.religion);
+  });
+  document.querySelectorAll('[data-dfs-kids]').forEach(el => {
+    el.classList.toggle('sel', el.dataset.dfsKids === S._draftFilter.filterKids);
+  });
+  document.querySelectorAll('[data-dfs-wk]').forEach(el => {
+    el.classList.toggle('sel', el.dataset.dfsWk === S._draftFilter.wantsKids);
+  });
   updateDfsMatchCount();
   overlay.classList.add('open');
   if (typeof _navRefresh === 'function') _navRefresh();
@@ -11127,6 +11192,32 @@ function toggleFilterLS(category, val) {
   updateDfsMatchCount();
 }
 
+
+function toggleFilterEthnicity(val) {
+  if (!S._draftFilter) return;
+  if (!Array.isArray(S._draftFilter.ethnicity)) S._draftFilter.ethnicity = [];
+  const idx = S._draftFilter.ethnicity.indexOf(val);
+  if (idx === -1) S._draftFilter.ethnicity.push(val);
+  else S._draftFilter.ethnicity.splice(idx, 1);
+  document.querySelectorAll('[data-dfs-eth]').forEach(el => {
+    el.classList.toggle('sel', S._draftFilter.ethnicity.includes(el.dataset.dfsEth));
+  });
+  updateDfsMatchCount();
+}
+
+function _selectFilterSingleVal(draftKey, attrName, val) {
+  if (!S._draftFilter) return;
+  S._draftFilter[draftKey] = (S._draftFilter[draftKey] === val) ? null : val;
+  document.querySelectorAll(`[${attrName}]`).forEach(el => {
+    el.classList.toggle('sel', el.getAttribute(attrName) === S._draftFilter[draftKey]);
+  });
+  updateDfsMatchCount();
+}
+
+function selectFilterRelVal(val)  { _selectFilterSingleVal('religion',   'data-dfs-rel',  val); }
+function selectFilterKidsVal(val) { _selectFilterSingleVal('filterKids', 'data-dfs-kids', val); }
+function selectFilterWKVal(val)   { _selectFilterSingleVal('wantsKids',  'data-dfs-wk',   val); }
+
 function toggleFilterPremium(flag) {
   if (!S.isPremium) { upgradeToPremium(); return; }
   if (!S._draftFilter) return;
@@ -11159,6 +11250,10 @@ function applyDiscoverFilters() {
   S.filterExercise       = S._draftFilter.exercise;
   S.filterRecentlyActive = S._draftFilter.recentlyActive;
   S.filterVerifiedOnly   = S._draftFilter.verifiedOnly;
+  S.filterEthnicity      = [...(S._draftFilter.ethnicity||[])];
+  S.filterReligion       = S._draftFilter.religion;
+  S.filterKids           = S._draftFilter.filterKids;
+  S.filterWantsKids      = S._draftFilter.wantsKids;
   S.minAge               = S._draftFilter.minAge;
   S.maxAge               = S._draftFilter.maxAge;
   S.radius               = S._draftFilter.radius;
@@ -11178,6 +11273,10 @@ function resetDiscoverFilters() {
   S.filterExercise       = null;
   S.filterRecentlyActive = false;
   S.filterVerifiedOnly   = false;
+  S.filterEthnicity      = [];
+  S.filterReligion       = null;
+  S.filterKids           = null;
+  S.filterWantsKids      = null;
   S.minAge               = 18;
   S.maxAge               = 80;
   S.radius               = 50;
@@ -11185,6 +11284,7 @@ function resetDiscoverFilters() {
   S._draftFilter = {
     lookingFor: null, drinking: null, smoking: null, exercise: null,
     recentlyActive: false, verifiedOnly: false,
+    ethnicity: [], religion: null, filterKids: null, wantsKids: null,
     minAge: 18, maxAge: 80, radius: 50,
   };
   // Sync steppers display
@@ -11195,7 +11295,7 @@ function resetDiscoverFilters() {
   if (maxEl)  maxEl.textContent  = '80+';
   if (distEl) distEl.textContent = '50';
   // Reset all pill selections
-  document.querySelectorAll('[data-dfs-lf],[data-dfs-ls]').forEach(el => el.classList.remove('sel'));
+  document.querySelectorAll('[data-dfs-lf],[data-dfs-ls],[data-dfs-eth],[data-dfs-rel],[data-dfs-kids],[data-dfs-wk]').forEach(el => el.classList.remove('sel'));
   // Reset premium toggles
   const lockActive   = document.getElementById('dfsLockActive');
   const lockVerified = document.getElementById('dfsLockVerified');
@@ -11236,6 +11336,10 @@ function updateDfsMatchCount() {
       if (draft.drinking   && u.drinking   !== draft.drinking)   return false;
       if (draft.smoking    && u.smoking    !== draft.smoking)     return false;
       if (draft.exercise   && u.exercise   !== draft.exercise)    return false;
+      if (draft.ethnicity?.length && u.ethnicity && !draft.ethnicity.includes(u.ethnicity)) return false;
+      if (draft.religion   && u.religion   !== draft.religion)    return false;
+      if (draft.filterKids && u.kids       !== draft.filterKids)  return false;
+      if (draft.wantsKids  && u.wantsKids  !== draft.wantsKids)   return false;
       if (draft.recentlyActive && S.isPremium) {
         const ls = u.lastSeen?.toDate ? u.lastSeen.toDate() : (u.lastSeen ? new Date(u.lastSeen) : null);
         if (!ls || (Date.now() - ls.getTime()) > 86400000) return false;
@@ -11250,7 +11354,8 @@ function updateDfsMatchCount() {
 
 function updateFilterDot() {
   const active = !!(S.filterLookingFor || S.filterDrinking || S.filterSmoking ||
-                    S.filterExercise || S.filterRecentlyActive || S.filterVerifiedOnly);
+                    S.filterExercise || S.filterRecentlyActive || S.filterVerifiedOnly ||
+                    S.filterEthnicity?.length || S.filterReligion || S.filterKids || S.filterWantsKids);
   document.querySelectorAll('.filter-icon-dot').forEach(d => d.classList.toggle('show', active));
 }
 
@@ -11266,6 +11371,10 @@ async function saveFilterPrefs() {
         exercise:       S.filterExercise,
         recentlyActive: S.filterRecentlyActive,
         verifiedOnly:   S.filterVerifiedOnly,
+        ethnicity:      S.filterEthnicity,
+        religion:       S.filterReligion,
+        filterKids:     S.filterKids,
+        wantsKids:      S.filterWantsKids,
         minAge:         S.minAge,
         maxAge:         S.maxAge,
         radius:         S.radius,
@@ -11288,6 +11397,10 @@ async function loadFilterPrefs(uid) {
     if (prefs.exercise       !== undefined) S.filterExercise       = prefs.exercise;
     if (prefs.recentlyActive !== undefined) S.filterRecentlyActive = prefs.recentlyActive;
     if (prefs.verifiedOnly   !== undefined) S.filterVerifiedOnly   = prefs.verifiedOnly;
+    if (prefs.ethnicity      !== undefined) S.filterEthnicity      = Array.isArray(prefs.ethnicity) ? prefs.ethnicity : [];
+    if (prefs.religion       !== undefined) S.filterReligion       = prefs.religion;
+    if (prefs.filterKids     !== undefined) S.filterKids           = prefs.filterKids;
+    if (prefs.wantsKids      !== undefined) S.filterWantsKids      = prefs.wantsKids;
     if (prefs.minAge         !== undefined) S.minAge               = prefs.minAge;
     if (prefs.maxAge         !== undefined) S.maxAge               = prefs.maxAge;
     if (prefs.radius         !== undefined) S.radius               = prefs.radius;
@@ -11609,6 +11722,67 @@ async function loadFilterPrefs(uid) {
               <button class="dfs-ls-pill" data-dfs-ls="exercise" data-dfs-ls-val="Daily" onclick="toggleFilterLS('exercise','Daily')">Daily</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- ETHNICITY -->
+      <div class="dfs-section">
+        <div class="dfs-label">Ethnicity <span style="font-size:0.6rem;color:var(--text-muted);text-transform:none;letter-spacing:0;font-weight:600">(multi-select)</span></div>
+        <div class="dfs-pill-row">
+          <button class="dfs-pill" data-dfs-eth="Black / African American" onclick="toggleFilterEthnicity('Black / African American')">Black / Afr. Amer.</button>
+          <button class="dfs-pill" data-dfs-eth="White / Caucasian" onclick="toggleFilterEthnicity('White / Caucasian')">White / Caucasian</button>
+          <button class="dfs-pill" data-dfs-eth="Hispanic / Latino" onclick="toggleFilterEthnicity('Hispanic / Latino')">Hispanic / Latino</button>
+          <button class="dfs-pill" data-dfs-eth="Asian" onclick="toggleFilterEthnicity('Asian')">Asian</button>
+          <button class="dfs-pill" data-dfs-eth="Middle Eastern" onclick="toggleFilterEthnicity('Middle Eastern')">Middle Eastern</button>
+          <button class="dfs-pill" data-dfs-eth="Native American" onclick="toggleFilterEthnicity('Native American')">Native American</button>
+          <button class="dfs-pill" data-dfs-eth="Pacific Islander" onclick="toggleFilterEthnicity('Pacific Islander')">Pacific Islander</button>
+          <button class="dfs-pill" data-dfs-eth="Multiracial" onclick="toggleFilterEthnicity('Multiracial')">Multiracial</button>
+          <button class="dfs-pill" data-dfs-eth="Other" onclick="toggleFilterEthnicity('Other')">Other</button>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- RELIGION -->
+      <div class="dfs-section">
+        <div class="dfs-label">Religion</div>
+        <div class="dfs-pill-row">
+          <button class="dfs-pill" data-dfs-rel="Christian" onclick="selectFilterRelVal('Christian')">Christian</button>
+          <button class="dfs-pill" data-dfs-rel="Catholic" onclick="selectFilterRelVal('Catholic')">Catholic</button>
+          <button class="dfs-pill" data-dfs-rel="Muslim" onclick="selectFilterRelVal('Muslim')">Muslim</button>
+          <button class="dfs-pill" data-dfs-rel="Jewish" onclick="selectFilterRelVal('Jewish')">Jewish</button>
+          <button class="dfs-pill" data-dfs-rel="Hindu" onclick="selectFilterRelVal('Hindu')">Hindu</button>
+          <button class="dfs-pill" data-dfs-rel="Buddhist" onclick="selectFilterRelVal('Buddhist')">Buddhist</button>
+          <button class="dfs-pill" data-dfs-rel="Spiritual" onclick="selectFilterRelVal('Spiritual')">Spiritual</button>
+          <button class="dfs-pill" data-dfs-rel="Agnostic" onclick="selectFilterRelVal('Agnostic')">Agnostic</button>
+          <button class="dfs-pill" data-dfs-rel="Atheist" onclick="selectFilterRelVal('Atheist')">Atheist</button>
+          <button class="dfs-pill" data-dfs-rel="Other" onclick="selectFilterRelVal('Other')">Other</button>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- HAS KIDS -->
+      <div class="dfs-section">
+        <div class="dfs-label">Has Kids</div>
+        <div class="dfs-pill-row">
+          <button class="dfs-pill" data-dfs-kids="Have kids" onclick="selectFilterKidsVal('Have kids')">Has Kids</button>
+          <button class="dfs-pill" data-dfs-kids="No kids" onclick="selectFilterKidsVal('No kids')">No Kids</button>
+        </div>
+      </div>
+
+      <div class="dfs-divider"></div>
+
+      <!-- WANTS KIDS -->
+      <div class="dfs-section">
+        <div class="dfs-label">Wants Kids</div>
+        <div class="dfs-pill-row">
+          <button class="dfs-pill" data-dfs-wk="Yes" onclick="selectFilterWKVal('Yes')">Yes</button>
+          <button class="dfs-pill" data-dfs-wk="No" onclick="selectFilterWKVal('No')">No</button>
+          <button class="dfs-pill" data-dfs-wk="Open to It" onclick="selectFilterWKVal('Open to It')">Open to It</button>
+          <button class="dfs-pill" data-dfs-wk="Not Sure Yet" onclick="selectFilterWKVal('Not Sure Yet')">Not Sure</button>
         </div>
       </div>
 
