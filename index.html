@@ -9489,6 +9489,7 @@ function openEditProfile() {
     <div class="bio-voice-wrap">
       <textarea class="form-textarea" id="editBioIn" maxlength="500" style="padding-bottom:2.8rem">${escHtml(u.bio||'')}</textarea>
       <button class="bio-voice-btn" id="editBioMicBtn" onclick="voiceBio('editBioIn','editBioMicBtn')" title="Speak your bio">🎤</button>
+      <button class="bio-voice-btn" style="right:3.2rem;background:#6c47ff" onclick="openVK(document.getElementById('editBioIn'))" title="Virtual keyboard">⌨️</button>
     </div>
     <label class="form-label">Interests</label>
     <div class="interest-input-row">
@@ -10584,12 +10585,20 @@ function _vkScrollTargetIntoView() {
     const safeTop    = 56;
     const rect = VK.target.getBoundingClientRect();
 
+    // Find nearest scrollable ancestor (panels like editPanel use overflow-y:auto)
+    let _scroller = null;
+    let _el = VK.target.parentElement;
+    while (_el && _el !== document.body) {
+      const _ov = getComputedStyle(_el).overflowY;
+      if ((_ov === 'auto' || _ov === 'scroll') && _el.scrollHeight > _el.clientHeight) { _scroller = _el; break; }
+      _el = _el.parentElement;
+    }
     if (rect.bottom > safeBottom) {
-      // Field bottom is behind / too close to the keyboard — scroll page down
-      window.scrollBy({ top: rect.bottom - safeBottom, behavior: 'instant' });
+      const _d = rect.bottom - safeBottom;
+      if (_scroller) _scroller.scrollTop += _d; else window.scrollBy({ top: _d, behavior: 'instant' });
     } else if (rect.top < safeTop) {
-      // Field scrolled above the top bar — scroll page up
-      window.scrollBy({ top: rect.top - safeTop, behavior: 'instant' });
+      const _d = rect.top - safeTop;
+      if (_scroller) _scroller.scrollTop += _d; else window.scrollBy({ top: _d, behavior: 'instant' });
     }
   }, 320); // fires after the 280ms slide-up transition completes
 }
