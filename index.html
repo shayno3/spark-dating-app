@@ -6709,7 +6709,7 @@ function subscribeToMatches() {
             }
           } catch(e) {}
         }
-        if (!profileData) return null;
+        if (!profileData || profileData.deleted || profileData.banned) return null;
         // Carry sparkSystem flag so renderConversations can show "✨ Spark Team" branding
         const sparkSystem = !!data.sparkSystem;
         const sparkDisplayName = data.sparkDisplayName || null;
