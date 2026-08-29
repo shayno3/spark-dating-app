@@ -5493,7 +5493,8 @@ async function openAdminUser(uid) {
         <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}')"><span class="aab-icon">🔑</span>Reset Password</button>
         <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
-        <button class="admin-action-btn delete" style="grid-column:span 2" onclick="adminDeleteAccount('${uid}')"><span class="aab-icon">🗑</span>Delete Account</button>
+        <button class="admin-action-btn delete" onclick="adminDeleteAccount('${uid}')"><span class="aab-icon">🗑</span>Soft Delete</button>
+        <button class="admin-action-btn delete" style="background:rgba(185,28,28,0.2);border-color:rgba(185,28,28,0.5);color:#fca5a5" onclick="adminHardDeleteAccount('${uid}')"><span class="aab-icon">💀</span>Hard Delete</button>
       </div>
     </div>
     <!-- compose is now handled by the global adminComposeModal -->
@@ -5647,6 +5648,83 @@ async function adminDeleteAccount(uid) {
     renderAdminPanel();
   } catch (e) {
     toast('⚠️ Delete failed: ' + e.message);
+  }
+}
+
+
+async function adminHardDeleteAccount(uid) {
+  const _u = (window._adminUsers||[]).find(x => x.id === uid);
+  const name = _u?.name || 'this user';
+  if (!confirm(`HARD DELETE ${name}? This permanently removes ALL their data — profile, likes, matches, messages, and photos. Cannot be undone.`)) return;
+  if (!confirm(`Final confirmation: permanently erase every trace of ${name} from Spark?`)) return;
+  if (!db) return;
+  const btn = event.target;
+  const origText = btn.innerHTML;
+  btn.innerHTML = '⏳ Deleting…'; btn.disabled = true;
+  try {
+    // Batch helper (Firestore max 500 ops/batch)
+    const batches = [db.batch()];
+    let opCount = 0;
+    const batchDel = (ref) => {
+      if (opCount >= 490) { batches.push(db.batch()); opCount = 0; }
+      batches[batches.length - 1].delete(ref);
+      opCount++;
+    };
+
+    // Matches + message sub-collections
+    const matchSnap = await db.collection('matches').where('uids','array-contains',uid).get();
+    for (const mDoc of matchSnap.docs) {
+      const msgSnap = await db.collection('messages').doc(mDoc.id).collection('msgs').get();
+      msgSnap.docs.forEach(m => batchDel(m.ref));
+      batchDel(mDoc.ref);
+    }
+
+    // Likes sent by this user
+    const sentSnap = await db.collection('likes').doc(uid).collection('sent').get();
+    for (const sd of sentSnap.docs) {
+      batchDel(db.collection('likes').doc(sd.id).collection('received').doc(uid));
+      batchDel(sd.ref);
+    }
+    if (sentSnap.size > 0) batchDel(db.collection('likes').doc(uid));
+
+    // Likes received by this user
+    const recvSnap = await db.collection('likes').doc(uid).collection('received').get();
+    for (const rd of recvSnap.docs) {
+      batchDel(db.collection('likes').doc(rd.id).collection('sent').doc(uid));
+      batchDel(rd.ref);
+    }
+
+    // User document
+    batchDel(db.collection('users').doc(uid));
+
+    await Promise.all(batches.map(b => b.commit()));
+
+    // Storage cleanup
+    if (storage) {
+      const delFolder = async (path) => {
+        try {
+          const r = await storage.ref(path).listAll();
+          await Promise.all([
+            ...r.items.map(x => x.delete().catch(()=>{})),
+            ...r.prefixes.map(p => delFolder(p.fullPath))
+          ]);
+        } catch(e) {}
+      };
+      await Promise.all([
+        delFolder('photos/' + uid),
+        delFolder('voice/' + uid),
+        delFolder('verifications/' + uid),
+      ]);
+    }
+
+    toast('💀 ' + name + ' fully erased');
+    document.getElementById('adminDetailPanel')?.classList.remove('open');
+    // Remove from local cache
+    window._adminUsers = (window._adminUsers||[]).filter(u => u.id !== uid);
+    renderAdminPanel();
+  } catch(e) {
+    btn.innerHTML = origText; btn.disabled = false;
+    toast('⚠️ Hard delete failed: ' + e.message);
   }
 }
 
