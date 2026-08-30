@@ -9759,7 +9759,7 @@ async function saveProfile() {
         if (typeof p === 'string') return p;
         return p.preview || null;
       }).filter(Boolean)
-    : (S.user.photos || []);
+    : photoUrls;  // use reordered URLs — NOT S.user.photos which is still the old order at this point
 
   const updates = {
     name, age,
@@ -9801,6 +9801,7 @@ async function saveProfile() {
     logEv('profile_edit', { photo_count: localPhotoUrls.length });
     Object.assign(S.user, updates);
     S.user.photos = localPhotoUrls;  // show previews locally while real uploads run in background
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }  // reset before close so re-opening shows correct state
     closeEditProfile();
     renderMyProfile();
     toast('Profile saved! ✨');
