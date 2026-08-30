@@ -3,25 +3,35 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Admin helper ──────────────────────────────────────────────────────────
-    // ADMIN_UIDS list — update this after getting the real UID from admin.html
     function isAdmin() {
       return request.auth != null && request.auth.uid in [
-        'qwDw0vp4suOugIr39GqJ0K70cIq2'
+        'qwDw4vp4suOugIr39GqJ0K70cIq2'
       ];
+    }
+
+    // ── Premium-protected fields — only writable by Cloud Functions (Admin SDK) ──
+    // Users cannot self-grant premium by writing these fields directly.
+    function touchesPremiumFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['isPremium', 'stripeCustomerId', 'stripeSubscriptionId',
+                        'premiumSince', 'premiumUntil', 'referralPremiumUntil']);
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
     // Anyone signed in can read profiles (needed for Discover/Nearby).
     // Owner can create/delete their own profile freely.
-    // Owner updates are allowed but photos array is capped at 6 entries (#10).
+    // Owner updates are allowed but:
+    //   • photos array is capped at 6 entries
+    //   • premium/Stripe fields are blocked (server-side webhook only)
     // Any authenticated user may increment profileViewsWeekly (profile view tracking).
     match /users/{uid} {
       allow read:   if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == uid;
       allow delete: if request.auth != null && request.auth.uid == uid;
-      // Owner update: any field allowed, but photos array must not exceed 6 entries
+      // Owner update: allowed unless touching premium fields or exceeding photo cap
       allow update: if request.auth != null
                     && request.auth.uid == uid
+                    && !touchesPremiumFields()
                     && (!('photos' in request.resource.data) || request.resource.data.photos.size() <= 6);
       // Allow any signed-in user to increment profileViewsWeekly on another user's doc
       allow update: if request.auth != null
@@ -36,10 +46,6 @@ service cloud.firestore {
     }
 
     // ── Visitors (who viewed my profile) ─────────────────────────────────
-    // Owner reads their own visitors list.
-    // Any signed-in user may write their own visitor entry on someone else's profile.
-    // #14: Validate the written doc contains the visitor's own UID so arbitrary
-    // data cannot be injected into visitor entries.
     match /users/{uid}/visitors/{visitorId} {
       allow read:  if request.auth != null && request.auth.uid == uid;
       allow write: if request.auth != null
@@ -48,37 +54,26 @@ service cloud.firestore {
     }
 
     // ── Likes ─────────────────────────────────────────────────────────────
-    // sent/received sub-collections: owner reads+writes their own, target
-    // can read their received (for "who liked me"), owner writes received
-    // on the target's behalf when recording a like.
     match /likes/{uid}/sent/{targetUid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
     match /likes/{uid}/received/{fromUid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      // The person doing the liking writes to the target's received list
       allow write: if request.auth != null && request.auth.uid == fromUid;
     }
 
     // ── Matches ───────────────────────────────────────────────────────────
-    // Both participants can read and write the match document.
-    // NOTE: resource == null when the doc doesn't exist yet — allow that read
-    // so the client can check existence before creating (createMatch pre-read).
     match /matches/{matchId} {
       allow read:   if request.auth != null
                     && (resource == null || request.auth.uid in resource.data.uids);
       allow write:  if request.auth != null
                     && request.auth.uid in resource.data.uids;
-      // Allow create when the user's uid will be in the new doc's uids list
       allow create: if request.auth != null
                     && request.auth.uid in request.resource.data.uids;
-      // Admins can delete matches (for soft-delete cleanup)
       allow delete: if isAdmin();
     }
 
     // ── Messages ──────────────────────────────────────────────────────────
-    // Only the two participants of the match can read or write messages.
-    // We verify by checking the parent match doc's uids array.
     match /messages/{matchId}/msgs/{msgId} {
       allow read, write: if request.auth != null
                          && request.auth.uid in
@@ -86,54 +81,35 @@ service cloud.firestore {
     }
 
     // ── Glasses Pairing ───────────────────────────────────────────────────
-    // glassPair documents are read by the glasses BEFORE the user is signed
-    // in (the glasses enter the code first, then use the encrypted record to
-    // authenticate). Single-document GET is allowed without auth so the glasses
-    // can fetch by known code.
-    // #6: Split read → get/list: block list enumeration, allow targeted get only.
-    // #7: Delete restricted to the account owner (matched via auth token email).
-    // #8: Create restricted to the account owner (email in new doc must match auth token).
-    // #9: 30-day TTL — codes older than 30 days are rejected at the rules layer.
-    //     Codes written before TTL was added (no createdAt field) are still allowed
-    //     so existing paired glasses aren't broken on deploy.
     match /glassPair/{code} {
       allow get:    if !('createdAt' in resource.data)
-                    || request.time < resource.data.createdAt + duration.value(30, 'd'); // #9
-      allow list:   if false;                          // block enumeration of all codes (#6)
-      // Owner creates their own pairing record — email in doc must match their auth email
+                    || request.time < resource.data.createdAt + duration.value(30, 'd');
+      allow list:   if false;
       allow create: if request.auth != null
-                    && request.auth.token.email == request.resource.data.email; // #8
-      // Only the account whose email is in the doc may delete it (#7)
+                    && request.auth.token.email == request.resource.data.email;
       allow delete: if request.auth != null
-                    && request.auth.token.email == resource.data.email;         // #7
+                    && request.auth.token.email == resource.data.email;
     }
 
     // ── Reports ───────────────────────────────────────────────────────────
     match /reports/{reportId} {
       allow create: if request.auth != null;
-      allow read, write: if isAdmin();              // admin can read + resolve reports
+      allow read, write: if isAdmin();
     }
 
     // ── Admin Messages ────────────────────────────────────────────────────
-    // Admin writes a message doc to any user's UID.
-    // The recipient reads their own doc and can update it (mark as read).
     match /adminMessages/{uid} {
       allow read, update: if request.auth != null && request.auth.uid == uid;
       allow read, write:  if isAdmin();
     }
 
     // ── Moderation Events ────────────────────────────────────────────────────
-    // Created automatically when Vision API rejects a photo, or manually by admin.
-    // Any authenticated user can create (fires from client during upload).
-    // Only admins can read (moderation feed in admin panel).
     match /moderation_events/{eventId} {
       allow create: if request.auth != null;
       allow read, write: if isAdmin();
     }
 
     // ── Admin Chat Thread ─────────────────────────────────────────────────────
-    // Full chat thread between admin and a user — appears in the user's Messages inbox.
-    // Admin can read/write all threads; users can read their own and create reply messages.
     match /adminChat/{uid}/msgs/{msgId} {
       allow read:   if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow create: if request.auth != null && (request.auth.uid == uid || isAdmin());
