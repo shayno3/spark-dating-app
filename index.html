@@ -9116,111 +9116,116 @@ function renderMyProfile() {
   const el = document.getElementById('profileScroll');
   if (!el || !S.user) return;
   const u     = S.user;
-  const photo = (u.photos?.[0]) || avatar(u.name);
+  const photo = (u.photos && u.photos[0]) || avatar(u.name);
 
+  // ── Build lifestyle tags ──
   const hiTags = [
-    u.intent     ? `<div class="prof-tag hi">💫 ${u.intent}</div>`            : '',
-    u.orientation? `<div class="prof-tag hi">🌈 ${u.orientation}</div>`       : '',
-    u.relStatus  ? `<div class="prof-tag hi">💑 ${u.relStatus}</div>`         : '',
-    u.ethnicity  ? `<div class="prof-tag hi">🌍 ${u.ethnicity}</div>`         : '',
-    u.religion   ? `<div class="prof-tag hi">🙏 ${u.religion}</div>`          : '',
-    u.wantsKids  ? `<div class="prof-tag hi">💛 Wants kids: ${u.wantsKids}</div>` : '',
+    u.intent      ? '<div class="prof-tag hi">\u{1F4AB} ' + u.intent + '</div>'         : '',
+    u.orientation ? '<div class="prof-tag hi">\u{1F308} ' + u.orientation + '</div>'    : '',
+    u.relStatus   ? '<div class="prof-tag hi">\u{1F491} ' + u.relStatus + '</div>'      : '',
+    u.ethnicity   ? '<div class="prof-tag hi">\u{1F30D} ' + u.ethnicity + '</div>'      : '',
+    u.religion    ? '<div class="prof-tag hi">\u{1F64F} ' + u.religion + '</div>'       : '',
+    u.wantsKids   ? '<div class="prof-tag hi">\u{1F49B} Wants kids: ' + u.wantsKids + '</div>' : '',
   ].filter(Boolean).join('');
 
   const greyTags = [
-    u.height   ? `<div class="prof-tag">📏 ${u.height}</div>`   : '',
-    u.zodiac   ? `<div class="prof-tag">${u.zodiac}</div>`       : '',
-    u.drinking ? `<div class="prof-tag">🍷 ${u.drinking}</div>` : '',
-    u.smoking  ? `<div class="prof-tag">🚬 ${u.smoking}</div>`  : '',
-    u.kids     ? `<div class="prof-tag">👶 ${u.kids}</div>`     : '',
-    u.exercise ? `<div class="prof-tag">🏃 ${u.exercise}</div>` : '',
+    u.height   ? '<div class="prof-tag">\u{1F4CF} ' + u.height  + '</div>' : '',
+    u.zodiac   ? '<div class="prof-tag">' + u.zodiac + '</div>'              : '',
+    u.drinking ? '<div class="prof-tag">\u{1F377} ' + u.drinking + '</div>': '',
+    u.smoking  ? '<div class="prof-tag">\u{1F6AC} ' + u.smoking + '</div>' : '',
+    u.kids     ? '<div class="prof-tag">\u{1F476} ' + u.kids + '</div>'    : '',
+    u.exercise ? '<div class="prof-tag">\u{1F3C3} ' + u.exercise + '</div>': '',
   ].filter(Boolean).join('');
 
   const lifestyleTags = hiTags + greyTags;
 
-  const photoSlots = (() => {
-    const slots = [];
-    const photos = u.photos || [];
-    for (let i = 0; i < 5; i++) {
-      if (photos[i]) {
-        slots.push(`<img class="prof-photo-cell" src="${photos[i]}" onerror="this.src='${avatar(u.name)}'" alt="Photo ${i+1}">`);
-      } else {
-        slots.push(`<div class="prof-photo-add" onclick="openEditProfile()" title="Add photo">＋</div>`);
-      }
+  // ── Build photo grid (arrows stay in Edit Profile) ──
+  const photos = u.photos || [];
+  let photoSlots = '';
+  for (let i = 0; i < 5; i++) {
+    if (photos[i]) {
+      photoSlots += '<img class="prof-photo-cell" src="' + photos[i] + '" onerror="this.src=\'' + avatar(u.name) + '\'" alt="Photo ' + (i+1) + '">';
+    } else {
+      photoSlots += '<div class="prof-photo-add" onclick="openEditProfile()" title="Add photo">\uFF0B</div>';
     }
-    return slots.join('');
-  })();
+  }
 
-  el.innerHTML = `
-    <div class="prof-topbar">
-      <button class="prof-back-btn" onclick="showTab('discover')" title="Back" aria-label="Back">&#x2039;</button>
-      <div class="prof-topbar-logo">&#x2726; Spark</div>
-      <div class="prof-topbar-spacer"></div>
-    </div>
+  // ── Conditional sections (built as strings to avoid nested template issues) ──
+  const nameAge   = u.name + (u.age ? ', ' + u.age : '');
+  const cityLine  = u.city ? ('\uD83D\uDCCD ' + u.city + (u.state ? ', ' + u.state : '')) : 'Set your location';
 
-    <div class="prof-hero-row">
-      <div class="prof-photo-sq-wrap">
-        <img class="prof-photo-sq" src="${photo}" alt="${u.name}" onerror="this.src='${avatar(u.name)}'">
-        <div class="prof-photo-online"></div>
-      </div>
-      <div class="prof-hero-text">
-        <div class="prof-big-name">${u.name}${u.age ? \`, \${u.age}\` : ''}</div>
-        <div class="prof-sub-line">${u.city ? `📍 \${u.city}\${u.state ? ', '+u.state : ''}` : 'Set your location'}</div>
-      </div>
-    </div>
+  const lifestyleSection = lifestyleTags
+    ? '<div class="prof-section"><div class="prof-section-hd">Lifestyle</div><div class="prof-tags">' + lifestyleTags + '</div></div>'
+    : '';
 
-    <div class="prof-divider"></div>
+  const interestSection = (u.interests && u.interests.length > 0)
+    ? '<div class="prof-section"><div class="prof-section-hd">Interests</div><div class="prof-tags">' +
+        u.interests.map(function(t){ return '<div class="prof-tag">' + t + '</div>'; }).join('') +
+      '</div></div>'
+    : '';
 
-    <div class="prof-stats-row">
-      <div class="prof-stat-col">
-        <div class="prof-stat-num">${S.matches.length}</div>
-        <div class="prof-stat-lbl">Matches</div>
-      </div>
-      <div class="prof-stat-col">
-        <div class="prof-stat-num">${(u.photos||[]).length}</div>
-        <div class="prof-stat-lbl">Photos</div>
-      </div>
-      <div class="prof-stat-col">
-        <div class="prof-stat-num">${(u.interests||[]).length}</div>
-        <div class="prof-stat-lbl">Interests</div>
-      </div>
-    </div>
+  const bioText = u.bio
+    ? u.bio
+    : '<span style="color:var(--text-muted)">No bio yet \u2014 tap Edit Profile to add one</span>';
 
-    <div class="prof-body">
-      <div class="prof-section">
-        <div class="prof-section-hd">About Me</div>
-        <div class="prof-bio-text">${u.bio || '<span style="color:var(--text-muted)">No bio yet — tap Edit Profile to add one</span>'}</div>
-      </div>
+  const photoSection = photos.length > 0
+    ? '<div class="prof-section"><div class="prof-section-hd">Photos</div><div class="prof-photo-grid">' + photoSlots + '</div></div>'
+    : '<div class="prof-section" style="text-align:center;cursor:pointer" onclick="openEditProfile()"><div style="font-size:2rem;margin-bottom:0.4rem">\uD83D\uDCF8</div><div style="font-weight:700">Add Photos</div><div style="color:var(--text-muted);font-size:0.82rem;margin-top:0.25rem">Profiles with photos get 10x more matches</div></div>';
 
-      <div class="prof-section">
-        <div class="prof-section-hd">Photos</div>
-        <div class="prof-photo-grid">${photoSlots}</div>
-      </div>
+  el.innerHTML =
+    '<div class="prof-topbar">' +
+      '<button class="prof-back-btn" onclick="showTab(\'discover\')" title="Back" aria-label="Back">&#x2039;</button>' +
+      '<div class="prof-topbar-logo">&#x2726; Spark</div>' +
+      '<div class="prof-topbar-spacer"></div>' +
+    '</div>' +
 
-      \${lifestyleTags ? \`
-      <div class="prof-section">
-        <div class="prof-section-hd">Lifestyle</div>
-        <div class="prof-tags">\${lifestyleTags}</div>
-      </div>\` : ''}
+    '<div class="prof-hero-row">' +
+      '<div class="prof-photo-sq-wrap">' +
+        '<img class="prof-photo-sq" src="' + photo + '" alt="' + u.name + '" onerror="this.src=\'' + avatar(u.name) + '\'">' +
+        '<div class="prof-photo-online"></div>' +
+      '</div>' +
+      '<div class="prof-hero-text">' +
+        '<div class="prof-big-name">' + nameAge + '</div>' +
+        '<div class="prof-sub-line">' + cityLine + '</div>' +
+      '</div>' +
+    '</div>' +
 
-      \${u.interests?.length > 0 ? \`
-      <div class="prof-section">
-        <div class="prof-section-hd">Interests</div>
-        <div class="prof-tags">\${u.interests.map(t=>\`<div class="prof-tag">\${t}</div>\`).join('')}</div>
-      </div>\` : ''}
+    '<div class="prof-divider"></div>' +
 
-      \${renderProfileViewsCard(u)}
-      \${renderBoostCard(u)}
-      \${renderVerifCard(u)}
+    '<div class="prof-stats-row">' +
+      '<div class="prof-stat-col">' +
+        '<div class="prof-stat-num">' + S.matches.length + '</div>' +
+        '<div class="prof-stat-lbl">Matches</div>' +
+      '</div>' +
+      '<div class="prof-stat-col">' +
+        '<div class="prof-stat-num">' + (u.photos ? u.photos.length : 0) + '</div>' +
+        '<div class="prof-stat-lbl">Photos</div>' +
+      '</div>' +
+      '<div class="prof-stat-col">' +
+        '<div class="prof-stat-num">' + (u.interests ? u.interests.length : 0) + '</div>' +
+        '<div class="prof-stat-lbl">Interests</div>' +
+      '</div>' +
+    '</div>' +
 
-      <div class="prof-actions">
-        <button class="btn-primary" onclick="openEditProfile()">Edit Profile</button>
-        <button class="btn-primary" style="background:rgba(0,191,165,0.15);border:1.5px solid rgba(0,191,165,0.3);color:#4DB6AC" onclick="copyInviteLink()">🔗 Invite Friends</button>
-        <button class="btn-outline" style="border-color:rgba(108,99,255,0.35);color:#6C63FF;font-size:0.85rem" onclick="resetGlassCode()">👓 Reset Glasses Code</button>
-        <button class="btn-outline" onclick="logout()">Sign Out</button>
-        <button class="btn-outline" style="background:rgba(244,67,54,0.06);border-color:rgba(244,67,54,0.25);color:#ef5350;font-size:0.85rem" onclick="openDeleteModal()">🗑️ Delete Account</button>
-      </div>
-    </div>`;
+    '<div class="prof-body">' +
+      '<div class="prof-section">' +
+        '<div class="prof-section-hd">About Me</div>' +
+        '<div class="prof-bio-text">' + bioText + '</div>' +
+      '</div>' +
+      photoSection +
+      lifestyleSection +
+      interestSection +
+      renderProfileViewsCard(u) +
+      renderBoostCard(u) +
+      renderVerifCard(u) +
+      '<div class="prof-actions">' +
+        '<button class="btn-primary" onclick="openEditProfile()">Edit Profile</button>' +
+        '<button class="btn-primary" style="background:rgba(0,191,165,0.15);border:1.5px solid rgba(0,191,165,0.3);color:#4DB6AC" onclick="copyInviteLink()">\uD83D\uDD17 Invite Friends</button>' +
+        '<button class="btn-outline" style="border-color:rgba(108,99,255,0.35);color:#6C63FF;font-size:0.85rem" onclick="resetGlassCode()">\uD83D\uDC53 Reset Glasses Code</button>' +
+        '<button class="btn-outline" onclick="logout()">Sign Out</button>' +
+        '<button class="btn-outline" style="background:rgba(244,67,54,0.06);border-color:rgba(244,67,54,0.25);color:#ef5350;font-size:0.85rem" onclick="openDeleteModal()">\uD83D\uDDD1\uFE0F Delete Account</button>' +
+      '</div>' +
+    '</div>';
 }
 
 
