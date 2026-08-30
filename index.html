@@ -9106,7 +9106,23 @@ function renderMyProfile() {
 
     <div class="card-section" tabindex="0" title="About you">
       <div class="section-hd">About Me</div>
-      ${(u.height || u.zodiac || u.intent) ? `<div class="tags-wrap" style="margin-bottom:0.75rem">${u.height?`<div class="tag-pill">📏 ${u.height}</div>`:''}${u.zodiac?`<div class="tag-pill">${u.zodiac}</div>`:''}${u.intent?`<div class="tag-pill">💫 ${u.intent}</div>`:''}</div>` : ''}
+      ${(() => {
+        const tags = [
+          u.height     ? `<div class="tag-pill">📏 ${u.height}</div>`                       : '',
+          u.zodiac     ? `<div class="tag-pill">${u.zodiac}</div>`                           : '',
+          u.intent     ? `<div class="tag-pill">💫 ${u.intent}</div>`                       : '',
+          u.orientation? `<div class="tag-pill">🌈 ${u.orientation}</div>`                  : '',
+          u.relStatus  ? `<div class="tag-pill">💑 ${u.relStatus}</div>`                    : '',
+          u.drinking   ? `<div class="tag-pill">🍷 ${u.drinking}</div>`                     : '',
+          u.smoking    ? `<div class="tag-pill">🚬 ${u.smoking}</div>`                      : '',
+          u.kids       ? `<div class="tag-pill">👶 ${u.kids}</div>`                         : '',
+          u.exercise   ? `<div class="tag-pill">🏃 ${u.exercise}</div>`                     : '',
+          u.ethnicity  ? `<div class="tag-pill">🌍 ${u.ethnicity}</div>`                    : '',
+          u.religion   ? `<div class="tag-pill">🙏 ${u.religion}</div>`                     : '',
+          u.wantsKids  ? `<div class="tag-pill">💛 Wants kids: ${u.wantsKids}</div>`        : '',
+        ].filter(Boolean).join('');
+        return tags ? `<div class="tags-wrap" style="margin-bottom:0.75rem">${tags}</div>` : '';
+      })()}
       <div class="bio-body">${u.bio || '<span style="color:var(--text-muted)">No bio yet — edit your profile to add one</span>'}</div>
     </div>
 
@@ -9695,7 +9711,10 @@ async function saveProfile() {
   }
 
   try {
-    await db.collection('users').doc(uid).update(updates);
+    await Promise.race([
+      db.collection('users').doc(uid).update(updates),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('Save timed out — check your connection')), 15000))
+    ]);
     logEv('profile_edit', { photo_count: localPhotoUrls.length });
     Object.assign(S.user, updates);
     S.user.photos = localPhotoUrls;  // show previews locally while real uploads run in background
