@@ -12020,5 +12020,30 @@ async function loadFilterPrefs(uid) {
   </div>
 </div>
 
+
+<script>
+// Register service worker unconditionally for app shell caching (fast loads on glasses + offline)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+      .then((reg) => {
+        // When a new SW version is waiting, activate it immediately
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (newSW) {
+            newSW.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                newSW.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          }
+        });
+      })
+      .catch((err) => console.warn('[SW] registration failed:', err));
+  });
+}
+</script>
+
 </body>
 </html>
