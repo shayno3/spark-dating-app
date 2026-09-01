@@ -687,6 +687,9 @@ body:has(#inlineChatPanel.open) .bottom-nav { display: none; }
 .send-btn:active { transform: scale(0.9); }
 .chat-pill-bar { display:flex; gap:0.45rem; padding:0.5rem 0.7rem 0.35rem; background:var(--bg-card); border-top:1px solid var(--border); overflow-x:auto; flex-shrink:0; scrollbar-width:none; touch-action:pan-x; -webkit-overflow-scrolling:touch; }
 .chat-pill-bar::-webkit-scrollbar { display:none; }
+.chat-btn-stack { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.chat-stack-btn { width:36px; height:30px; border-radius:10px; background:var(--bg-elevated); border:1px solid rgba(233,30,140,0.22); color:var(--primary); font-size:0.95rem; display:flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; transition:background 0.15s,border-color 0.15s; }
+.chat-stack-btn.pill-active { background:rgba(233,30,140,0.18); border-color:var(--primary); }
 .chat-pill { display:flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.07); border:1.5px solid rgba(255,255,255,0.1); border-radius:22px; padding:0.42rem 0.8rem; color:var(--text); font-size:0.81rem; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:background 0.15s, transform 0.1s, border-color 0.15s; letter-spacing:0.01em; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
 .chat-pill:active { transform:scale(0.92); }
 .chat-pill.pill-active { background:var(--gradient-btn); color:#fff; border-color:transparent; }
@@ -2630,13 +2633,17 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="header-icon-btn chat-more-btn" onclick="openChatMenu()" title="More options" id="chatMoreBtn">⋮</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
-      <div class="chat-pill-bar" id="chatPillBar">
+      <div class="chat-pill-bar" id="chatPillBar" style="display:none">
         <button class="chat-pill" id="chatVoiceNotePill" title="Voice Note" onclick="_chatVoiceNotePill(this,'chatVoiceBtn','chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <button class="chat-pill" id="chatEmojiPill" title="Emoji" onclick="chatToggleEmoji('chatInput',this)">😊</button>
         <button class="chat-pill" id="chatVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('chatInput',this)">⌨️</button>
       </div>
       <div class="chat-input-bar">
-        <button class="voice-note-btn" id="chatVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'chatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
+        <button class="voice-note-btn" id="chatVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'chatMessages')" style="display:none"></button>
+        <div class="chat-btn-stack">
+          <button class="chat-stack-btn" data-pillbar="chatPillBar" onclick="chatToggleEmoji('chatInput',this)" title="Emoji">😊</button>
+          <button class="chat-stack-btn" data-pillbar="chatPillBar" onclick="chatToggleVKPill('chatInput',this)" title="Spark Keyboard">⌨️</button>
+        </div>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
           onclick="_isGlassesCtx()&&_showChatInputChooser('chatInput','chatPillBar')"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
@@ -2694,13 +2701,17 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         </div>
       </div>
       <div class="chat-messages" id="inlineChatMessages"></div>
-      <div class="chat-pill-bar" id="inlineChatPillBar">
+      <div class="chat-pill-bar" id="inlineChatPillBar" style="display:none">
         <button class="chat-pill" id="inlineVoiceNotePill" title="Voice Note" onclick="_chatVoiceNotePill(this,'inlineVoiceBtn','inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
         <button class="chat-pill" id="inlineEmojiPill" title="Emoji" onclick="chatToggleEmoji('inlineChatInput',this)">😊</button>
         <button class="chat-pill" id="inlineVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️</button>
       </div>
       <div class="chat-input-bar">
-        <button class="voice-note-btn" id="inlineVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'inlineChatMessages')" style="display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8" width="4" height="8" rx="2"/><rect x="7" y="4" width="4" height="16" rx="2"/><rect x="13" y="2" width="4" height="20" rx="2"/><rect x="19" y="6" width="4" height="12" rx="2"/></svg></button>
+        <button class="voice-note-btn" id="inlineVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'inlineChatMessages')" style="display:none"></button>
+        <div class="chat-btn-stack">
+          <button class="chat-stack-btn" data-pillbar="inlineChatPillBar" onclick="chatToggleEmoji('inlineChatInput',this)" title="Emoji">😊</button>
+          <button class="chat-stack-btn" data-pillbar="inlineChatPillBar" onclick="chatToggleVKPill('inlineChatInput',this)" title="Spark Keyboard">⌨️</button>
+        </div>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
           onclick="_isGlassesCtx()&&_showChatInputChooser('inlineChatInput','inlineChatPillBar')"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
@@ -8642,6 +8653,8 @@ function _chatClosePills(pillBar) {
   if (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking) speechSynthesis.cancel();
   if (_voiceRec && _voiceRec.state === 'recording') { try { _voiceRec.stop(); } catch(e){} }
   pillBar.querySelectorAll('.chat-pill').forEach(p => p.classList.remove('pill-active', 'recording'));
+  var _stackWrap = pillBar.closest('[data-nav-panel], .inline-chat-sheet');
+  if (_stackWrap) _stackWrap.querySelectorAll('.chat-stack-btn').forEach(function(b){ b.classList.remove('pill-active'); });
   wrap.querySelector('.chat-mic-shortcut')?.classList.remove('recording');
   if (_voiceNotePill) { _voiceNotePill.classList.remove('pill-active'); _voiceNotePill = null; }
 }
@@ -8725,7 +8738,7 @@ function chatHandwrite(inputId, btn) {
 const _CHAT_EMOJIS = ['😀','😂','🥰','😍','🤩','😎','😊','🙃','😘','😜','🤗','😏','❤️','🔥','✨','💫','💕','💯','👍','🙌','🎉','🥳','😅','🤣','😭','😢','😤','🤯','💀','🫶','💪','🫠','🤭','🫣','😁','🤝','🥺','😩','🫡','💃','🕺','🍕','🎵','🎸','🌙','⭐','🌹','🦋','✈️','🏖️','🎂','🍾'];
 
 function chatToggleEmoji(inputId, btn) {
-  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  const pillBar = btn ? (btn.closest('.chat-pill-bar') || document.getElementById(btn.dataset && btn.dataset.pillbar)) : null;
   if (!pillBar) return;
   const wrap = pillBar.parentElement;
   let picker = wrap.querySelector('.chat-emoji-picker');
@@ -9026,7 +9039,7 @@ function closeSparkVK() {
 }
 
 function chatToggleVKPill(inputId, btn) {
-  var pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  var pillBar = btn ? (btn.closest('.chat-pill-bar') || document.getElementById(btn.dataset && btn.dataset.pillbar)) : null;
   if (!pillBar) return;
   var wrap = pillBar.parentElement;
   /* Toggle off */
