@@ -1861,6 +1861,125 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 .vk-key.vk-space { max-width: 180px; font-size: 0.75rem; letter-spacing: 0.04em; }
 .vk-key.vk-action { background: rgba(233,30,140,0.18); border-color: rgba(233,30,140,0.35); color: var(--primary); }
 
+
+/* ── Spark VK (Option C – voice-first) ─────────────────────────── */
+.spark-vk {
+  background: var(--bg-elevated,#1c1c2e);
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0.4rem 0.65rem;
+  user-select: none;
+  flex-shrink: 0;
+}
+.spark-vk-voice-zone {
+  background: linear-gradient(135deg,rgba(233,30,140,0.13),rgba(108,71,255,0.13));
+  border: 1.5px solid rgba(233,30,140,0.45);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.45rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.spark-vk-voice-zone.svk-recording {
+  border-color: #e91e8c;
+  animation: svkPulse 1.1s ease infinite;
+}
+@keyframes svkPulse {
+  0%,100%{box-shadow:0 0 0 0 rgba(233,30,140,0.45);}
+  50%{box-shadow:0 0 0 9px rgba(233,30,140,0);}
+}
+.spark-vk-mic-wrap {
+  display:flex;align-items:flex-end;gap:3px;height:24px;
+}
+.spark-vk-mic-wrap span {
+  display:block;width:4px;border-radius:2px;background:#e91e8c;
+}
+.spark-vk-voice-label {
+  color:#fff;font-size:0.87rem;font-weight:600;
+}
+.spark-vk-or-row {
+  display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;
+}
+.spark-vk-or-line { flex:1;height:1px;background:var(--border); }
+.spark-vk-or-text { color:var(--text-muted);font-size:0.7rem;letter-spacing:0.04em; }
+.spark-vk-emoji-row {
+  display:flex;gap:0.3rem;justify-content:flex-start;padding:0 0.1rem;
+  overflow-x:auto;scrollbar-width:none;
+}
+.spark-vk-emoji-row::-webkit-scrollbar{display:none;}
+.svk-emoji-btn {
+  background:var(--bg-input,#2a2a40);border:none;border-radius:8px;
+  padding:0.28rem 0.38rem;font-size:1.2rem;cursor:pointer;
+  touch-action:manipulation;flex-shrink:0;
+}
+.spark-vk-quick-toggle {
+  display:flex;align-items:center;gap:0.3rem;
+  padding:0.1rem 0.35rem 0.1rem 0.2rem;cursor:pointer;
+  color:var(--text-muted);font-size:0.73rem;font-weight:600;
+  touch-action:manipulation;background:var(--bg-input,#2a2a40);
+  border:1px solid var(--border);border-radius:10px;margin-left:0.3rem;white-space:nowrap;
+}
+.svk-chevron { transition:transform 0.2s;display:inline-block; }
+.spark-vk-phrases {
+  display:flex;gap:0.3rem;flex-wrap:wrap;padding:0 0.1rem;
+  margin-bottom:0.3rem;
+}
+.spark-vk-phrases.svk-hidden { display:none; }
+.svk-phrase-btn {
+  background:var(--bg-input,#2a2a40);border:1px solid var(--border);
+  border-radius:20px;padding:0.22rem 0.6rem;font-size:0.76rem;
+  color:var(--text);cursor:pointer;touch-action:manipulation;white-space:nowrap;
+}
+.spark-vk-suggest-row {
+  display:flex;gap:0.22rem;margin-bottom:0.28rem;padding:0 0.05rem;
+}
+.svk-suggest-btn {
+  flex:1;background:var(--bg-input,#2a2a40);border:1px solid var(--border);
+  border-radius:6px;padding:0.22rem 0;font-size:0.76rem;color:var(--text);
+  cursor:pointer;touch-action:manipulation;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.spark-vk-keys-row {
+  display:flex;justify-content:center;gap:0.2rem;margin-bottom:0.2rem;
+}
+.svk-key {
+  background:var(--bg-input,#2e2e45);color:var(--text);
+  border:1px solid rgba(255,255,255,0.07);border-radius:6px;
+  padding:0.45rem 0;font-size:0.88rem;min-width:1.9rem;
+  flex:1;cursor:pointer;touch-action:manipulation;text-align:center;font-weight:600;
+}
+.svk-key.svk-wide { max-width:3.6rem;font-size:0.76rem; }
+.svk-key.svk-space { max-width:8rem;font-size:0.75rem;letter-spacing:0.04em; }
+.svk-key.svk-action { background:rgba(233,30,140,0.15);border-color:rgba(233,30,140,0.3);color:var(--primary); }
+/* SparkVK fixed overlay (editPanel) */
+#sparkVKOverlay {
+  position:fixed;inset:0;z-index:3100;pointer-events:none;
+  display:flex;flex-direction:column;justify-content:flex-end;
+}
+#sparkVKPanel {
+  pointer-events:all;background:var(--bg-elevated,#1c1c2e);
+  border-top:1.5px solid rgba(255,255,255,0.12);
+  padding:8px 6px 12px;
+  transform:translateY(110%);
+  transition:transform 0.28s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 -8px 32px rgba(0,0,0,0.6);
+}
+#sparkVKPanel.svk-open{transform:translateY(0);}
+.svk-toolbar {
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 6px 6px;
+}
+.svk-toolbar-label {
+  font-size:0.68rem;font-weight:800;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.07em;
+}
+.svk-close-btn {
+  background:rgba(255,255,255,0.08);border:none;color:var(--text-muted);
+  border-radius:8px;padding:3px 10px;font-size:0.78rem;font-weight:700;cursor:pointer;
+}
 /* Toggle button — fixed, bottom-left, above nav.
    Hidden by default; shown only when a chat panel is open
    (via .vk-btn-visible set by openChat / closeChat). */
@@ -4107,7 +4226,7 @@ document.addEventListener('keydown', e => {
     const focusedIsInput = focused && (
       focused.tagName === 'INPUT' ||
       focused.tagName === 'TEXTAREA' ||
-      !!focused.closest('.chat-vk-local, .chat-emoji-picker, .chat-input-chooser')
+      !!focused.closest('.spark-vk, .chat-emoji-picker, .chat-input-chooser')
     );
     if (chatMsgs && !focusedIsInput) {
       chatMsgs.scrollBy({ top: e.key === 'ArrowDown' ? 180 : -180, behavior: 'smooth' });
@@ -8517,7 +8636,7 @@ function _chatClosePills(pillBar) {
   if (!pillBar) return;
   const wrap = pillBar.parentElement;
   wrap.querySelector('.chat-emoji-picker')?.remove();
-  wrap.querySelector('.chat-vk-local')?.remove();
+  wrap.querySelector('.chat-vk-local,.spark-vk')?.remove();
   wrap.querySelector('.chat-input-chooser')?.remove();
   if (_chatDictRecog) { try { _chatDictRecog.stop(); } catch(e){} _chatDictRecog = null; }
   if (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking) speechSynthesis.cancel();
@@ -8653,98 +8772,264 @@ function chatListen(btn) {
   speechSynthesis.speak(utt);
 }
 
+/* ── Spark VK helpers (Option C – voice-first) ──────────────────── */
+var _svkRec = null;
+
+function _svkBuildEl(inputId, onClose) {
+  var inp = document.getElementById(inputId);
+  var vk = document.createElement('div');
+  vk.className = 'spark-vk';
+
+  /* ── text helpers ── */
+  function insertText(ch) {
+    if (!inp) return;
+    var pos = (typeof inp.selectionStart === 'number') ? inp.selectionStart : inp.value.length;
+    inp.value = inp.value.slice(0,pos) + ch + inp.value.slice(pos);
+    try { inp.setSelectionRange(pos+ch.length, pos+ch.length); } catch(e){}
+    updateSuggest();
+  }
+  function doBackspace() {
+    if (!inp) return;
+    var pos = (typeof inp.selectionStart === 'number') ? inp.selectionStart : inp.value.length;
+    if (pos > 0) { inp.value = inp.value.slice(0,pos-1) + inp.value.slice(pos); try{inp.setSelectionRange(pos-1,pos-1);}catch(e){} }
+    updateSuggest();
+  }
+
+  /* ── word suggestions ── */
+  var SUGG = ['Hey!','Love','Cute','Meet','Sure','Maybe','Yes!','Wow','Cool','Nice'];
+  function updateSuggest() {
+    var row = vk.querySelector('.spark-vk-suggest-row');
+    if (!row || !inp) return;
+    var val = inp.value;
+    var last = val.split(/\s+/).pop().toLowerCase();
+    var hits = last ? SUGG.filter(function(s){return s.toLowerCase().startsWith(last);}).slice(0,3) : SUGG.slice(0,3);
+    row.querySelectorAll('.svk-suggest-btn').forEach(function(b,i){
+      b.textContent = hits[i] || '';
+      b.style.visibility = hits[i] ? 'visible' : 'hidden';
+    });
+  }
+
+  /* ── keyboard data ── */
+  var rows = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['\u21e7','z','x','c','v','b','n','m','\u232b'],
+    ['123','space','return']
+  ];
+  var numRows = [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['-','/','.',',','?','!','\u2019','"','(',')'],
+    ['#+=','@','$','&','*','_',';',':','\u232b'],
+    ['ABC','space','return']
+  ];
+  var sym2Rows = [
+    ['[',']','{','}','#','%','^','*','+','='],
+    ['_','\\','|','~','<','>','\u20ac','\xa3','\xa5','\xb7'],
+    ['123','.',',','?','!','\u2019','\u232b'],
+    ['ABC','space','return']
+  ];
+  var caps = false, numMode = false, symMode = false;
+
+  function buildKeys() {
+    var keysWrap = vk.querySelector('.svk-keys-wrap');
+    if (!keysWrap) return;
+    keysWrap.innerHTML = '';
+    var activeRows = numMode ? (symMode ? sym2Rows : numRows) : rows;
+    activeRows.forEach(function(row) {
+      var rowDiv = document.createElement('div');
+      rowDiv.className = 'spark-vk-keys-row';
+      row.forEach(function(k) {
+        var btn = document.createElement('button');
+        var isWide = k.length > 1 && k !== 'space';
+        var isSpace = k === 'space';
+        var isAction = ['\u21e7','\u232b','123','ABC','#+=','return'].indexOf(k) !== -1;
+        var cls = 'svk-key';
+        if (isWide)   cls += ' svk-wide';
+        if (isSpace)  cls += ' svk-space';
+        if (isAction) cls += ' svk-action';
+        btn.className = cls;
+        if (k === 'return') btn.textContent = '\u21b5';
+        else if (k === 'space') btn.textContent = '\u23b5';
+        else btn.textContent = (caps && !numMode) ? k.toUpperCase() : k;
+        btn.setAttribute('data-k', k);
+        btn.addEventListener('click', function() {
+          if (k === '\u232b') { doBackspace(); }
+          else if (k === 'return') { if (onClose) onClose(); }
+          else if (k === 'space') { insertText(' '); }
+          else if (k === '\u21e7') { caps = !caps; buildKeys(); }
+          else if (k === '123')  { numMode = true;  symMode = false; buildKeys(); }
+          else if (k === 'ABC')  { numMode = false; symMode = false; buildKeys(); }
+          else if (k === '#+=')  { symMode = true;  buildKeys(); }
+          else {
+            var ch = (caps && !numMode) ? k.toUpperCase() : k;
+            insertText(ch);
+            if (caps && k !== '\u21e7') { caps = false; buildKeys(); }
+          }
+        });
+        rowDiv.appendChild(btn);
+      });
+      keysWrap.appendChild(rowDiv);
+    });
+  }
+
+  /* ── voice recording ── */
+  var recognizing = false;
+  function startVoice() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { return; }
+    if (recognizing) { stopVoice(); return; }
+    _svkRec = new SR();
+    _svkRec.continuous = false;
+    _svkRec.interimResults = false;
+    _svkRec.lang = 'en-US';
+    _svkRec.onresult = function(e) {
+      var t = e.results[0][0].transcript;
+      if (inp) inp.value = (inp.value + (inp.value ? ' ' : '') + t).trimStart();
+      stopVoice();
+    };
+    _svkRec.onerror = stopVoice;
+    _svkRec.onend   = stopVoice;
+    _svkRec.start();
+    recognizing = true;
+    var zone = vk.querySelector('.spark-vk-voice-zone');
+    if (zone) { zone.classList.add('svk-recording'); zone.querySelector('.spark-vk-voice-label').textContent = 'Listening\u2026 tap to stop'; }
+  }
+  function stopVoice() {
+    if (_svkRec) { try { _svkRec.stop(); } catch(e){} _svkRec = null; }
+    recognizing = false;
+    var zone = vk.querySelector('.spark-vk-voice-zone');
+    if (zone) { zone.classList.remove('svk-recording'); zone.querySelector('.spark-vk-voice-label').textContent = 'Tap to speak'; }
+  }
+
+  /* ── build DOM ── */
+  var emojis  = ['\u2764\ufe0f','\ud83d\udd25','\ud83d\ude0a','\ud83d\ude0d','\ud83d\udc4b','\ud83d\ude02','\ud83d\udc4d','\ud83d\udcaf'];
+  var phrases = ['Hey! \ud83d\udc4b','You\u2019re cute \ud83d\ude0a','Want to meet up?','That\u2019s so cool!','Tell me more \ud83d\ude04'];
+
+  var emojiHTML = '';
+  for (var ei=0; ei<emojis.length; ei++) {
+    emojiHTML += '<button class="svk-emoji-btn" data-em="' + emojis[ei] + '">' + emojis[ei] + '</button>';
+  }
+  var phraseHTML = '';
+  for (var pi=0; pi<phrases.length; pi++) {
+    phraseHTML += '<button class="svk-phrase-btn" data-ph="' + phrases[pi].replace(/'/g,'&#39;') + '">' + phrases[pi] + '</button>';
+  }
+
+  /* Voice icon: 5 bars of different heights (our real waveform icon) */
+  var micHTML = '<span style="height:8px"></span><span style="height:16px"></span><span style="height:22px"></span><span style="height:16px"></span><span style="height:8px"></span>';
+
+  vk.innerHTML = (
+    /* voice zone */
+    '<div class="spark-vk-voice-zone">' +
+      '<div class="spark-vk-mic-wrap">' + micHTML + '</div>' +
+      '<span class="spark-vk-voice-label">Tap to speak</span>' +
+    '</div>' +
+    /* or type divider */
+    '<div class="spark-vk-or-row">' +
+      '<div class="spark-vk-or-line"></div>' +
+      '<span class="spark-vk-or-text">or type</span>' +
+      '<div class="spark-vk-or-line"></div>' +
+    '</div>' +
+    /* emoji row + quick phrases toggle */
+    '<div style="display:flex;align-items:center;margin-bottom:0.15rem">' +
+      '<div class="spark-vk-emoji-row" style="flex:1">' + emojiHTML + '</div>' +
+      '<button class="spark-vk-quick-toggle"><span>\u26a1</span><span class="svk-chevron">\u203a</span></button>' +
+    '</div>' +
+    /* quick phrases (hidden by default) */
+    '<div class="spark-vk-phrases svk-hidden">' + phraseHTML + '</div>' +
+    /* word suggestions */
+    '<div class="spark-vk-suggest-row">' +
+      '<button class="svk-suggest-btn">Hey!</button>' +
+      '<button class="svk-suggest-btn">Love</button>' +
+      '<button class="svk-suggest-btn">Cute</button>' +
+    '</div>' +
+    /* keyboard */
+    '<div class="svk-keys-wrap"></div>'
+  );
+
+  /* wire voice zone */
+  vk.querySelector('.spark-vk-voice-zone').addEventListener('click', startVoice);
+
+  /* wire emojis */
+  vk.querySelectorAll('.svk-emoji-btn').forEach(function(b) {
+    b.addEventListener('click', function() { insertText(b.getAttribute('data-em')); });
+  });
+
+  /* wire quick-phrases toggle */
+  var quickBtn = vk.querySelector('.spark-vk-quick-toggle');
+  var phrasesDiv = vk.querySelector('.spark-vk-phrases');
+  var chevron    = vk.querySelector('.svk-chevron');
+  quickBtn.addEventListener('click', function() {
+    var nowHidden = phrasesDiv.classList.toggle('svk-hidden');
+    chevron.style.transform = nowHidden ? '' : 'rotate(90deg)';
+  });
+
+  /* wire phrase buttons */
+  vk.querySelectorAll('.svk-phrase-btn').forEach(function(b) {
+    b.addEventListener('click', function() { insertText(b.getAttribute('data-ph')); });
+  });
+
+  /* wire suggestions */
+  vk.querySelectorAll('.svk-suggest-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
+      if (!b.textContent.trim() || !inp) return;
+      var val  = inp.value;
+      var last = val.split(/\s+/).pop();
+      inp.value = last ? val.slice(0, val.length - last.length) + b.textContent + ' '
+                       : val + b.textContent + ' ';
+      updateSuggest();
+    });
+  });
+
+  buildKeys();
+  return vk;
+}
+
+function openSparkVK(el) {
+  /* editPanel overlay mode — keep auth/setup/PIN completely untouched */
+  var overlay = document.getElementById('sparkVKOverlay');
+  var panel   = document.getElementById('sparkVKPanel');
+  if (!overlay || !panel) { openVK(el); return; }
+  panel.innerHTML = '';
+  var toolbar = document.createElement('div');
+  toolbar.className = 'svk-toolbar';
+  toolbar.innerHTML = '<span class="svk-toolbar-label">\u2736 Spark Keyboard</span>' +
+    '<span style="display:flex;gap:6px">' +
+      '<button class="svk-close-btn" onclick="closeSparkVK()">Done \u2713</button>' +
+    '</span>';
+  panel.appendChild(toolbar);
+  panel.appendChild(_svkBuildEl(el.id, closeSparkVK));
+  overlay.style.pointerEvents = 'all';
+  requestAnimationFrame(function(){ panel.classList.add('svk-open'); });
+  window._svkActiveInput = el;
+}
+
+function closeSparkVK() {
+  var panel   = document.getElementById('sparkVKPanel');
+  var overlay = document.getElementById('sparkVKOverlay');
+  if (!panel || !overlay) return;
+  if (_svkRec) { try { _svkRec.stop(); } catch(e){} _svkRec = null; }
+  panel.classList.remove('svk-open');
+  setTimeout(function(){ panel.innerHTML = ''; overlay.style.pointerEvents = 'none'; }, 300);
+  window._svkActiveInput = null;
+}
+
 function chatToggleVKPill(inputId, btn) {
-  const pillBar = btn ? btn.closest('.chat-pill-bar') : null;
+  var pillBar = btn ? btn.closest('.chat-pill-bar') : null;
   if (!pillBar) return;
-  const wrap = pillBar.parentElement;
-  let existing = wrap.querySelector('.chat-vk-local');
+  var wrap = pillBar.parentElement;
+  /* Toggle off */
+  var existing = wrap.querySelector('.spark-vk');
   if (existing) { _chatClosePills(pillBar); return; }
   _chatClosePills(pillBar);
   if (btn) btn.classList.add('pill-active');
 
-  const inp = document.getElementById(inputId);
-  const rows = [
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l'],
-    ['⇧','z','x','c','v','b','n','m','⌫'],
-    ['123','space','return']
-  ];
-  let caps = false, numMode = false;
-  const numRows = [
-    ['1','2','3','4','5','6','7','8','9','0'],
-    ['-','/','.',',','?','!','\'','"','(',')',],
-    ['#+=','@','$','&','*','_',';',':','⌫'],
-    ['ABC','space','return']
-  ];
-  const sym2Rows = [
-    ['[',']','{','}','#','%','^','*','+','='],
-    ['_','\\','|','~','<','>','€','£','¥','·'],
-    ['123','.',',','?','!','\'','⌫'],
-    ['ABC','space','return']
-  ];
-  let symMode = false;
+  var vkEl = _svkBuildEl(inputId, function() { _chatClosePills(pillBar); });
+  wrap.insertBefore(vkEl, pillBar);
 
-  const vk = document.createElement('div');
-  vk.className = 'chat-vk-local';
-  vk.style.cssText = 'background:var(--bg-elevated);border-top:1px solid var(--border);padding:0.4rem 0.25rem 0.5rem;user-select:none;';
-
-  let _vkFirstBuild = true;
-  function buildKeys() {
-    vk.innerHTML = '';
-    const activeRows = numMode ? (symMode ? sym2Rows : numRows) : rows;
-    activeRows.forEach(row => {
-      const rowDiv = document.createElement('div');
-      rowDiv.style.cssText = 'display:flex;justify-content:center;gap:0.2rem;margin-bottom:0.2rem;';
-      row.forEach(k => {
-        const kb = document.createElement('button');
-        kb.style.cssText = 'background:var(--bg-input,#333);color:var(--text);border:none;border-radius:6px;padding:0.45rem 0;font-size:0.9rem;min-width:2.2rem;flex:1;max-width:' + (k === 'space' ? '8rem' : k.length > 1 ? '3.5rem' : '2.8rem') + ';cursor:pointer;touch-action:manipulation;';
-        kb.textContent = k === 'space' ? ' ' : (caps && !numMode ? k.toUpperCase() : k);
-        if (k === 'space') kb.textContent = '⎵';
-        kb.setAttribute('data-key', k);
-        kb.onclick = () => {
-          if (!inp) return;
-          const pos = (typeof inp.selectionStart === 'number') ? inp.selectionStart : inp.value.length;
-          if (k === '⌫') {
-            if (pos > 0) { inp.value = inp.value.slice(0, pos - 1) + inp.value.slice(pos); try { inp.setSelectionRange(pos-1,pos-1); } catch(e){} }
-          } else if (k === 'return') {
-            _chatClosePills(pillBar);
-          } else if (k === 'space') {
-            inp.value = inp.value.slice(0, pos) + ' ' + inp.value.slice(pos);
-            try { inp.setSelectionRange(pos+1,pos+1); } catch(e){}
-          } else if (k === '⇧') {
-            caps = !caps; buildKeys();
-          } else if (k === '123') {
-            numMode = true; symMode = false; buildKeys();
-          } else if (k === 'ABC') {
-            numMode = false; symMode = false; buildKeys();
-          } else if (k === '#+=') {
-            symMode = true; buildKeys();
-          } else {
-            const ch = caps && !numMode ? k.toUpperCase() : k;
-            inp.value = inp.value.slice(0, pos) + ch + inp.value.slice(pos);
-            try { inp.setSelectionRange(pos+1,pos+1); } catch(e){}
-            if (caps && k !== '⇧') { caps = false; buildKeys(); }
-          }
-        };
-        rowDiv.appendChild(kb);
-      });
-      vk.appendChild(rowDiv);
-    });
-    // After a mode switch rebuild, re-focus glasses nav on the first key
-    if (!_vkFirstBuild) {
-      setTimeout(() => {
-        const firstKey = vk.querySelector('button');
-        if (firstKey) _navSet(firstKey);
-      }, 40);
-    }
-    _vkFirstBuild = false;
-  }
-  buildKeys();
-  wrap.insertBefore(vk, pillBar);
-  // Focus glasses nav highlighter on the first VK key
-  setTimeout(() => {
-    const firstKey = vk.querySelector('button');
-    if (firstKey) _navSet(firstKey);
+  /* Focus glasses nav on first key */
+  setTimeout(function() {
+    var firstBtn = vkEl.querySelector('button');
+    if (firstBtn) _navSet(firstBtn);
   }, 80);
 }
 
@@ -8764,7 +9049,7 @@ function _showChatInputChooser(inputId, pillBarId) {
   const existing = wrap.querySelector('.chat-input-chooser');
   if (existing) { existing.remove(); _navRefresh(); return; }
   // Don't stack with other pickers
-  if (wrap.querySelector('.chat-vk-local,.chat-emoji-picker')) return;
+  if (wrap.querySelector('.spark-vk,.chat-emoji-picker')) return;
 
   const chooser = document.createElement('div');
   chooser.className = 'chat-input-chooser';
@@ -9559,11 +9844,11 @@ function openEditProfile() {
     <div class="photo-grid" id="editPhotoGrid" style="margin-bottom:1.25rem"></div>
 
     <label class="form-label">Name</label>
-    <input type="text" class="form-input vk-input" id="editNameIn" value="${escAttr(u.name||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="text" class="form-input vk-input" id="editNameIn" value="${escAttr(u.name||'')}" readonly onclick="this.removeAttribute('readonly');openSparkVK(this)">
     <label class="form-label">Age</label>
-    <input type="text" inputmode="numeric" class="form-input vk-input" id="editAgeIn" value="${u.age||''}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="text" inputmode="numeric" class="form-input vk-input" id="editAgeIn" value="${u.age||''}" readonly onclick="this.removeAttribute('readonly');openSparkVK(this)">
     <label class="form-label">Gender</label>
-    <input type="text" class="form-input vk-input" id="editGenderIn" value="${escAttr(u.gender||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="text" class="form-input vk-input" id="editGenderIn" value="${escAttr(u.gender||'')}" readonly onclick="this.removeAttribute('readonly');openSparkVK(this)">
     <label class="form-label">Seeking</label>
     <select class="form-select" id="editSeekingIn">
       <option value="Men"      ${u.seeking==='Men'?'selected':''}>Men</option>
@@ -9658,14 +9943,14 @@ function openEditProfile() {
       ${[['Want kids','Want kids'],['Open to kids','Open to kids'],['Do not want kids','Do not want kids'],['Not sure','Not sure']].map(([label,v])=>`<button class="pill-select-btn${u.wantsKids===v?' pill-sel':''}" data-val="${v}" onclick="pillSelect('editWantsKidsGroup',this)">${label}</button>`).join('')}
     </div>
     <label class="form-label">City</label>
-    <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openVK(this)">
+    <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openSparkVK(this)">
     <label class="form-label">State</label>
     <select class="form-select" id="editStateDropdown"></select>
     <label class="form-label">Bio</label>
     <div class="bio-voice-wrap">
       <textarea class="form-textarea" id="editBioIn" maxlength="500" style="padding-bottom:2.8rem">${escHtml(u.bio||'')}</textarea>
       <button class="bio-voice-btn" id="editBioMicBtn" onclick="voiceBio('editBioIn','editBioMicBtn')" title="Speak your bio">🎤</button>
-      <button class="bio-voice-btn" style="right:3.2rem;background:#6c47ff" onclick="openVK(document.getElementById('editBioIn'))" title="Virtual keyboard">⌨️</button>
+      <button class="bio-voice-btn" style="right:3.2rem;background:#6c47ff" onclick="openSparkVK(document.getElementById('editBioIn'))" title="Virtual keyboard">⌨️</button>
     </div>
     <label class="form-label">Interests</label>
     <div class="interest-input-row">
@@ -11694,6 +11979,10 @@ async function loadFilterPrefs(uid) {
 
 <div id="vkPopupBg"></div>
 
+<!-- ====== SPARK VK OVERLAY (voice-first, editPanel) ====== -->
+<div id="sparkVKOverlay">
+  <div id="sparkVKPanel"></div>
+</div>
 <!-- ====== VIRTUAL KEYBOARD TOGGLE BUTTON (still available for manual toggle) ====== -->
 <button id="vkToggleBtn" onclick="toggleVK()" title="Toggle virtual keyboard">⌨️</button>
 
