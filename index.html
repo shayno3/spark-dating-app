@@ -9001,6 +9001,18 @@ function openSparkVK(el) {
   overlay.style.pointerEvents = 'all';
   requestAnimationFrame(function(){ panel.classList.add('svk-open'); });
   window._svkActiveInput = el;
+  // After keyboard slides up, scroll the focused input into view above it
+  setTimeout(function() {
+    var kbH = panel.offsetHeight;
+    var editPanelEl = document.getElementById('editPanel');
+    if (!editPanelEl) return;
+    var rect = el.getBoundingClientRect();
+    var viewH = window.innerHeight - kbH - 16;
+    if (rect.bottom > viewH) {
+      editPanelEl.scrollTop += (rect.bottom - viewH);
+    }
+    el.focus();
+  }, 320);
 }
 
 function closeSparkVK() {
