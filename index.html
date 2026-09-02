@@ -9042,17 +9042,20 @@ function openSparkVK(el) {
   requestAnimationFrame(function(){ panel.classList.add('svk-open'); });
   window._svkActiveInput = el;
   // After keyboard slides up, scroll the focused input into view above it
-  setTimeout(function() {
+  function _svkScrollIntoView() {
     var kbH = panel.offsetHeight;
+    if (!kbH) kbH = Math.round(window.innerHeight * 0.52);
     var editPanelEl = document.getElementById('editPanel');
-    if (!editPanelEl) return;
-    var rect = el.getBoundingClientRect();
-    var viewH = window.innerHeight - kbH - 16;
-    if (rect.bottom > viewH) {
-      editPanelEl.scrollTop += (rect.bottom - viewH);
-    }
+    if (!editPanelEl) { el.focus(); return; }
     el.focus();
-  }, 320);
+    var rect = el.getBoundingClientRect();
+    var viewH = window.innerHeight - kbH - 24;
+    if (rect.bottom > viewH) {
+      editPanelEl.scrollTop += (rect.bottom - viewH + 24);
+    }
+  }
+  setTimeout(_svkScrollIntoView, 320);
+  setTimeout(_svkScrollIntoView, 520);
 }
 
 function closeSparkVK() {
@@ -9920,6 +9923,13 @@ function openEditProfile() {
     <input type="file" id="editPhotoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(event,'edit')">
     <div class="photo-grid" id="editPhotoGrid" style="margin-bottom:1.25rem"></div>
 
+    <label class="form-label">Bio <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(<span id="editBioCount">0</span>/500)</span></label>
+    <div class="bio-voice-wrap">
+      <textarea class="form-textarea" id="editBioIn" maxlength="500" style="padding-bottom:2.8rem" oninput="(document.getElementById('editBioCount')||{}).textContent=this.value.length">${escHtml(u.bio||'')}</textarea>
+      <button class="bio-voice-btn" id="editBioMicBtn" onclick="voiceBio('editBioIn','editBioMicBtn')" title="Speak your bio">🎤</button>
+      <button class="bio-voice-btn" style="right:3.2rem;background:#6c47ff" onclick="openSparkVK(document.getElementById('editBioIn'))" title="Virtual keyboard">⌨️</button>
+    </div>
+
     <label class="form-label">Name</label>
     <input type="text" class="form-input vk-input" id="editNameIn" value="${escAttr(u.name||'')}" readonly onclick="this.removeAttribute('readonly');openSparkVK(this)">
     <label class="form-label">Age</label>
@@ -10023,12 +10033,6 @@ function openEditProfile() {
     <input type="text" class="form-input vk-input" id="editCityIn" value="${escAttr(u.city||'')}" readonly onclick="this.removeAttribute('readonly');openSparkVK(this)">
     <label class="form-label">State</label>
     <select class="form-select" id="editStateDropdown"></select>
-    <label class="form-label">Bio</label>
-    <div class="bio-voice-wrap">
-      <textarea class="form-textarea" id="editBioIn" maxlength="500" style="padding-bottom:2.8rem">${escHtml(u.bio||'')}</textarea>
-      <button class="bio-voice-btn" id="editBioMicBtn" onclick="voiceBio('editBioIn','editBioMicBtn')" title="Speak your bio">🎤</button>
-      <button class="bio-voice-btn" style="right:3.2rem;background:#6c47ff" onclick="openSparkVK(document.getElementById('editBioIn'))" title="Virtual keyboard">⌨️</button>
-    </div>
     <label class="form-label">Interests</label>
     <div class="interest-input-row">
       <input type="text" class="form-input" id="editInterestIn" placeholder="Add interest…" onkeydown="if(event.key==='Enter'){event.preventDefault();addInterest('edit')}">
