@@ -3,7 +3,7 @@
 
 // ─── Cache config ────────────────────────────────────────────────────────────
 // Bump CACHE_VERSION after a significant deploy to force clients to refresh.
-const CACHE_VERSION = 'v9-20260902';
+const CACHE_VERSION = 'v10-20260902';
 const CACHE_NAME    = 'spark-shell-' + CACHE_VERSION;
 
 const SHELL_ASSETS = [
@@ -34,7 +34,10 @@ self.addEventListener('activate', (event) => {
       )
     )
   );
-  self.clients.claim(); // take control of all open tabs immediately
+  // NOTE: clients.claim() intentionally removed — it caused iOS Chrome
+  // to freeze mid-load when the SW took over an actively loading page
+  // (reproducible after 'Clear Cache & Reload'). skipWaiting() still
+  // activates the new SW immediately; new page loads get it right away.
 });
 
 // ─── Fetch: smart caching strategy ───────────────────────────────────────────
