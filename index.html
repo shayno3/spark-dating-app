@@ -695,6 +695,13 @@ body:has(#inlineChatPanel.open) .bottom-nav { display: none; }
 .chat-pill.pill-active { background:var(--gradient-btn); color:#fff; border-color:transparent; }
 .chat-pill.recording { background:var(--gradient-btn); color:#fff; border-color:transparent; animation:pulse 1.2s ease-in-out infinite; }
 .chat-pill-bar + .chat-input-bar { border-top:none; }
+.chat-input-row { display:flex; gap:0.5rem; padding:0.6rem 0.7rem 0.45rem; background:var(--bg-card); align-items:flex-end; flex-shrink:0; border-top:1px solid var(--border); }
+.chat-action-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; padding:0.3rem 0.5rem 0.6rem; background:var(--bg-card); flex-shrink:0; }
+.chat-action-btn { height:54px; border-radius:11px; background:var(--bg-elevated,#252538); border:1px solid var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; touch-action:manipulation; color:var(--text); transition:background 0.15s,border-color 0.15s; }
+.chat-action-btn:active { background:rgba(233,30,140,0.12); }
+.chat-action-btn.pill-active { background:rgba(233,30,140,0.18); border-color:var(--primary,#e91e8c); }
+.cab-icon { font-size:1.1rem; line-height:1; }
+.cab-lbl { font-size:0.48rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:rgba(240,240,248,0.48); line-height:1; }
 .chat-mic-shortcut { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:none; cursor:pointer; font-size:1rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; }
 .chat-mic-shortcut.recording { background:var(--gradient-btn); }
 .voice-note-btn { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); border:1.5px solid rgba(255,255,255,0.15); cursor:pointer; font-size:0.85rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background 0.15s; touch-action:manipulation; color:var(--text); font-weight:700; }
@@ -2638,17 +2645,26 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="chat-pill" id="chatEmojiPill" title="Emoji" onclick="chatToggleEmoji('chatInput',this)">😊</button>
         <button class="chat-pill" id="chatVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('chatInput',this)">⌨️</button>
       </div>
-      <div class="chat-input-bar">
+      <div class="chat-input-row">
         <button class="voice-note-btn" id="chatVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'chatMessages')" style="display:none"></button>
-        <div class="chat-btn-stack">
-          <button class="chat-stack-btn" data-pillbar="chatPillBar" onclick="chatToggleEmoji('chatInput',this)" title="Emoji">😊</button>
-          <button class="chat-stack-btn" data-pillbar="chatPillBar" onclick="chatToggleVKPill('chatInput',this)" title="Spark Keyboard">⌨️</button>
-        </div>
         <textarea class="chat-input" id="chatInput" placeholder="Type a message…" rows="1"
-          onclick="_isGlassesCtx()&&_showChatInputChooser('chatInput','chatPillBar')"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="send-btn" id="chatSendBtn" onclick="sendMsg()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+      <div class="chat-action-bar">
+        <button class="chat-action-btn" title="Voice Note" onclick="_chatActionVoiceNote('chatPillBar','chatVoiceBtn','chatMessages',this)">
+          <span class="cab-icon">&#127908;</span><span class="cab-lbl">V. Note</span>
+        </button>
+        <button class="chat-action-btn" title="Tap to Speak" onclick="_chatActionSpeak('chatInput','chatPillBar',this)">
+          <span class="cab-icon">&#128483;&#65039;</span><span class="cab-lbl">Speak</span>
+        </button>
+        <button class="chat-action-btn" title="Emoji" data-pillbar="chatPillBar" onclick="chatToggleEmoji('chatInput',this)">
+          <span class="cab-icon">&#128522;</span><span class="cab-lbl">Emoji</span>
+        </button>
+        <button class="chat-action-btn" title="Keyboard" data-pillbar="chatPillBar" onclick="chatToggleVKPill('chatInput',this)">
+          <span class="cab-icon">&#9000;</span><span class="cab-lbl">Type</span>
         </button>
       </div>
     </div>
@@ -2706,17 +2722,26 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
         <button class="chat-pill" id="inlineEmojiPill" title="Emoji" onclick="chatToggleEmoji('inlineChatInput',this)">😊</button>
         <button class="chat-pill" id="inlineVkPill" title="Virtual Keyboard" onclick="chatToggleVKPill('inlineChatInput',this)">⌨️</button>
       </div>
-      <div class="chat-input-bar">
+      <div class="chat-input-row">
         <button class="voice-note-btn" id="inlineVoiceBtn" title="Voice Note" onclick="chatToggleVoiceNote(this,'inlineChatMessages')" style="display:none"></button>
-        <div class="chat-btn-stack">
-          <button class="chat-stack-btn" data-pillbar="inlineChatPillBar" onclick="chatToggleEmoji('inlineChatInput',this)" title="Emoji">😊</button>
-          <button class="chat-stack-btn" data-pillbar="inlineChatPillBar" onclick="chatToggleVKPill('inlineChatInput',this)" title="Spark Keyboard">⌨️</button>
-        </div>
         <textarea class="chat-input" id="inlineChatInput" placeholder="Type a message…" rows="1"
-          onclick="_isGlassesCtx()&&_showChatInputChooser('inlineChatInput','inlineChatPillBar')"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInlineMsg()}"></textarea>
         <button class="send-btn" id="inlineSendBtn" onclick="sendInlineMsg()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+      <div class="chat-action-bar">
+        <button class="chat-action-btn" title="Voice Note" onclick="_chatActionVoiceNote('inlineChatPillBar','inlineVoiceBtn','inlineChatMessages',this)">
+          <span class="cab-icon">&#127908;</span><span class="cab-lbl">V. Note</span>
+        </button>
+        <button class="chat-action-btn" title="Tap to Speak" onclick="_chatActionSpeak('inlineChatInput','inlineChatPillBar',this)">
+          <span class="cab-icon">&#128483;&#65039;</span><span class="cab-lbl">Speak</span>
+        </button>
+        <button class="chat-action-btn" title="Emoji" data-pillbar="inlineChatPillBar" onclick="chatToggleEmoji('inlineChatInput',this)">
+          <span class="cab-icon">&#128522;</span><span class="cab-lbl">Emoji</span>
+        </button>
+        <button class="chat-action-btn" title="Keyboard" data-pillbar="inlineChatPillBar" onclick="chatToggleVKPill('inlineChatInput',this)">
+          <span class="cab-icon">&#9000;</span><span class="cab-lbl">Type</span>
         </button>
       </div>
     </div>
@@ -8655,6 +8680,8 @@ function _chatClosePills(pillBar) {
   pillBar.querySelectorAll('.chat-pill').forEach(p => p.classList.remove('pill-active', 'recording'));
   var _stackWrap = pillBar.closest('[data-nav-panel], .inline-chat-sheet');
   if (_stackWrap) _stackWrap.querySelectorAll('.chat-stack-btn').forEach(function(b){ b.classList.remove('pill-active'); });
+  var _actBar = pillBar.parentElement ? pillBar.parentElement.querySelector('.chat-action-bar') : null;
+  if (_actBar) _actBar.querySelectorAll('.chat-action-btn').forEach(function(b){ b.classList.remove('pill-active'); });
   wrap.querySelector('.chat-mic-shortcut')?.classList.remove('recording');
   if (_voiceNotePill) { _voiceNotePill.classList.remove('pill-active'); _voiceNotePill = null; }
 }
@@ -9058,6 +9085,31 @@ function chatToggleVKPill(inputId, btn) {
   }, 80);
 }
 
+/* == B-2 action bar helpers == */
+function _chatActionVoiceNote(pillBarId, voiceBtnId, msgContId, actionBtn) {
+  var pillBar = document.getElementById(pillBarId);
+  _chatClosePills(pillBar);
+  var vb = document.getElementById(voiceBtnId);
+  chatToggleVoiceNote(vb || actionBtn, msgContId);
+}
+
+function _chatActionSpeak(inputId, pillBarId, actionBtn) {
+  var pillBar = document.getElementById(pillBarId);
+  if (!pillBar) return;
+  var wrap = pillBar.parentElement;
+  if (!wrap) return;
+  var existing = wrap.querySelector('.spark-vk');
+  if (existing) { _chatClosePills(pillBar); return; }
+  _chatClosePills(pillBar);
+  if (actionBtn) actionBtn.classList.add('pill-active');
+  var vkEl = _svkBuildEl(inputId, function() { _chatClosePills(pillBar); if (actionBtn) actionBtn.classList.remove('pill-active'); });
+  wrap.insertBefore(vkEl, pillBar);
+  setTimeout(function() {
+    var voiceZone = vkEl.querySelector('.spark-vk-voice-zone');
+    if (voiceZone) voiceZone.click();
+  }, 150);
+}
+
 /* ── Glasses input method chooser ─────────────────────────────────────────────
    When user taps the message textarea on glasses, show a navigable chooser
    with large buttons for each input method instead of the native picker. */
@@ -9279,10 +9331,10 @@ function voiceStopRecording() {
 }
 
 function _voiceChatInputsHide() {
-  document.querySelectorAll('#chatPanel .chat-input-bar, #chatPanel .chat-pill-bar, #inlineChatPanel .chat-input-bar, #inlineChatPanel .chat-pill-bar').forEach(function(el) { el.style.visibility = 'hidden'; });
+  document.querySelectorAll('#chatPanel .chat-input-row, #chatPanel .chat-action-bar, #chatPanel .chat-pill-bar, #inlineChatPanel .chat-input-row, #inlineChatPanel .chat-action-bar, #inlineChatPanel .chat-pill-bar').forEach(function(el) { el.style.visibility = 'hidden'; });
 }
 function _voiceChatInputsShow() {
-  document.querySelectorAll('#chatPanel .chat-input-bar, #chatPanel .chat-pill-bar, #inlineChatPanel .chat-input-bar, #inlineChatPanel .chat-pill-bar').forEach(function(el) { el.style.visibility = ''; });
+  document.querySelectorAll('#chatPanel .chat-input-row, #chatPanel .chat-action-bar, #chatPanel .chat-pill-bar, #inlineChatPanel .chat-input-row, #inlineChatPanel .chat-action-bar, #inlineChatPanel .chat-pill-bar').forEach(function(el) { el.style.visibility = ''; });
 }
 
 function voiceShowPreview() {
