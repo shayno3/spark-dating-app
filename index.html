@@ -2573,7 +2573,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
     <!-- ── ADMIN COMPOSE MODAL ── -->
     <div class="admin-compose-modal" id="adminComposeModal" onclick="if(event.target===this)adminCloseCompose()">
-      <div class="admin-compose-card">
+      <div class="admin-compose-card" data-nav-panel>
         <div>
           <div class="admin-compose-title">Send Message to</div>
           <div class="admin-compose-name" id="adminComposeName"></div>
@@ -5713,12 +5713,21 @@ function adminOpenMessage(uid) {
   if (nameEl) nameEl.textContent = _adminComposeName;
   ta.value = '';
   modal.classList.add('open');
-  setTimeout(() => ta.focus(), 120);
+  setTimeout(() => {
+    ta.focus();
+    // Point glasses nav highlighter to Cancel so user can navigate the modal
+    var cancelBtn = modal.querySelector('.admin-compose-cancel');
+    if (typeof _navSet === 'function' && cancelBtn) _navSet(cancelBtn);
+  }, 120);
 }
 
 function adminCloseCompose() {
   document.getElementById('adminComposeModal')?.classList.remove('open');
   _adminComposeUid = null;
+  // Restore glasses nav to the admin panel after modal closes
+  setTimeout(function() {
+    if (typeof _navRefresh === 'function') _navRefresh();
+  }, 80);
 }
 
 async function adminSendMessage() {
