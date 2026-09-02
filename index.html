@@ -3919,7 +3919,11 @@ function _navSet(el) {
     // For readonly auth inputs, skip focus() — Ray-Ban OS shows its native
     // "Dictate / Handwriting" picker on focus for type="text" inputs regardless
     // of the readonly attribute. VK.target handles typing without needing focus.
-    const skipFocus = el.hasAttribute('readonly') && !!el.closest('#authView');
+    // Skip focus() on TEXTAREA elements: Ray-Ban OS enters text-editing mode on focus,
+    // stealing all subsequent swipe gestures so glasses nav can no longer move away.
+    // Users on glasses always type via SparkVK (⌨️) or voice (🎤) — no direct textarea focus needed.
+    const skipFocus = (el.hasAttribute('readonly') && !!el.closest('#authView'))
+                   || el.tagName === 'TEXTAREA';
     if (!skipFocus) {
       try { el.focus({ preventScroll: true }); } catch(e) { try { el.focus(); } catch(_){} }
     }
