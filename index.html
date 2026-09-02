@@ -3994,6 +3994,7 @@ function _navMove(dir) {
   const curIsLikesWrap  = cur.classList.contains('msg-likes-wrap');
   const curIsRadiusStepper = cur.classList.contains('age-step-btn');
   const curIsActionBtn     = cur.classList.contains('chat-action-btn');
+  const curIsTextarea      = cur.tagName === 'TEXTAREA';
   // Generic grid-card detection — matches whichever class is registered in _GRID_CARD_CLASSES
   const curGridCardClass = _GRID_CARD_CLASSES.find(c => cur.classList.contains(c)) || null;
 
@@ -4177,6 +4178,23 @@ function _navMove(dir) {
       // Step through: header toggle above chips → last card as circular wrap
       best = _find(midNonNav) || cards[cards.length - 1] || _find(nonNav);
       if (!best) best = navBtns[0] || null;
+    }
+
+  } else if (curIsTextarea) {
+    // ── TEXTAREA ZONE (Edit Profile bio field etc.) ───────────────────────────
+    // Ray-Ban focus fix: we skip focus() on textareas in _navSet so swipes
+    // stay as nav events. Here we make sure DOWN/RIGHT from bio textarea
+    // routes to the adjacent mic/VK buttons instead of jumping to the next
+    // form field, which the spatial algorithm would normally prefer.
+    const wrap      = cur.closest('.bio-voice-wrap');
+    const voiceBtns = wrap ? els.filter(e => e.classList.contains('bio-voice-btn') && wrap.contains(e)) : [];
+    if ((dir === 'down' || dir === 'right') && voiceBtns.length) {
+      best = _find(voiceBtns) || _find(nonNav);
+    } else {
+      best = _find(nonNav);
+    }
+    if (!best && dir === 'down') {
+      best = navBtns.find(e => e.classList.contains('active')) || navBtns[0] || null;
     }
 
   } else if (curIsActionBtn) {
@@ -8998,7 +9016,7 @@ function _svkBuildEl(inputId, onClose) {
 
   vk.innerHTML = (
     /* voice zone */
-    '<div class="spark-vk-voice-zone">' +
+    '<div class="spark-vk-voice-zone" tabindex="0">' +
       '<div class="spark-vk-mic-wrap">' + micHTML + '</div>' +
       '<span class="spark-vk-voice-label">Tap to speak</span>' +
     '</div>' +
@@ -9079,6 +9097,7 @@ function openSparkVK(el) {
   panel.appendChild(_svkBuildEl(el.id, closeSparkVK));
   overlay.style.pointerEvents = 'all';
   requestAnimationFrame(function(){ panel.classList.add('svk-open'); });
+  overlay.classList.add('open');   // let _navRoot() scope here
   window._svkActiveInput = el;
   // After keyboard slides up, scroll the focused input into view above it
   function _svkScrollIntoView() {
@@ -9095,6 +9114,14 @@ function openSparkVK(el) {
   }
   setTimeout(_svkScrollIntoView, 320);
   setTimeout(_svkScrollIntoView, 520);
+  // Move glasses highlighter into the SparkVK panel (voice zone first)
+  setTimeout(function() {
+    if (typeof _navSet !== 'function') return;
+    var vZone = panel.querySelector('.spark-vk-voice-zone');
+    var firstKey = panel.querySelector('.svk-key');
+    var doneBtn  = panel.querySelector('.svk-close-btn');
+    _navSet(vZone || firstKey || doneBtn || null);
+  }, 380);
 }
 
 function closeSparkVK() {
@@ -9103,8 +9130,10 @@ function closeSparkVK() {
   if (!panel || !overlay) return;
   if (_svkRec) { try { _svkRec.stop(); } catch(e){} _svkRec = null; }
   panel.classList.remove('svk-open');
+  overlay.classList.remove('open');
   setTimeout(function(){ panel.innerHTML = ''; overlay.style.pointerEvents = 'none'; }, 300);
   window._svkActiveInput = null;
+  setTimeout(function(){ if (typeof _navRefresh === 'function') _navRefresh(); }, 80);
 }
 
 function chatToggleVKPill(inputId, btn) {
@@ -12100,7 +12129,7 @@ async function loadFilterPrefs(uid) {
 <div id="vkPopupBg"></div>
 
 <!-- ====== SPARK VK OVERLAY (voice-first, editPanel) ====== -->
-<div id="sparkVKOverlay">
+<div id="sparkVKOverlay" data-nav-panel>
   <div id="sparkVKPanel"></div>
 </div>
 <!-- ====== VIRTUAL KEYBOARD TOGGLE BUTTON (still available for manual toggle) ====== -->
