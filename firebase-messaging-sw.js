@@ -3,7 +3,7 @@
 
 // ─── Cache config ────────────────────────────────────────────────────────────
 // Bump CACHE_VERSION after a significant deploy to force clients to refresh.
-const CACHE_VERSION = 'v8-20260902';
+const CACHE_VERSION = 'v9-20260902';
 const CACHE_NAME    = 'spark-shell-' + CACHE_VERSION;
 
 const SHELL_ASSETS = [
@@ -45,27 +45,7 @@ self.addEventListener('fetch', (event) => {
   // Only intercept GET requests
   if (request.method !== 'GET') return;
 
-  // Cache-first for versioned Firebase/Google CDN scripts — they never change
-  // at a given version URL, so serving from cache is always safe and fast.
-  const isCdnScript = (
-    (url.hostname === 'www.gstatic.com'      && url.pathname.includes('/firebasejs/')) ||
-    (url.hostname === 'fonts.googleapis.com') ||
-    (url.hostname === 'fonts.gstatic.com')
-  );
-  if (isCdnScript) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then(async cache => {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
-        return response;
-      })
-    );
-    return;
-  }
-
-  // Only intercept same-origin requests below this point
+  // Only intercept same-origin requests — let browser cache CDN scripts natively
   if (url.origin !== self.location.origin) return;
 
   // Navigation (main HTML doc): stale-while-revalidate
