@@ -3,7 +3,7 @@
 
 // ─── Cache config ────────────────────────────────────────────────────────────
 // Bump CACHE_VERSION after a significant deploy to force clients to refresh.
-const CACHE_VERSION = 'v5-20260902';
+const CACHE_VERSION = 'v6-20260902';
 const CACHE_NAME    = 'spark-shell-' + CACHE_VERSION;
 
 const SHELL_ASSETS = [

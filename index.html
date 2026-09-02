@@ -2358,8 +2358,45 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     </div>
     <div class="chips-display" id="setupChips"></div>
     <div style="margin-top:1.5rem">
-      <button class="btn-primary" onclick="finishSetup()">Finish Setup 🎉</button>
+      <button class="btn-primary" onclick="goStep(4)">Safety First 🛡️</button>
     </div>
+
+  <div class="setup-step" id="step5">
+    <div style="text-align:center;margin-bottom:1.4rem">
+      <div style="font-size:3.5rem;margin-bottom:0.5rem">🛡️</div>
+      <h2 style="margin-bottom:0.4rem">Safety First</h2>
+      <p style="color:var(--text-muted);font-size:0.9rem;line-height:1.5">Your safety is our top priority. Read these tips before connecting with others.</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.2rem 0.8rem 0.6rem;margin-bottom:0.2rem">
+      <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.4rem;flex-shrink:0">🚫</span>
+        <div><strong style="font-size:0.9rem">Never share personal info</strong><p style="font-size:0.82rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Keep your phone number, address, workplace, and financial details private until you fully trust someone.</p></div>
+      </div>
+      <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.4rem;flex-shrink:0">📍</span>
+        <div><strong style="font-size:0.9rem">Meet in public first</strong><p style="font-size:0.82rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Always meet new connections in busy, public places and tell a trusted friend where you're going.</p></div>
+      </div>
+      <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.4rem;flex-shrink:0">💸</span>
+        <div><strong style="font-size:0.9rem">Never send money</strong><p style="font-size:0.82rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Anyone who asks for money or financial help is a major red flag — no matter how convincing their story.</p></div>
+      </div>
+      <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.4rem;flex-shrink:0">🚨</span>
+        <div><strong style="font-size:0.9rem">Report &amp; block freely</strong><p style="font-size:0.82rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Use the report and block features. Your reports protect the entire Spark community.</p></div>
+      </div>
+      <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0">
+        <span style="font-size:1.4rem;flex-shrink:0">💡</span>
+        <div><strong style="font-size:0.9rem">Trust your instincts</strong><p style="font-size:0.82rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">If something feels off, it probably is. You can unmatch or block anyone at any time, no explanation needed.</p></div>
+      </div>
+    </div>
+    <label style="display:flex;align-items:flex-start;gap:0.75rem;margin-top:1rem;cursor:pointer;padding:0.1rem 0">
+      <input type="checkbox" id="safetyAgreeCheck" style="width:1.15rem;height:1.15rem;margin-top:0.18rem;accent-color:var(--primary);flex-shrink:0">
+      <span style="font-size:0.85rem;color:var(--text-muted);line-height:1.5">I have read Spark's safety guidelines and agree to follow them. I understand Spark is not responsible for the actions of other users.</span>
+    </label>
+    <div style="margin-top:1.2rem">
+      <button class="btn-primary" onclick="goStep(5)">I Agree — Let's Spark! 🎉</button>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -2417,15 +2454,85 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <span style="color:var(--text-muted);font-size:1.2rem;line-height:1">›</span>
         </button>
       </div>
+      <div style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.1rem">
+        <button onclick="closePrivacyPanel();openSafetyCenter();" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;color:var(--text);cursor:pointer;padding:0.35rem 0.1rem;border-radius:8px;touch-action:manipulation">
+          <div>
+            <div style="font-weight:700;font-size:0.9rem;text-align:left">🛡️ Safety Center</div>
+            <div style="font-size:0.77rem;color:var(--text-muted);margin-top:2px;text-align:left">Safety tips &amp; guidelines</div>
+          </div>
+          <span style="color:var(--text-muted);font-size:1.2rem;line-height:1">›</span>
+        </button>
+      </div>
       <div style="border-top:1px solid var(--border);margin-top:0.5rem;padding-top:0.1rem">
         <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);padding:0.45rem 0 0.15rem">Legal</div>
-        <a href="/terms" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>📄 Terms &amp; Conditions</span><span style="color:var(--text-muted)">›</span></a>
-        <a href="/privacy" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>🔒 Privacy Policy</span><span style="color:var(--text-muted)">›</span></a>
+        <button onclick="closePrivacyPanel();openLegalPanel('terms')" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);cursor:pointer;font-size:0.88rem;text-align:left"><span>📄 Terms &amp; Conditions</span><span style="color:var(--text-muted)">›</span></button>
+        <button onclick="closePrivacyPanel();openLegalPanel('privacy')" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);cursor:pointer;font-size:0.88rem;text-align:left"><span>🔒 Privacy Policy</span><span style="color:var(--text-muted)">›</span></button>
         <a href="/aup" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>✅ Acceptable Use Policy</span><span style="color:var(--text-muted)">›</span></a>
         <a href="/refund" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>💳 Refund Policy</span><span style="color:var(--text-muted)">›</span></a>
         <a href="/pricing" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>⚡ Pricing</span><span style="color:var(--text-muted)">›</span></a>
         <a href="/contact" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>📧 Contact Us</span><span style="color:var(--text-muted)">›</span></a>
         <a href="/law-enforcement" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;text-decoration:none;color:var(--text);font-size:0.88rem"><span>⚖️ Law Enforcement</span><span style="color:var(--text-muted)">›</span></a>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Legal Panel (ToS + Privacy Policy) -->
+  <div id="legalPanelOverlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeLegalPanel()">
+    <div id="legalPanelSheet" style="position:absolute;bottom:0;left:0;right:0;max-height:92vh;overflow-y:auto;background:var(--surface-raised,var(--surface));border-radius:20px 20px 0 0;padding:1.2rem 1.1rem 2.5rem;transform:translateY(100%);transition:transform 0.32s cubic-bezier(0.32,0,0,1)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+        <div id="legalPanelTitle" style="font-size:1.1rem;font-weight:800">📄 Terms &amp; Conditions</div>
+        <button onclick="closeLegalPanel()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:0.2rem 0.4rem;border-radius:6px">✕</button>
+      </div>
+      <div id="legalPanelLastUpdated" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem">Last updated: September 2, 2026</div>
+      <div id="legalPanelContent" style="font-size:0.84rem;line-height:1.65;color:var(--text)"></div>
+    </div>
+  </div>
+
+  <!-- Safety Center Panel -->
+  <div id="safetyCenterOverlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeSafetyCenter()">
+    <div id="safetyCenterSheet" style="position:absolute;bottom:0;left:0;right:0;max-height:90vh;overflow-y:auto;background:var(--surface-raised,var(--surface));border-radius:20px 20px 0 0;padding:1.2rem 1.1rem 2rem;transform:translateY(100%);transition:transform 0.32s cubic-bezier(0.32,0,0,1)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:800">🛡️ Safety Center</div>
+        <button onclick="closeSafetyCenter()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:0.2rem 0.4rem;border-radius:6px">✕</button>
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">Spark is committed to creating a safe, respectful community. These guidelines help protect you and everyone else on the platform.</p>
+      <div style="background:var(--card,var(--surface));border:1px solid var(--border);border-radius:14px;padding:0.2rem 0.8rem 0.6rem;margin-bottom:1rem">
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.4rem;flex-shrink:0">🚫</span>
+          <div><strong style="font-size:0.88rem">Never share personal info</strong><p style="font-size:0.81rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Keep your phone number, home address, workplace, and financial details private. Share only what you're comfortable with a stranger knowing.</p></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.4rem;flex-shrink:0">📍</span>
+          <div><strong style="font-size:0.88rem">Meet in public first</strong><p style="font-size:0.81rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Choose busy, public places for first meetings. Tell a friend or family member where you're going, who you're meeting, and when you expect to be back.</p></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.4rem;flex-shrink:0">💸</span>
+          <div><strong style="font-size:0.88rem">Never send money</strong><p style="font-size:0.81rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Romance scammers are sophisticated. Anyone asking for money, gift cards, or financial assistance — no matter how genuine they seem — is a red flag. Report them immediately.</p></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.4rem;flex-shrink:0">🚨</span>
+          <div><strong style="font-size:0.88rem">Report &amp; block</strong><p style="font-size:0.81rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">Use the report and block features on any profile or message. You won't be notified, and they won't know you reported them. Every report helps us protect the community.</p></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.4rem;flex-shrink:0">📸</span>
+          <div><strong style="font-size:0.88rem">Beware of fake profiles</strong><p style="font-size:0.81rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">If someone's photos look too perfect or their story doesn't add up, do a reverse image search. Ask to video chat before meeting in person.</p></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.75rem 0">
+          <span style="font-size:1.4rem;flex-shrink:0">💡</span>
+          <div><strong style="font-size:0.88rem">Trust your instincts</strong><p style="font-size:0.81rem;color:var(--text-muted);margin:0.2rem 0 0;line-height:1.4">If something feels off, trust that feeling. You can unmatch or block anyone at any time with no explanation required. Your comfort comes first.</p></div>
+        </div>
+      </div>
+      <div style="background:rgba(233,30,140,0.08);border:1px solid rgba(233,30,140,0.2);border-radius:12px;padding:0.8rem 1rem;margin-bottom:1rem">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--primary);margin-bottom:0.3rem">⚠️ Disclaimer</div>
+        <p style="font-size:0.8rem;color:var(--text-muted);line-height:1.5;margin:0">Spark provides a platform for adults to connect but is not responsible for the conduct of its users. By using Spark, you acknowledge that interactions with other users are at your own risk. Spark does not conduct criminal background checks on its users. Always exercise caution and common sense when interacting with people online and in person.</p>
+      </div>
+      <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:0.5rem">Resources</div>
+      <div style="background:var(--card,var(--surface));border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <a href="tel:911" style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.8rem;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>🆘 Emergency — 911</span><span style="color:var(--text-muted)">›</span></a>
+        <a href="tel:18007997233" style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.8rem;text-decoration:none;color:var(--text);border-bottom:1px solid var(--border);font-size:0.88rem"><span>📞 National DV Hotline</span><span style="color:var(--text-muted)">›</span></a>
+        <a href="https://www.ic3.gov" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.8rem;text-decoration:none;color:var(--text);font-size:0.88rem"><span>🌐 Report Internet Crime (IC3)</span><span style="color:var(--text-muted)">›</span></a>
       </div>
     </div>
   </div>
@@ -5003,6 +5110,12 @@ function goStep(from) {
     updateProgress(3);
   } else if (from === 3) {
     updateProgress(4);
+  } else if (from === 4) {
+    const agreed = document.getElementById('safetyAgreeCheck');
+    if (!agreed || !agreed.checked) { toast('Please read and agree to the safety guidelines to continue'); return; }
+    updateProgress(5);
+  } else if (from === 5) {
+    finishSetup();
   }
 }
 
@@ -6103,6 +6216,128 @@ function openPrivacyPanel() {
   document.getElementById('privacySheet').classList.add('open');
   _navRefresh();
 }
+const _LEGAL_CONTENT = {
+  terms: {
+    title: '📄 Terms & Conditions',
+    updated: 'Last updated: September 2, 2026',
+    body: `<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">1. Acceptance of Terms</h3>
+<p>By creating a Spark account or using the Spark application ("App"), you ("User") agree to be bound by these Terms &amp; Conditions ("Terms"). If you do not agree, do not use the App.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">2. Eligibility</h3>
+<p>You must be at least 18 years old to use Spark. By using the App, you represent and warrant that you meet this age requirement and that you have the legal capacity to enter into these Terms.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">3. User Conduct</h3>
+<p>You agree not to: (a) harass, abuse, or harm other users; (b) post false, misleading, or deceptive content; (c) impersonate any person; (d) use the App for any illegal purpose; (e) solicit money or financial assistance from other users; (f) share explicit content without consent; or (g) attempt to circumvent any security features of the App.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">4. No Background Checks</h3>
+<p>Spark does not conduct criminal background checks on users. You are solely responsible for your own safety when interacting with other users, both online and offline. Spark disclaims all liability for the conduct of users on or off the platform.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">5. Content Ownership</h3>
+<p>You retain ownership of content you post. By posting content, you grant Spark a non-exclusive, royalty-free, worldwide license to use, display, and distribute that content solely for operating and improving the App.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">6. Termination</h3>
+<p>Spark reserves the right to suspend or terminate your account at any time, for any reason, including violation of these Terms, without prior notice or liability.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">7. Disclaimer of Warranties</h3>
+<p>The App is provided "as is" and "as available" without warranties of any kind. Spark does not warrant that the App will be uninterrupted, error-free, or free of harmful components.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">8. Limitation of Liability</h3>
+<p>To the fullest extent permitted by law, Spark and its operators shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the App or your interactions with other users, including but not limited to personal injury, property damage, or financial loss.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">9. Governing Law</h3>
+<p>These Terms are governed by the laws of the United States. Any disputes shall be resolved through binding arbitration in accordance with applicable law.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">10. Changes to Terms</h3>
+<p>Spark reserves the right to update these Terms at any time. Continued use of the App after changes constitutes acceptance of the new Terms.</p>`
+  },
+  privacy: {
+    title: '🔒 Privacy Policy',
+    updated: 'Last updated: September 2, 2026',
+    body: `<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">1. Information We Collect</h3>
+<p>We collect information you provide directly, including your name, date of birth, photos, bio, and preferences. We also collect usage data, device information, and location data (city/state) to match you with nearby users.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">2. How We Use Your Information</h3>
+<p>We use your information to: (a) operate and improve the App; (b) match you with compatible users; (c) send notifications about matches and messages; (d) detect and prevent fraud or policy violations; and (e) comply with legal obligations.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">3. Information Sharing</h3>
+<p>We do not sell your personal information. We may share information with: (a) other users as part of the matching experience (profile information you choose to display); (b) service providers who help operate the App (Firebase, hosting providers); and (c) law enforcement when required by law or to protect safety.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">4. Data Storage</h3>
+<p>Your data is stored securely using Google Firebase (Firestore, Storage, Authentication). Data is stored in the United States. We retain your data while your account is active and for a reasonable period after deletion to comply with legal obligations.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">5. Your Rights</h3>
+<p>You may request access to, correction of, or deletion of your personal data at any time by deleting your account or contacting us. Account deletion removes your profile and messages from the App.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">6. Cookies &amp; Local Storage</h3>
+<p>The App uses browser local storage to remember your preferences (such as PIN settings and notification choices). We do not use third-party advertising cookies.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">7. Children's Privacy</h3>
+<p>Spark is strictly for users 18 and older. We do not knowingly collect personal information from minors. If we discover a minor has created an account, we will immediately terminate it.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">8. Security</h3>
+<p>We use industry-standard security measures including Firebase Authentication, encrypted connections (HTTPS), and Firestore security rules. No system is completely secure; we encourage you to use a strong password and keep your account credentials private.</p>
+<h3 style="font-size:0.92rem;font-weight:800;margin:0.9rem 0 0.3rem">9. Contact</h3>
+<p>For privacy-related questions or data deletion requests, contact us at <strong>privacy@smartsparks.app</strong>.</p>`
+  }
+};
+function openLegalPanel(type) {
+  const overlay = document.getElementById('legalPanelOverlay');
+  const sheet   = document.getElementById('legalPanelSheet');
+  const titleEl = document.getElementById('legalPanelTitle');
+  const updatedEl = document.getElementById('legalPanelLastUpdated');
+  const contentEl = document.getElementById('legalPanelContent');
+  if (!overlay || !sheet) return;
+  const data = _LEGAL_CONTENT[type];
+  if (!data) return;
+  if (titleEl) titleEl.innerHTML = data.title;
+  if (updatedEl) updatedEl.textContent = data.updated;
+  if (contentEl) contentEl.innerHTML = data.body;
+  sheet.scrollTop = 0;
+  overlay.style.display = 'block';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { sheet.style.transform = 'translateY(0)'; });
+  });
+}
+function closeLegalPanel() {
+  const overlay = document.getElementById('legalPanelOverlay');
+  const sheet   = document.getElementById('legalPanelSheet');
+  if (!sheet) return;
+  sheet.style.transform = 'translateY(100%)';
+  setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 340);
+}
+
+function openSafetyCenter() {
+  const overlay = document.getElementById('safetyCenterOverlay');
+  const sheet   = document.getElementById('safetyCenterSheet');
+  if (!overlay || !sheet) return;
+  overlay.style.display = 'block';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => { sheet.style.transform = 'translateY(0)'; });
+  });
+}
+function closeSafetyCenter() {
+  const overlay = document.getElementById('safetyCenterOverlay');
+  const sheet   = document.getElementById('safetyCenterSheet');
+  if (!sheet) return;
+  sheet.style.transform = 'translateY(100%)';
+  setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 340);
+}
+function showFirstMsgSafetyBanner() {
+  try {
+    if (localStorage.getItem('spark_firstMsgBannerShown')) return;
+    localStorage.setItem('spark_firstMsgBannerShown', '1');
+  } catch(e) { return; }
+  // Create banner
+  const banner = document.createElement('div');
+  banner.id = 'firstMsgSafetyBanner';
+  banner.style.cssText = 'position:fixed;bottom:5rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface-raised,#1e1e2e);border:1px solid rgba(233,30,140,0.35);border-radius:14px;padding:0.7rem 1rem;z-index:2900;max-width:calc(100vw - 2rem);width:340px;box-shadow:0 4px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.3s,transform 0.3s';
+  banner.innerHTML = '<div style="display:flex;align-items:flex-start;gap:0.6rem">' +
+    '<span style="font-size:1.3rem;flex-shrink:0;margin-top:0.05rem">🛡️</span>' +
+    '<div style="flex:1">' +
+      '<div style="font-size:0.84rem;font-weight:700;margin-bottom:0.2rem">Stay Safe on Spark</div>' +
+      '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.45">Never share your personal info — phone number, address, or financial details — in chat.</div>' +
+    '</div>' +
+    '<button onclick="var b=document.getElementById(\'firstMsgSafetyBanner\');if(b)b.remove()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:0.1rem 0.2rem;flex-shrink:0;line-height:1;align-self:flex-start">✕</button>' +
+  '</div>';
+  document.body.appendChild(banner);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      banner.style.opacity = '1';
+      banner.style.transform = 'translateX(-50%) translateY(0)';
+    });
+  });
+  setTimeout(() => {
+    if (!banner.isConnected) return;
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateX(-50%) translateY(20px)';
+    setTimeout(() => { if (banner.isConnected) banner.remove(); }, 320);
+  }, 7000);
+}
+
 function closePrivacyPanel() {
   const s = document.getElementById('privacySheet');
   if (s) s.classList.remove('open');
@@ -8360,6 +8595,8 @@ async function sendInlineMsg() {
       lastMsgFrom: S.user.id,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => {});
+    // Show one-time safety banner on first message ever sent
+    showFirstMsgSafetyBanner();
   } catch(e) {
     // H1: queue for retry instead of just restoring to input
     S.pendingMsgs.push({ matchId, text, attempts: 1, nextRetry: Date.now() + 3000 });
