@@ -2134,6 +2134,31 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   border-radius: 50px; padding: 0.85rem 2rem; font-size: 1rem; font-weight: 800;
   cursor: pointer; touch-action: manipulation; box-shadow: 0 4px 16px rgba(255,80,50,0.4); }
 
+/* ── ADMIN FEATURE FLAGS ────────────────────────────────────── */
+.admin-feature-flags{margin:0.75rem 0;background:var(--bg-card);border-radius:16px;overflow:hidden;border:1px solid var(--border)}
+.admin-flags-header{padding:0.75rem 1rem 0.5rem;font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)}
+.admin-flag-row{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;border-top:1px solid var(--border)}
+.admin-flag-icon{font-size:1.1rem;width:28px;text-align:center;flex-shrink:0}
+.admin-flag-info{flex:1}
+.admin-flag-title{font-size:0.9rem;font-weight:700;color:var(--text)}
+.admin-flag-desc{font-size:0.75rem;color:var(--text-muted);margin-top:1px}
+.admin-flag-toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.admin-flag-toggle input{opacity:0;width:0;height:0}
+.admin-flag-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,.15);border-radius:24px;transition:.25s}
+.admin-flag-slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s}
+.admin-flag-toggle input:checked+.admin-flag-slider{background:linear-gradient(135deg,#e91e8c,#9c27b0)}
+.admin-flag-toggle input:checked+.admin-flag-slider:before{transform:translateX(18px)}
+/* ── ADMIN GRANT PREMIUM ─────────────────────────────────────── */
+.admin-grant-wrap{background:linear-gradient(135deg,rgba(234,179,8,.1),rgba(233,30,140,.1));border:1px solid rgba(234,179,8,.3);border-radius:14px;padding:1rem}
+.admin-grant-title{font-size:0.85rem;font-weight:800;color:#fbbf24;margin-bottom:0.3rem}
+.admin-grant-status{font-size:0.8rem;color:var(--text-muted);margin-bottom:0.85rem}
+.admin-grant-days{display:flex;gap:0.5rem;margin-bottom:0.85rem}
+.admin-grant-day-btn{flex:1;padding:0.5rem 0.25rem;border:1.5px solid rgba(255,255,255,.18);background:transparent;color:var(--text-muted);border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all .2s;text-align:center}
+.admin-grant-day-btn.selected{border-color:#fbbf24;color:#fbbf24;background:rgba(234,179,8,.12)}
+.admin-grant-btn{width:100%;padding:0.75rem;border:none;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#e91e8c);color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;transition:opacity .2s}
+.admin-grant-btn:active{opacity:.8}
+.admin-revoke-btn{width:100%;margin-top:0.5rem;padding:0.6rem;border:1.5px solid rgba(185,28,28,.4);border-radius:12px;background:transparent;color:#fca5a5;font-size:0.85rem;font-weight:700;cursor:pointer}
+
 </style>
 </head>
 <body>
@@ -3230,6 +3255,112 @@ if (typeof firebase === 'undefined') {
   document.body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0F0F1A;color:#fff;font-family:sans-serif;padding:2rem;text-align:center"><div style="font-size:2rem;margin-bottom:1rem">⚠️</div><div style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem">Firebase SDK failed to load</div><div style="color:#9BA3AF;font-size:0.88rem;line-height:1.6;margin-bottom:1.5rem">A cached service worker may be interfering. Tap below to clear the cache and reload — this fixes it in most cases.</div><button onclick="(async()=>{try{const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();const ks=await caches.keys();for(const k of ks)await caches.delete(k);}catch(e){}location.reload(true);})()" style="background:linear-gradient(135deg,#E91E8C,#9B27B0);color:#fff;border:none;border-radius:12px;padding:0.85rem 1.8rem;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:1rem">🔄 Clear Cache &amp; Reload</button><div style="color:#6B7280;font-size:0.8rem">If that does not work, try opening in a private/incognito tab.</div></div>`;
   throw new Error('Firebase SDK not loaded — check network or disable ad-blocker');
 }
+/* ================================================================
+   ADMIN FEATURE FLAGS + GRANT PREMIUM
+================================================================ */
+
+// Track selected days per user
+window._adminGrantDays = {};
+
+function adminSelectDays(uid, days) {
+  window._adminGrantDays[uid] = days;
+  const ids = { 7:'adminDay7-'+uid, 30:'adminDay30-'+uid, 0:'adminDayLife-'+uid };
+  Object.entries(ids).forEach(([d,id]) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('selected', parseInt(d) === days);
+  });
+}
+
+async function adminGrantPremium(uid) {
+  if (!db) return;
+  const days = window._adminGrantDays[uid] ?? 7;
+  const now  = new Date();
+  let expiry = null;
+  if (days > 0) {
+    expiry = new Date(now.getTime() + days * 86400000);
+  }
+  const data = {
+    isPremium: true,
+    premium:   true,
+    premiumGrantedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    premiumGrantedBy: 'admin',
+    premiumExpiry: expiry ? firebase.firestore.Timestamp.fromDate(expiry) : null
+  };
+  try {
+    await db.collection('users').doc(uid).update(data);
+    // Update local cache
+    const u = (window._adminUsers || []).find(x => x.id === uid);
+    if (u) { u.premium = true; u.isPremium = true; u.premiumExpiry = expiry ? {toMillis:()=>expiry.getTime()} : null; }
+    const statusEl = document.getElementById('adminGrantStatus-'+uid);
+    if (statusEl) statusEl.textContent = days > 0
+      ? 'Expires: ' + expiry.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : 'Lifetime access';
+    toast('✨ Premium granted' + (days > 0 ? ' for '+days+' days' : ' (Lifetime)'));
+  } catch(e) {
+    console.warn('adminGrantPremium error:', e);
+    toast('Failed to grant premium');
+  }
+}
+
+async function adminRevokePremium(uid) {
+  if (!db) return;
+  try {
+    await db.collection('users').doc(uid).update({ isPremium: false, premium: false, premiumExpiry: null });
+    const u = (window._adminUsers || []).find(x => x.id === uid);
+    if (u) { u.premium = false; u.isPremium = false; }
+    toast('Premium revoked');
+    openAdminUser(uid); // refresh detail
+  } catch(e) {
+    toast('Failed to revoke premium');
+  }
+}
+
+// Feature flags — stored in Firestore adminConfig/featureFlags
+const _defaultFlags = { fireIceGated: true, sparkScoreGated: true, promoMode: false };
+window._adminFlags  = { ..._defaultFlags };
+
+async function adminLoadFlags() {
+  if (!db) return;
+  try {
+    const doc = await db.collection('adminConfig').doc('featureFlags').get();
+    if (doc.exists) {
+      window._adminFlags = { ..._defaultFlags, ...doc.data() };
+    }
+  } catch(e) {}
+  // Apply to UI
+  const fi = document.getElementById('flagFireIce');
+  const ss = document.getElementById('flagSparkScore');
+  const pm = document.getElementById('flagPromo');
+  if (fi) fi.checked = !!window._adminFlags.fireIceGated;
+  if (ss) ss.checked = !!window._adminFlags.sparkScoreGated;
+  if (pm) pm.checked = !!window._adminFlags.promoMode;
+  _updateFlagDescs();
+}
+
+function _updateFlagDescs() {
+  const f = window._adminFlags;
+  const fiDesc = document.getElementById('flagDescFireIce');
+  const ssDesc = document.getElementById('flagDescSparkScore');
+  const pmDesc = document.getElementById('flagDescPromo');
+  if (fiDesc) fiDesc.textContent = f.fireIceGated ? 'Premium only — free users see lock screen' : 'Unlocked — everyone can rate';
+  if (ssDesc) ssDesc.textContent = f.sparkScoreGated ? 'Premium only — chart & leaderboard locked' : 'Unlocked — everyone sees their score';
+  if (pmDesc) pmDesc.textContent = f.promoMode ? 'On — everyone gets free premium access' : 'Off — normal gating applies';
+  // Apply promo mode: if on, treat as premium for all users
+  if (f.promoMode && !S.isPremium) S.isPremium = true;
+}
+
+async function adminToggleFlag(key, value) {
+  window._adminFlags[key] = value;
+  _updateFlagDescs();
+  if (!db) return;
+  try {
+    await db.collection('adminConfig').doc('featureFlags').set(window._adminFlags, { merge: true });
+  } catch(e) {
+    console.warn('adminToggleFlag error:', e);
+    toast('Failed to save flag');
+  }
+}
+
 </script>
 <script>
 /* ================================================================
@@ -5501,6 +5632,42 @@ async function renderAdminPanel() {
           <div class="admin-stat-delta" id="aStatRejectedSub">Loading…</div>
         </div>
       </div>
+      <div class="admin-feature-flags" id="adminFeatureFlags">
+        <div class="admin-flags-header">⚙️ Feature Flags — Premium Gates</div>
+        <div class="admin-flag-row">
+          <div class="admin-flag-icon">🔥</div>
+          <div class="admin-flag-info">
+            <div class="admin-flag-title">Fire or Ice</div>
+            <div class="admin-flag-desc" id="flagDescFireIce">Premium only — free users see lock screen</div>
+          </div>
+          <label class="admin-flag-toggle">
+            <input type="checkbox" id="flagFireIce" onchange="adminToggleFlag('fireIceGated',this.checked)" checked>
+            <span class="admin-flag-slider"></span>
+          </label>
+        </div>
+        <div class="admin-flag-row">
+          <div class="admin-flag-icon">⚡</div>
+          <div class="admin-flag-info">
+            <div class="admin-flag-title">Spark Score</div>
+            <div class="admin-flag-desc" id="flagDescSparkScore">Premium only — chart &amp; leaderboard locked</div>
+          </div>
+          <label class="admin-flag-toggle">
+            <input type="checkbox" id="flagSparkScore" onchange="adminToggleFlag('sparkScoreGated',this.checked)" checked>
+            <span class="admin-flag-slider"></span>
+          </label>
+        </div>
+        <div class="admin-flag-row">
+          <div class="admin-flag-icon">🎁</div>
+          <div class="admin-flag-info">
+            <div class="admin-flag-title">Promo Mode</div>
+            <div class="admin-flag-desc" id="flagDescPromo">Off — everyone gets free access</div>
+          </div>
+          <label class="admin-flag-toggle">
+            <input type="checkbox" id="flagPromo" onchange="adminToggleFlag('promoMode',this.checked)">
+            <span class="admin-flag-slider"></span>
+          </label>
+        </div>
+      </div>
       <div class="admin-search-section">
         <div class="admin-search-wrap">
           <span class="admin-search-icon">🔍</span>
@@ -5927,6 +6094,23 @@ async function openAdminUser(uid) {
       <div class="admin-detail-section-label">Account Info</div>
       ${infoHtml}
     </div>
+    <div id="adminGrantSection-${uid}">
+      <div class="admin-detail-section-label">⭐ Premium Access</div>
+      <div class="admin-grant-wrap">
+        <div class="admin-grant-title">⭐ ${u.premium ? 'Premium Active' : 'No Premium'}</div>
+        <div class="admin-grant-status" id="adminGrantStatus-${uid}">${u.premium
+          ? (u.premiumExpiry ? 'Expires: ' + new Date(u.premiumExpiry?.toMillis?.() || u.premiumExpiry).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+          : 'Lifetime access')
+          : 'This user does not have Premium. Grant access below.'}</div>
+        <div class="admin-grant-days" id="adminGrantDays-${uid}">
+          <button class="admin-grant-day-btn selected" id="adminDay7-${uid}" onclick="adminSelectDays('${uid}',7)">7 days</button>
+          <button class="admin-grant-day-btn" id="adminDay30-${uid}" onclick="adminSelectDays('${uid}',30)">30 days</button>
+          <button class="admin-grant-day-btn" id="adminDayLife-${uid}" onclick="adminSelectDays('${uid}',0)">Lifetime</button>
+        </div>
+        <button class="admin-grant-btn" onclick="adminGrantPremium('${uid}')">✨ Grant Premium</button>
+        ${u.premium ? `<button class="admin-revoke-btn" onclick="adminRevokePremium('${uid}')">Revoke Premium</button>` : ''}
+      </div>
+    </div>
     <div>
       <div class="admin-detail-section-label">Actions</div>
       <div class="admin-action-grid">
@@ -6283,7 +6467,7 @@ function showTab(tab) {
     if (tab === 'messages')  { renderConversations(); clearUnread(); S.newMatchMsgs.clear(); updateBadges(); }
     if (tab === 'profile')   renderMyProfile();
     if (tab === 'explore')   renderExploreTab();
-    if (tab === 'admin')     renderAdminPanel();
+    if (tab === 'admin')     renderAdminPanel().then(() => adminLoadFlags());
     // Keep highlight on the nav tab that was just tapped — don't jump to content
     if (typeof _navSet === 'function') setTimeout(() => {
       const navBtn = document.getElementById('nav-' + tab);
