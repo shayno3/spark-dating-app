@@ -26,7 +26,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-performance-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-remote-config-compat.js"></script>
 <!-- Cloudflare Turnstile — bot protection for login & register. async defer so it never blocks page load -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -3065,7 +3064,7 @@ const FIREBASE_CONFIG = {
    INIT
 ================================================================ */
 const FB_READY = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-let auth, db, messaging, analytics, storage, functions, perf, remoteConfig;
+let auth, db, messaging, analytics, storage, functions, remoteConfig;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -3083,7 +3082,6 @@ if (FB_READY) {
   // ── Performance Monitoring ──────────────────────────────────────────────────
   // Auto-instruments page load, first paint, first contentful paint, and all
   // fetch/XHR network requests. Zero config needed beyond this line.
-  perf = firebase.performance();
 
   // ── Remote Config ───────────────────────────────────────────────────────────
   remoteConfig = firebase.remoteConfig();
