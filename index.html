@@ -2069,6 +2069,71 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   font-weight: 700;
   cursor: pointer;
 }
+/* ================================================================
+   PLAY TAB — Fire or Ice + Spark Score
+================================================================ */
+/* Sub-nav */
+.play-sub-nav { display: flex; gap: 0.5rem; padding: 1rem 1rem 0.5rem; }
+.play-sub-btn { flex: 1; padding: 0.6rem; border: 1.5px solid var(--border); background: transparent;
+  color: var(--text-muted); border-radius: 50px; font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; touch-action: manipulation; }
+.play-sub-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+/* Fire or Ice card */
+.fire-ice-wrap { padding: 0 1rem 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.fire-ice-card { width: 100%; max-width: 340px; border-radius: 20px; overflow: hidden; position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18); aspect-ratio: 3/4; background: var(--bg-card); }
+.fire-ice-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fire-ice-no-photo { width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:5rem;background:var(--bg-card); }
+.fire-ice-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 1.2rem;
+  background: linear-gradient(transparent, rgba(0,0,0,0.75)); color: white; }
+.fire-ice-name { font-size: 1.3rem; font-weight: 800; }
+.fire-ice-sublabel { font-size: 0.9rem; opacity: 0.85; }
+.fire-ice-vote-btns { display: flex; gap: 1rem; width: 100%; max-width: 340px; }
+.fire-btn, .ice-btn { flex: 1; padding: 0.9rem; border: none; border-radius: 16px; font-size: 1.4rem;
+  font-weight: 800; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; touch-action: manipulation;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2; }
+.fire-btn { background: linear-gradient(135deg,#ff6b35,#ff3366); color: white; box-shadow: 0 4px 16px rgba(255,80,50,0.4); }
+.fire-btn:active { transform: scale(0.94); }
+.ice-btn  { background: linear-gradient(135deg,#4fc3f7,#0288d1); color: white; box-shadow: 0 4px 16px rgba(4,180,240,0.4); }
+.ice-btn:active  { transform: scale(0.94); }
+.fire-ice-btn-label { font-size: 0.8rem; font-weight: 700; }
+.fire-ice-counter { font-size: 0.78rem; color: var(--text-muted); }
+.fire-ice-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); display:flex;flex-direction:column;align-items:center;gap:0.5rem; }
+
+/* Spark Score */
+.spark-score-wrap { padding: 0 1rem 2rem; display: flex; flex-direction: column; gap: 1rem; }
+.spark-hero { background: linear-gradient(135deg,#ff6b35 0%,#ff3366 100%); border-radius: 20px;
+  padding: 1.5rem; text-align: center; color: white; }
+.spark-hero-score { font-size: 3.5rem; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.spark-hero-label { font-size: 0.85rem; opacity: 0.85; margin-top: 0.25rem; }
+.spark-hero-streak { font-size: 0.9rem; margin-top: 0.5rem; background: rgba(255,255,255,0.22);
+  display: inline-block; padding: 0.25rem 0.85rem; border-radius: 50px; }
+.spark-section-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4rem; }
+.spark-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
+.spark-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 0.85rem; text-align: center; }
+.spark-stat-val { font-size: 1.55rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.spark-stat-val.fire-col { color: #ff6b35; }
+.spark-stat-val.ice-col  { color: #4fc3f7; }
+.spark-stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+.spark-chart-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; }
+.spark-bars { display: flex; align-items: flex-end; gap: 5px; height: 72px; }
+.spark-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.spark-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--primary); min-height: 4px; transition: height 0.4s; }
+.spark-bar.today { background: linear-gradient(to top,#ff6b35,#ff3366); }
+.spark-bar-day { font-size: 0.6rem; color: var(--text-muted); font-weight: 600; }
+
+/* Premium lock */
+.play-lock { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 3rem 1.5rem; text-align: center; gap: 1rem; }
+.play-lock-icon { font-size: 3.5rem; }
+.play-lock-title { font-size: 1.2rem; font-weight: 800; color: var(--text); }
+.play-lock-sub { font-size: 0.9rem; color: var(--text-muted); max-width: 260px; line-height: 1.5; }
+.play-lock-btn { background: linear-gradient(135deg,#ff6b35,#ff3366); color: white; border: none;
+  border-radius: 50px; padding: 0.85rem 2rem; font-size: 1rem; font-weight: 800;
+  cursor: pointer; touch-action: manipulation; box-shadow: 0 4px 16px rgba(255,80,50,0.4); }
+
 </style>
 </head>
 <body>
@@ -2670,6 +2735,16 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
       <div class="nearby-grid" id="nearbyGrid"></div>
     </div>
 
+    <!-- ── PLAY TAB (Fire or Ice + Spark Score) ── -->
+    <div class="tab-content" id="tab-play">
+      <div class="play-sub-nav">
+        <button class="play-sub-btn active" id="playSubFire" onclick="showPlaySubTab('fire-ice')">🔥 Fire or Ice</button>
+        <button class="play-sub-btn" id="playSubSpark" onclick="showPlaySubTab('spark-score')">⚡ Spark Score</button>
+      </div>
+      <div id="play-fire-ice" class="play-sub-panel"></div>
+      <div id="play-spark-score" class="play-sub-panel" style="display:none"></div>
+    </div>
+
     <!-- ── ADMIN TAB ── -->
     <div class="tab-content" id="tab-admin">
       <div class="admin-panel" id="adminPanel">
@@ -2911,6 +2986,12 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <button class="nav-btn" id="nav-profile" onclick="showTab('profile')">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Profile</span>
+    </button>
+    <button class="nav-btn" id="nav-play" onclick="showTab('play')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" stroke="none"/>
+      </svg>
+      <span>Play</span>
     </button>
     <button class="nav-btn nav-admin-btn" id="nav-admin" onclick="showTab('admin')" style="display:none">
       <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -6207,11 +6288,201 @@ function showTab(tab) {
     if (tab === 'profile')   renderMyProfile();
     if (tab === 'explore')   renderNearby();
     if (tab === 'admin')     renderAdminPanel();
+    if (tab === 'play')      renderPlayTab();
     // Keep highlight on the nav tab that was just tapped — don't jump to content
     if (typeof _navSet === 'function') setTimeout(() => {
       const navBtn = document.getElementById('nav-' + tab);
       if (navBtn) _navSet(navBtn); else if (typeof _navFocus === 'function') _navFocus();
     }, 120);
+  });
+}
+
+/* ================================================================
+   PLAY TAB — Fire or Ice + Spark Score
+================================================================ */
+
+function showPlaySubTab(sub) {
+  document.querySelectorAll('.play-sub-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.play-sub-panel').forEach(p => p.style.display = 'none');
+  const btnMap   = {'fire-ice':'playSubFire','spark-score':'playSubSpark'};
+  const panelMap = {'fire-ice':'play-fire-ice','spark-score':'play-spark-score'};
+  const btn   = document.getElementById(btnMap[sub]);
+  const panel = document.getElementById(panelMap[sub]);
+  if (btn)   btn.classList.add('active');
+  if (panel) {
+    panel.style.display = '';
+    if (!panel.dataset.loaded) {
+      panel.dataset.loaded = '1';
+      if (sub === 'fire-ice')    renderFireOrIce();
+      if (sub === 'spark-score') renderSparkScore();
+    }
+  }
+  S._playSubTab = sub;
+}
+
+let _playTabInited = false;
+function renderPlayTab() {
+  if (!_playTabInited) {
+    _playTabInited = true;
+    showPlaySubTab(S._playSubTab || 'fire-ice');
+  }
+}
+
+/* ---- Fire or Ice ---- */
+let _fireIceQueue = [];
+let _fireIceIdx   = 0;
+let _fireIceRated = new Set();
+
+function renderFireOrIce() {
+  const panel = document.getElementById('play-fire-ice');
+  if (!panel) return;
+  if (!S.isPremium) {
+    panel.innerHTML = `<div class="play-lock">
+      <div class="play-lock-icon">🔥❄️</div>
+      <div class="play-lock-title">Fire or Ice</div>
+      <div class="play-lock-sub">Rate profiles and see how the community votes. Unlock with Spark Premium.</div>
+      <button class="play-lock-btn" onclick="upgradeToPremium()">🔓 Unlock Premium</button>
+    </div>`;
+    return;
+  }
+  const me = S.currentUser?.uid;
+  _fireIceQueue = (S.users || []).filter(u => u.uid !== me && !_fireIceRated.has(u.uid));
+  _fireIceIdx = 0;
+  _showFireIceCard();
+}
+
+function _showFireIceCard() {
+  const panel = document.getElementById('play-fire-ice');
+  if (!panel) return;
+  const profile = _fireIceQueue[_fireIceIdx];
+  if (!profile) {
+    panel.innerHTML = `<div class="fire-ice-wrap"><div class="fire-ice-empty">
+      <div style="font-size:3rem">🎉</div>
+      <div style="font-weight:700;font-size:1.05rem;color:var(--text)">You've rated everyone!</div>
+      <div style="color:var(--text-muted);font-size:0.88rem">Check back when new members join.</div>
+    </div></div>`;
+    return;
+  }
+  const photo = profile.photos?.[0] || '';
+  const remaining = _fireIceQueue.length - _fireIceIdx;
+  panel.innerHTML = `<div class="fire-ice-wrap">
+    <div class="fire-ice-card" id="fireIceCard">
+      ${photo
+        ? `<img class="fire-ice-photo" src="${photo}" alt="">`
+        : `<div class="fire-ice-no-photo">👤</div>`}
+      <div class="fire-ice-info">
+        <div class="fire-ice-name">${profile.name || 'Someone'}${profile.age ? ', ' + profile.age : ''}</div>
+        ${profile.city ? `<div class="fire-ice-sublabel">📍 ${profile.city}</div>` : ''}
+      </div>
+    </div>
+    <div class="fire-ice-vote-btns">
+      <button class="ice-btn" onclick="fireIceVote('${profile.uid}','ice')" style="touch-action:manipulation">
+        <span style="font-size:1.6rem">❄️</span>
+        <span class="fire-ice-btn-label">Ice</span>
+      </button>
+      <button class="fire-btn" onclick="fireIceVote('${profile.uid}','fire')" style="touch-action:manipulation">
+        <span style="font-size:1.6rem">🔥</span>
+        <span class="fire-ice-btn-label">Fire</span>
+      </button>
+    </div>
+    <div class="fire-ice-counter">${remaining} left to rate</div>
+  </div>`;
+}
+
+async function fireIceVote(targetUid, vote) {
+  if (!S.currentUser?.uid) return;
+  _fireIceRated.add(targetUid);
+  try {
+    await db.collection('fireIceRatings').add({
+      raterId:   S.currentUser.uid,
+      targetId:  targetUid,
+      vote:      vote,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { console.warn('fireIce write', e); }
+  const card = document.getElementById('fireIceCard');
+  if (card) {
+    card.style.transition = 'transform 0.28s ease, opacity 0.28s';
+    card.style.transform  = vote === 'fire' ? 'translateX(110px) rotate(12deg)' : 'translateX(-110px) rotate(-12deg)';
+    card.style.opacity    = '0';
+    setTimeout(() => { _fireIceIdx++; _showFireIceCard(); }, 260);
+  } else {
+    _fireIceIdx++;
+    _showFireIceCard();
+  }
+}
+
+/* ---- Spark Score ---- */
+function renderSparkScore() {
+  const panel = document.getElementById('play-spark-score');
+  if (!panel) return;
+  if (!S.isPremium) {
+    panel.innerHTML = `<div class="play-lock">
+      <div class="play-lock-icon">⚡</div>
+      <div class="play-lock-title">Spark Score</div>
+      <div class="play-lock-sub">See your Fire rating, hot streak, and weekly chart. Unlock with Spark Premium.</div>
+      <button class="play-lock-btn" onclick="upgradeToPremium()">🔓 Unlock Premium</button>
+    </div>`;
+    return;
+  }
+  panel.innerHTML = '<div class="spark-score-wrap"><div style="text-align:center;padding:2rem;color:var(--text-muted)">⚡ Loading score…</div></div>';
+  const me = S.currentUser?.uid;
+  if (!me) return;
+  db.collection('fireIceRatings').where('targetId','==',me).get().then(snap => {
+    const docs = snap.docs.map(d => d.data());
+    const total = docs.length;
+    const fires = docs.filter(d => d.vote === 'fire').length;
+    const ices  = total - fires;
+    const fireRate = total > 0 ? Math.round(fires / total * 100) : 0;
+    const now = new Date();
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const weekCounts = Array(7).fill(0);
+    docs.forEach(d => {
+      if (!d.createdAt) return;
+      const ts = d.createdAt.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
+      const diff = Math.floor((now - ts) / 86400000);
+      if (diff < 7) weekCounts[6 - diff]++;
+    });
+    const maxCount = Math.max(...weekCounts, 1);
+    let streak = 0;
+    for (let i = 6; i >= 0; i--) { if (weekCounts[i] > 0) streak++; else break; }
+    const score = fires * 3 + ices + streak * 10;
+    const dayLabels = Array.from({length:7}, (_, i) => {
+      const d = new Date(now); d.setDate(d.getDate() - (6 - i)); return dayNames[d.getDay()];
+    });
+    const barsHtml = weekCounts.map((c, i) => {
+      const pct = Math.round(c / maxCount * 100);
+      return `<div class="spark-bar-col">
+        <div class="spark-bar${i===6?' today':''}" style="height:${Math.max(pct,6)}%"></div>
+        <div class="spark-bar-day">${dayLabels[i]}</div>
+      </div>`;
+    }).join('');
+    const streakHtml = streak > 1 ? `<div class="spark-hero-streak">🔥 ${streak}-day hot streak</div>`
+      : streak === 1 ? `<div class="spark-hero-streak">🔥 On a streak!</div>` : '';
+    panel.innerHTML = `<div class="spark-score-wrap">
+      <div class="spark-hero">
+        <div class="spark-hero-score">${score}</div>
+        <div class="spark-hero-label">Spark Score</div>
+        ${streakHtml}
+      </div>
+      <div>
+        <div class="spark-section-title">Your Stats</div>
+        <div class="spark-stats-grid">
+          <div class="spark-stat-card"><div class="spark-stat-val fire-col">${fireRate}%</div><div class="spark-stat-label">🔥 Fire Rate</div></div>
+          <div class="spark-stat-card"><div class="spark-stat-val">${total}</div><div class="spark-stat-label">Total Ratings</div></div>
+          <div class="spark-stat-card"><div class="spark-stat-val fire-col">${fires}</div><div class="spark-stat-label">🔥 Fire Votes</div></div>
+          <div class="spark-stat-card"><div class="spark-stat-val ice-col">${ices}</div><div class="spark-stat-label">❄️ Ice Votes</div></div>
+        </div>
+      </div>
+      <div class="spark-chart-wrap">
+        <div class="spark-section-title" style="margin-bottom:0.6rem">Ratings This Week</div>
+        <div class="spark-bars">${barsHtml}</div>
+      </div>
+      ${total === 0 ? `<div style="text-align:center;color:var(--text-muted);font-size:0.88rem;padding:0.25rem">No ratings received yet — make sure your profile has great photos!</div>` : ''}
+    </div>`;
+  }).catch(e => {
+    console.warn('sparkScore', e);
+    panel.innerHTML = '<div class="spark-score-wrap"><div style="text-align:center;padding:2rem;color:var(--text-muted)">Could not load score. Try again later.</div></div>';
   });
 }
 
