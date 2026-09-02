@@ -3593,6 +3593,21 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
           S.isPremium = snap.data()?.isPremium === true;
+          // ── Founder's Access: 30-day free premium for early users ──
+          (function() {
+            const fd30 = snap.data()?.founderAccessExpiry;
+            if (fd30) {
+              const exp = fd30.toDate ? fd30.toDate() : new Date(fd30);
+              S.founderAccessExpiry = exp;
+              if (exp > new Date()) S.isPremium = true;
+            } else {
+              // First login — stamp 30 days from now
+              const exp30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+              S.founderAccessExpiry = exp30;
+              S.isPremium = true;
+              db.collection('users').doc(firebaseUser.uid).update({ founderAccessExpiry: exp30 }).catch(() => {});
+            }
+          })();
           const fd = snap.data();
           if (fd?.dailyLikesDate) {
             const today = new Date().toISOString().slice(0, 10);
@@ -7576,6 +7591,33 @@ async function likeBack(uid, btn) {
 /* ================================================================
    WHO LIKED YOU — Discover "New ✨" premium panel
 ================================================================ */
+// ── Founder's Access helpers ──────────────────────────────────
+function _founderAccessDaysLeft() {
+  if (!S.founderAccessExpiry) return -1;
+  const exp = S.founderAccessExpiry instanceof Date ? S.founderAccessExpiry : new Date(S.founderAccessExpiry);
+  return Math.max(0, Math.ceil((exp - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+function _founderChipHtml() {
+  const days = _founderAccessDaysLeft();
+  if (days <= 0) return '';
+  // Only show every 5 days
+  try {
+    const last = parseInt(localStorage.getItem('spark_founderChipLastShown') || '0');
+    const daysSinceLast = (Date.now() - last) / (1000 * 60 * 60 * 24);
+    if (last && daysSinceLast < 5) return '';
+    localStorage.setItem('spark_founderChipLastShown', String(Date.now()));
+  } catch(e) {}
+  const urgency = days <= 7 ? 'color:#f59e0b;font-weight:800' : 'color:var(--primary);font-weight:700';
+  return `<div id="founderAccessChip" style="display:flex;align-items:center;gap:0.55rem;background:linear-gradient(135deg,rgba(108,99,255,0.12),rgba(233,30,140,0.08));border:1px solid rgba(108,99,255,0.28);border-radius:12px;padding:0.6rem 0.85rem;margin-bottom:0.75rem">
+    <span style="font-size:1.3rem">⚡</span>
+    <div style="flex:1">
+      <div style="font-size:0.82rem;font-weight:800;letter-spacing:0.02em">Founder's Access</div>
+      <div style="font-size:0.76rem;${urgency}">${days} day${days !== 1 ? 's' : ''} of free Premium remaining</div>
+    </div>
+    <button onclick="document.getElementById('founderAccessChip').remove()" style="background:none;border:none;color:var(--text-muted);font-size:0.95rem;cursor:pointer;padding:0.1rem 0.2rem;line-height:1">✕</button>
+  </div>`;
+}
+
 function renderWhoLikedYou() {
   const section = document.getElementById('whoLikedYouSection');
   if (!section) return;
@@ -7635,11 +7677,15 @@ function renderWhoLikedYou() {
       </div>`;
   }
 
+  // Founder's Access chip — show on this premium screen every 5 days
+  const founderChipHtml = _founderChipHtml();
+
   section.innerHTML = `
     <div class="wly-header">
       <div class="wly-title">❤️ Who Liked You</div>
       <div class="wly-count">${countLabel}</div>
     </div>
+    ${founderChipHtml}
     <div class="wly-grid">${cardsHtml}</div>
     ${ctaBanner}`;
 }
