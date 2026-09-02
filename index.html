@@ -3147,13 +3147,14 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
 <script>
 /* ================================================================
-   GUARD — catches CDN load failure or ad-blocker blocking Firebase
+   GUARD — isolated <script> block; a bug here cannot kill the main app
 ================================================================ */
 if (typeof firebase === 'undefined') {
-  document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0F0F1A;color:#fff;font-family:sans-serif;padding:2rem;text-align:center"><div style="font-size:2rem;margin-bottom:1rem">⚠️</div><div style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem">Firebase SDK failed to load</div><div style="color:#9BA3AF;font-size:0.88rem;line-height:1.6;margin-bottom:1.5rem">A cached service worker may be interfering. Tap below to clear the cache and reload — this fixes it in most cases.</div><button onclick="(async()=>{try{const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();const ks=await caches.keys();for(const k of ks)await caches.delete(k);}catch(e){}location.reload(true);})()" style="background:linear-gradient(135deg,#E91E8C,#9B27B0);color:#fff;border:none;border-radius:12px;padding:0.85rem 1.8rem;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:1rem">🔄 Clear Cache &amp; Reload</button><div style="color:#6B7280;font-size:0.8rem">If that does not work, try opening in a private/incognito tab.</div></div>';
+  document.body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0F0F1A;color:#fff;font-family:sans-serif;padding:2rem;text-align:center"><div style="font-size:2rem;margin-bottom:1rem">⚠️</div><div style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem">Firebase SDK failed to load</div><div style="color:#9BA3AF;font-size:0.88rem;line-height:1.6;margin-bottom:1.5rem">A cached service worker may be interfering. Tap below to clear the cache and reload — this fixes it in most cases.</div><button onclick="(async()=>{try{const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();const ks=await caches.keys();for(const k of ks)await caches.delete(k);}catch(e){}location.reload(true);})()" style="background:linear-gradient(135deg,#E91E8C,#9B27B0);color:#fff;border:none;border-radius:12px;padding:0.85rem 1.8rem;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:1rem">🔄 Clear Cache &amp; Reload</button><div style="color:#6B7280;font-size:0.8rem">If that does not work, try opening in a private/incognito tab.</div></div>`;
   throw new Error('Firebase SDK not loaded — check network or disable ad-blocker');
 }
-
+</script>
+<script>
 /* ================================================================
    FIREBASE CONFIG — paste your own values from Firebase Console
 ================================================================ */
