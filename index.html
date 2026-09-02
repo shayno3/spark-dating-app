@@ -3989,6 +3989,7 @@ function _navMove(dir) {
   const curIsMatchWrap  = cur.classList.contains('msg-match-wrap');
   const curIsLikesWrap  = cur.classList.contains('msg-likes-wrap');
   const curIsRadiusStepper = cur.classList.contains('age-step-btn');
+  const curIsActionBtn     = cur.classList.contains('chat-action-btn');
   // Generic grid-card detection — matches whichever class is registered in _GRID_CARD_CLASSES
   const curGridCardClass = _GRID_CARD_CLASSES.find(c => cur.classList.contains(c)) || null;
 
@@ -4173,6 +4174,31 @@ function _navMove(dir) {
       best = _find(midNonNav) || cards[cards.length - 1] || _find(nonNav);
       if (!best) best = navBtns[0] || null;
     }
+
+  } else if (curIsActionBtn) {
+    // ── CHAT ACTION BAR ZONE ──────────────────────────────────────────────────
+    // When on a .chat-action-btn (V.Note / Speak / Emoji / Type):
+    // UP   → send button first; skip message bubbles entirely.
+    // DOWN → nothing meaningful below; stay put.
+    // LEFT/RIGHT → navigate within the action bar buttons.
+    const actionBtns   = els.filter(e => e.classList.contains('chat-action-btn'));
+    const sendBtn      = els.find(e => e.classList.contains('send-btn'));
+    const msgBubbles   = els.filter(e => !!e.closest('.chat-messages, .inline-chat-messages'));
+    const nonMsgNonNav = nonNav.filter(e => !msgBubbles.includes(e));
+    if (dir === 'up') {
+      // Prefer Send button; fall back to any non-message element above
+      best = sendBtn ? _find([sendBtn]) : null;
+      if (!best) best = _find(nonMsgNonNav.filter(e => !actionBtns.includes(e)));
+    } else if (dir === 'left' || dir === 'right') {
+      best = _find(actionBtns);
+      if (!best && actionBtns.length) {
+        const idx = actionBtns.indexOf(cur);
+        best = dir === 'right'
+          ? actionBtns[(idx + 1) % actionBtns.length]
+          : actionBtns[(idx - 1 + actionBtns.length) % actionBtns.length];
+      }
+    }
+    // dir === 'down': best stays null — nothing below action bar
 
   } else if (curIsChip && (dir === 'left' || dir === 'right')) {
     // Chip zone — horizontal: stay on filter chips so stepper buttons (radius +/−)
