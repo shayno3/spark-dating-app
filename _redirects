@@ -1,0 +1,10 @@
+# Legal / policy pages — redirect clean paths to standalone HTML files.
+# These pages must be accessible to Stripe, search crawlers, and unauthenticated
+# users without being intercepted by the SPA auth guard or service worker.
+/terms              /terms.html             301
+/privacy            /privacy.html           301
+/aup                /aup.html               301
+/law-enforcement    /law-enforcement.html   301
+/contact            /contact.html           301
+/pricing            /pricing.html           301
+/refund             /refund.html            301
