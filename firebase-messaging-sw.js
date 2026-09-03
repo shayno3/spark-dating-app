@@ -3,7 +3,7 @@
 
 // ─── Cache config ────────────────────────────────────────────────────────────
 // Bump CACHE_VERSION after a significant deploy to force clients to refresh.
-const CACHE_VERSION = 'v11-20260903';
+const CACHE_VERSION = 'v12-20260903';
 const CACHE_NAME    = 'spark-shell-' + CACHE_VERSION;
 
 const SHELL_ASSETS = [
@@ -53,9 +53,13 @@ self.addEventListener('fetch', (event) => {
 
   // Standalone legal/policy pages must bypass cache so Stripe and regulators
   // can access them directly without being redirected to the app shell.
+  // Both .html and clean-path versions — Cloudflare _redirects handles the
+  // 301, but the SW must let the request through before Cloudflare can act.
   const STANDALONE_PAGES = [
     '/terms.html', '/privacy.html', '/aup.html', '/law-enforcement.html',
+    '/terms', '/privacy', '/aup', '/law-enforcement',
     '/pricing.html', '/refund.html', '/contact.html',
+    '/pricing', '/refund', '/contact',
   ];
   if (STANDALONE_PAGES.includes(url.pathname)) return;
 
