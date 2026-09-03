@@ -5780,6 +5780,11 @@ async function renderAdminPanel() {
         </div>`;
       }).join('');
     }, () => {
+      // Error callback — clear loading state on stat tile too
+      const valEl2 = document.getElementById('aStatRejectedVal');
+      const subEl2 = document.getElementById('aStatRejectedSub');
+      if (valEl2) valEl2.textContent = '0';
+      if (subEl2) subEl2.textContent = 'No rejections yet';
       const listEl = document.getElementById('adminModList');
       if (listEl) listEl.innerHTML = '<div class="admin-activity-item"><div class="admin-activity-text" style="color:var(--text-muted)">No moderation data</div></div>';
     });
