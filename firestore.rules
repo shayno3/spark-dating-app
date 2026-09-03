@@ -5,7 +5,7 @@ service cloud.firestore {
     // ── Admin helper ──────────────────────────────────────────────────────────
     function isAdmin() {
       return request.auth != null && request.auth.uid in [
-        'qwDw4vp4suOugIr39GqJ0K70cIq2'
+        'qwDw0vp4suOugIr39GqJ0K70cIq2'
       ];
     }
 
@@ -37,12 +37,26 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['profileViewsWeekly']);
-      // Admins can update ban/verify/soft-delete fields on any user
+      // Admins can update ban/verify/soft-delete/premium fields on any user
       allow update: if isAdmin()
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['banned', 'verified', 'deleted', 'deletedAt', 'deletedBy',
                                    'name', 'bio', 'email', 'photos', 'interests',
-                                   'city', 'state', 'invisible', 'online']);
+                                   'city', 'state', 'invisible', 'online',
+                                   'isPremium', 'premium', 'premiumExpiry',
+                                   'premiumGrantedAt', 'premiumGrantedBy']);
+    }
+
+    // ── Admin Config (feature flags, etc.) ───────────────────────────────
+    match /adminConfig/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // ── App Config (Remote Config — maintenance mode, filter sheet, etc.) ─
+    match /app/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // ── Visitors (who viewed my profile) ─────────────────────────────────
