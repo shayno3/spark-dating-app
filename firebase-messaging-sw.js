@@ -3,7 +3,7 @@
 
 // ─── Cache config ────────────────────────────────────────────────────────────
 // Bump CACHE_VERSION after a significant deploy to force clients to refresh.
-const CACHE_VERSION = 'v10-20260902';
+const CACHE_VERSION = 'v11-20260903';
 const CACHE_NAME    = 'spark-shell-' + CACHE_VERSION;
 
 const SHELL_ASSETS = [
@@ -50,6 +50,14 @@ self.addEventListener('fetch', (event) => {
 
   // Only intercept same-origin requests — let browser cache CDN scripts natively
   if (url.origin !== self.location.origin) return;
+
+  // Standalone legal/policy pages must bypass cache so Stripe and regulators
+  // can access them directly without being redirected to the app shell.
+  const STANDALONE_PAGES = [
+    '/terms.html', '/privacy.html', '/aup.html', '/law-enforcement.html',
+    '/pricing.html', '/refund.html', '/contact.html',
+  ];
+  if (STANDALONE_PAGES.includes(url.pathname)) return;
 
   // Navigation (main HTML doc): stale-while-revalidate
   // → serve cached instantly, update cache in background so next load is fresh
