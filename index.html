@@ -3483,7 +3483,7 @@ async function fetchFirestoreConfig() {
         ov = document.createElement('div');
         ov.id = 'maintenanceOverlay';
         ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0F0F1A;padding:2rem;text-align:center';
-        ov.innerHTML = '<div style="font-size:2.5rem;margin-bottom:1rem">🔧</div><div style="font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:0.5rem">Under Maintenance</div><div style="color:#9BA3AF;font-size:0.9rem;max-width:280px;line-height:1.6">' + msg + '</div>';
+        ov.innerHTML = '<div style="font-size:2.5rem;margin-bottom:1rem">🔧</div><div style="font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:0.5rem">Under Maintenance</div><div style="color:#9BA3AF;font-size:0.9rem;max-width:280px;line-height:1.6">' + escHtml(msg) + '</div>';
         document.body.appendChild(ov);
       }
     }
@@ -5773,8 +5773,8 @@ async function renderAdminPanel() {
         return `<div class="admin-mod-item" onclick="openDetail('${d.uid}')">
           ${av}
           <div class="admin-mod-info">
-            <div class="admin-mod-name">${name}</div>
-            <div class="admin-mod-reason">${d.reason || 'flagged'}</div>
+            <div class="admin-mod-name">${escHtml(name)}</div>
+            <div class="admin-mod-reason">${escHtml(d.reason || 'flagged')}</div>
           </div>
           <div class="admin-mod-time">${ts}</div>
         </div>`;
