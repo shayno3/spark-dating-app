@@ -5335,10 +5335,10 @@ function goStep(from) {
   } else if (from === 3) {
     updateProgress(4);
   } else if (from === 4) {
-    const agreed = document.getElementById('safetyAgreeCheck');
-    if (!agreed || !agreed.checked) { toast('Please read and agree to the safety guidelines to continue'); return; }
     updateProgress(5);
   } else if (from === 5) {
+    const agreed = document.getElementById('safetyAgreeCheck');
+    if (!agreed || !agreed.checked) { toast('Please read and agree to the safety guidelines to continue'); return; }
     finishSetup();
   }
 }
