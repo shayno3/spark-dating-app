@@ -2671,12 +2671,12 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <span class="radius-label">📍 Within</span>
           <div class="age-stepper-wrap">
             <button class="age-step-btn" onclick="stepRadius(-1)" title="Decrease radius">−</button>
-            <span class="age-step-val" id="radiusKm">50</span>
+            <span class="age-step-val" id="radiusKm">5000</span>
             <button class="age-step-btn" onclick="stepRadius(1)" title="Increase radius">+</button>
           </div>
-          <span class="radius-label">km</span>
+          <span class="radius-label">mi</span>
           <!-- Hidden range kept for setRadius / updateFilterCounts compatibility -->
-          <input type="range" id="radiusSlider" min="5" max="500" step="5" value="50" style="display:none" oninput="setRadius(this.value)">
+          <input type="range" id="radiusSlider" min="5" max="5000" step="5" value="5000" style="display:none" oninput="setRadius(this.value)">
           <span class="radius-value" id="radiusLiveTag">GPS 🟢</span>
         </div>
         <!-- Age stepper moved to Profile → Preferences; hidden inputs kept for JS compatibility -->
@@ -3410,7 +3410,7 @@ if (FB_READY) {
     maintenance_mode:        false,  // set true in dashboard to show maintenance banner
     maintenance_message:     'Spark is currently under maintenance. Please try again soon.',
     max_profile_photos:      6,      // max photos per profile
-    discover_radius_max:     200,    // km — cap on the distance stepper
+    discover_radius_max:     5000,   // mi — cap on the distance stepper
     min_app_version:         '1.0',  // future: force-upgrade old clients
   };
 } else {
@@ -3564,7 +3564,7 @@ const S = {
   edit:         { photos: [], interests: [] },
   filter:       'all',
   location:     null,       // { lat, lng, city, region } — filled by GPS on app open
-  radius:       50,         // km — user-adjustable radius for Nearby filter
+  radius:       5000,       // miles — user-adjustable radius for Nearby filter (5000 mi = nationwide default)
   minAge:       18,         // age range filter — lower bound
   maxAge:       80,         // age range filter — upper bound (80 = 80+)
   likedMe:      [],         // profiles of people who liked the current user (not yet matched)
@@ -3603,9 +3603,9 @@ const S = {
    GEOLOCATION — silent GPS, reverse geocoding, distance math
 ================================================================ */
 
-// Haversine formula — returns distance in km between two lat/lng pairs
+// Haversine formula — returns distance in miles between two lat/lng pairs
 function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371;
+  const R = 3959;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -3615,11 +3615,11 @@ function haversine(lat1, lng1, lat2, lng2) {
 }
 
 // Human-friendly approximate distance — rounded to avoid trilateration privacy attack
-function approxDist(km) {
-  if (km < 1)    return '< 1 km away';
-  if (km < 10)   return '~' + Math.round(km)       + ' km away';
-  if (km < 100)  return '~' + (Math.round(km/5)*5)  + ' km away';
-  return           '~' + (Math.round(km/25)*25)  + ' km away';
+function approxDist(mi) {
+  if (mi < 1)    return '< 1 mi away';
+  if (mi < 10)   return '~' + Math.round(mi)       + ' mi away';
+  if (mi < 100)  return '~' + (Math.round(mi/5)*5)  + ' mi away';
+  return           '~' + (Math.round(mi/25)*25)  + ' mi away';
 }
 
 // Reverse geocode via OpenStreetMap Nominatim (free, no key needed)
@@ -3635,7 +3635,7 @@ async function reverseGeocode(lat, lng) {
   } catch(e) { return { city: '', region: '' }; }
 }
 
-// Return distance in km from current user to a profile, or null if no GPS data
+// Return distance in miles from current user to a profile, or null if no GPS data
 function distanceTo(user) {
   if (!S.location || !user.lat || !user.lng) return null;
   return haversine(S.location.lat, S.location.lng, user.lat, user.lng);
@@ -3645,7 +3645,7 @@ function distanceTo(user) {
 function updateSliderTrack() {
   const slider = document.getElementById('radiusSlider');
   if (!slider) return;
-  const min = 5, max = 500;
+  const min = 5, max = 5000;
   const pct = ((S.radius - min) / (max - min) * 100).toFixed(1) + '%';
   slider.style.setProperty('--pct', pct);
 }
@@ -3725,8 +3725,8 @@ function setRadius(val) {
   updateFilterCounts();
 }
 function stepRadius(delta) {
-  const steps = [5,10,15,20,25,30,40,50,75,100,150,200,300,400,500];
-  const cur = S.radius || 50;
+  const steps = [5,10,25,50,100,150,200,300,500,750,1000,1500,2000,3000,5000];
+  const cur = S.radius || 5000;
   let idx = steps.findIndex(s => s >= cur);
   if (idx < 0) idx = steps.length - 1;
   idx = Math.max(0, Math.min(steps.length - 1, idx + delta));
@@ -6114,7 +6114,7 @@ async function _loadAdminRC() {
         ${bool('maintenanceMode', 'Maintenance Mode', 'Turn on to block the app and show a message to all users')}
         ${txt('maintenanceMessage', 'Maintenance Message', 'Message shown when Maintenance Mode is on')}
         ${num('maxProfilePhotos', 'Max Profile Photos', 'Max photos per profile (default 6)', 1, 20, 6)}
-        ${num('discoverRadiusMax', 'Discovery Radius Max (km)', 'Cap on the distance slider in Discover (default 200)', 10, 1000, 200)}
+        ${num('discoverRadiusMax', 'Discovery Radius Max (mi)', 'Cap on the distance slider in Discover (default 5000)', 10, 5000, 5000)}
         ${num('rolloutPercent', 'Rollout %', 'Experimental: % of users who see new features (0–100)', 0, 100, 100)}
         <div id="adminRCSaveMsg" style="color:#10B981;font-size:0.78rem;text-align:right;padding:0.25rem 0;min-height:1.2em"></div>
       </div>`;
@@ -8461,7 +8461,7 @@ async function renderNearby() {
   cityLine.textContent = myCity
     ? `📍 ${myCity}${myState ? ', ' + myState : ''}`
     : hasGPS
-      ? `📍 ${S.location.city || 'Your area'} · Within ${S.radius} km`
+      ? `📍 ${S.location.city || 'Your area'} · Within ${S.radius} mi`
       : '📍 No location set';
   countLine.textContent = '';
   grid.innerHTML = `<div class="nearby-loading">🔍 Finding people nearby…</div>`;
@@ -12606,7 +12606,7 @@ function openFilterSheet() {
   const distEl = document.getElementById('dfsDistVal');
   if (minEl)  minEl.textContent  = S._draftFilter.minAge  || 18;
   if (maxEl)  maxEl.textContent  = (S._draftFilter.maxAge >= 80) ? '80+' : (S._draftFilter.maxAge || 80);
-  if (distEl) distEl.textContent = S._draftFilter.radius  || 50;
+  if (distEl) distEl.textContent = S._draftFilter.radius  || 5000;
   // Sync pill selections
   document.querySelectorAll('[data-dfs-lf]').forEach(el => {
     el.classList.toggle('sel', el.dataset.dfsLf === S._draftFilter.lookingFor);
@@ -12664,8 +12664,8 @@ function stepFilterAge(field, delta) {
 
 function stepFilterDist(delta) {
   const el = document.getElementById('dfsDistVal');
-  let val = parseInt(el.textContent) || 50;
-  val = Math.min(Math.max(5, val + delta), 250);
+  let val = parseInt(el.textContent) || 5000;
+  val = Math.min(Math.max(5, val + delta * 10), 5000);
   el.textContent = val;
   updateDfsMatchCount();
 }
@@ -12740,7 +12740,7 @@ function applyDiscoverFilters() {
     const raw = maxEl.textContent;
     S._draftFilter.maxAge = raw === '80+' ? 80 : (parseInt(raw) || S._draftFilter.maxAge || 80);
   }
-  if (distEl) S._draftFilter.radius = parseInt(distEl.textContent) || S._draftFilter.radius || 50;
+  if (distEl) S._draftFilter.radius = parseInt(distEl.textContent) || S._draftFilter.radius || 5000;
   // Commit draft → live S
   S.filterLookingFor     = S._draftFilter.lookingFor;
   S.filterDrinking       = S._draftFilter.drinking;
@@ -12777,13 +12777,13 @@ function resetDiscoverFilters() {
   S.filterWantsKids      = null;
   S.minAge               = 18;
   S.maxAge               = 80;
-  S.radius               = 50;
+  S.radius               = 5000;
   // Also reset draft so steppers/pills reflect cleared state
   S._draftFilter = {
     lookingFor: null, drinking: null, smoking: null, exercise: null,
     recentlyActive: false, verifiedOnly: false,
     ethnicity: [], religion: null, filterKids: null, wantsKids: null,
-    minAge: 18, maxAge: 80, radius: 50,
+    minAge: 18, maxAge: 80, radius: 5000,
   };
   // Sync steppers display
   const minEl  = document.getElementById('dfsAgeMinVal');
@@ -12791,7 +12791,7 @@ function resetDiscoverFilters() {
   const distEl = document.getElementById('dfsDistVal');
   if (minEl)  minEl.textContent  = '18';
   if (maxEl)  maxEl.textContent  = '80+';
-  if (distEl) distEl.textContent = '50';
+  if (distEl) distEl.textContent = '5000';
   // Reset all pill selections
   document.querySelectorAll('[data-dfs-lf],[data-dfs-ls],[data-dfs-eth],[data-dfs-rel],[data-dfs-kids],[data-dfs-wk]').forEach(el => el.classList.remove('sel'));
   // Reset premium toggles
@@ -12818,7 +12818,7 @@ function updateDfsMatchCount() {
     const distEl = document.getElementById('dfsDistVal');
     const previewMinAge = minEl ? (parseInt(minEl.textContent) || draft.minAge || 18) : (draft.minAge || 18);
     const previewMaxAge = maxEl ? (maxEl.textContent === '80+' ? 80 : (parseInt(maxEl.textContent) || draft.maxAge || 80)) : (draft.maxAge || 80);
-    const previewRadius = distEl ? (parseInt(distEl.textContent) || draft.radius || 50) : (draft.radius || 50);
+    const previewRadius = distEl ? (parseInt(distEl.textContent) || draft.radius || 5000) : (draft.radius || 5000);
     // Count against draft filters (without mutating S)
     const now = Date.now();
     count = (S.profiles || []).filter(u => {
@@ -13178,12 +13178,12 @@ async function loadFilterPrefs(uid) {
 
       <!-- DISTANCE -->
       <div class="dfs-section">
-        <div class="dfs-label">Max Distance (km)</div>
+        <div class="dfs-label">Max Distance (mi)</div>
         <div class="dfs-stepper-row">
           <span class="dfs-stepper-label">Distance</span>
           <div class="dfs-stepper-ctrl">
             <button class="dfs-step-btn" onclick="stepFilterDist(-5)">−</button>
-            <div class="dfs-step-val" id="dfsDistVal">50</div>
+            <div class="dfs-step-val" id="dfsDistVal">5000</div>
             <button class="dfs-step-btn" onclick="stepFilterDist(5)">+</button>
           </div>
         </div>
