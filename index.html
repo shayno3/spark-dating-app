@@ -4715,10 +4715,9 @@ async function pvSendCode() {
   try {
     if (!_pvRecaptcha) {
       _pvRecaptcha = new firebase.auth.RecaptchaVerifier('pv-recaptcha', {
-        size: 'normal',
+        size: 'invisible',
         'expired-callback': () => { _pvRecaptcha = null; }
       });
-      await _pvRecaptcha.render();
     }
     _pvConfirmResult = await auth.currentUser.linkWithPhoneNumber(phone, _pvRecaptcha);
     document.getElementById('pvPhasePhone').style.display = 'none';
@@ -12852,7 +12851,7 @@ async function loadFilterPrefs(uid) {
         style="background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;border:none;border-radius:0.75rem;padding:0.9rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;">
         Send Code 📲
       </button>
-      <div id="pv-recaptcha" style="margin-top:0.6rem;display:flex;justify-content:center"></div>
+      <div id="pv-recaptcha" style="display:none"></div>
     </div>
     <div id="pvPhaseOTP" style="display:none">
       <div style="text-align:center;background:var(--input-bg,#2a2a3e);border-radius:0.75rem;padding:0.75rem;margin-bottom:0.6rem">
