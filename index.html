@@ -4719,10 +4719,15 @@ async function pvSendCode() {
   const btn = document.getElementById('pvSendBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    // Always clear and recreate to avoid "already rendered" error on retry
+    // Fully destroy old verifier and replace DOM node to avoid "already rendered" error
     if (_pvRecaptcha) { try { _pvRecaptcha.clear(); } catch(_){} _pvRecaptcha = null; }
-    const container = document.getElementById('pv-recaptcha');
-    if (container) container.innerHTML = '';
+    const oldRc = document.getElementById('pv-recaptcha');
+    if (oldRc && oldRc.parentNode) {
+      const newRc = document.createElement('div');
+      newRc.id = 'pv-recaptcha';
+      newRc.style.display = 'none';
+      oldRc.parentNode.replaceChild(newRc, oldRc);
+    }
     _pvRecaptcha = new firebase.auth.RecaptchaVerifier('pv-recaptcha', {
       size: 'invisible',
       'expired-callback': () => { _pvRecaptcha = null; }
