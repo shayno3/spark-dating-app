@@ -828,7 +828,7 @@ body:has(#inlineChatPanel.open) .bottom-nav { display: none; }
 .empty-desc { color: var(--text-muted); font-size: 0.87rem; line-height: 1.5; }
 
 /* ---- TOAST ---- */
-.toast { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: 0.7rem 1.4rem; border-radius: 20px; font-size: 0.875rem; font-weight: 700; z-index: 9999; transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+.toast { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: 0.7rem 1.4rem; border-radius: 20px; font-size: 0.875rem; font-weight: 700; z-index: 9999; transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); white-space: normal; max-width: min(90vw, 340px); text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
 /* ---- RANGE SLIDER ---- */
@@ -4882,11 +4882,19 @@ document.addEventListener('DOMContentLoaded', () => {
 const TURNSTILE_SITE_KEY = '0x4AAAAAAAAAEcL7Xjvi-oawvsZ';
 const _turnstileActive   = true; // real key is set — bot protection is live
 
-let _tsLoginToken    = null; // token set by Turnstile after a successful challenge
-let _tsRegisterToken = null;
+let _tsLoginToken      = null; // token set by Turnstile after a successful challenge
+let _tsRegisterToken   = null;
+let _tsRegisterPending = false; // user clicked Create Account before Turnstile was ready
 
-function onTurnstileLogin(token)    { _tsLoginToken    = token; }
-function onTurnstileRegister(token) { _tsRegisterToken = token; }
+function onTurnstileLogin(token)    { _tsLoginToken = token; }
+function onTurnstileRegister(token) {
+  _tsRegisterToken = token;
+  // Auto-retry if user already clicked Create Account and was waiting for the check
+  if (_tsRegisterPending) {
+    _tsRegisterPending = false;
+    register();
+  }
+}
 
 // Reset Turnstile widget after a failed attempt so the user can retry
 function _tsReset(widgetId) {
@@ -4960,32 +4968,42 @@ async function register() {
     return;
   }
 
-  // Turnstile gate — require completed challenge
+  // Turnstile gate — if not yet complete, set a pending flag and wait for it to auto-finish
   if (_turnstileActive && typeof turnstile !== 'undefined' && !_tsRegisterToken) {
-    toast('Please complete the security check'); return;
+    _tsRegisterPending = true;
+    toast('Almost ready — completing security check…');
+    return;
   }
 
-  // Server-side token verification
-  if (_turnstileActive && _tsRegisterToken) {
-    const ok = await _tsVerify(_tsRegisterToken);
-    if (!ok) {
-      toast('Security check failed — please try again');
-      _tsRegisterToken = null;
-      _tsReset('turnstile-register');
-      return;
-    }
-  }
+  // Show loading state on the button
+  const btn = document.querySelector('#registerForm .btn-primary');
+  const origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating account…'; }
 
   try {
+    // Server-side token verification
+    if (_turnstileActive && _tsRegisterToken) {
+      const ok = await _tsVerify(_tsRegisterToken);
+      if (!ok) {
+        toast('Security check failed — please try again');
+        _tsRegisterToken = null;
+        _tsReset('turnstile-register');
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
+        return;
+      }
+    }
+
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     await cred.user.updateProfile({ displayName: name });
     logEv('sign_up', { method: 'email' });
     S._pw = pw; S._authEmail = email; // held in memory only, for glasses-PIN setup
-    _tsRegisterToken = null; // consume token — one-use only
+    _tsRegisterToken   = null; // consume token — one-use only
+    _tsRegisterPending = false;
     // onAuthStateChanged fires → detects no Firestore profile → shows setup
   } catch(e) {
     _tsReset('turnstile-register');
     toast(fbErrMsg(e));
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
   }
 }
 
