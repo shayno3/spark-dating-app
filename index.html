@@ -4710,12 +4710,16 @@ async function pvSendCode() {
   if (!auth?.currentUser) { toast('Not signed in'); return; }
   let phone = document.getElementById('pvPhone').value.trim();
   if (!phone) { toast('Enter your phone number first'); return; }
-  // Auto-format to E.164: strip non-digits, prepend +1 for US numbers
+  // Auto-format to E.164 for US numbers
   const digits = phone.replace(/\D/g, '');
   if (!phone.startsWith('+')) {
-    phone = '+1' + digits;
+    if (digits.length === 11 && digits.startsWith('1')) {
+      phone = '+' + digits;        // e.g. 15016488258 → +15016488258
+    } else {
+      phone = '+1' + digits;       // e.g. 5016488258 → +15016488258
+    }
   }
-  if (digits.length < 10) { toast('Enter a valid 10-digit phone number'); return; }
+  if (digits.length < 10 || digits.length > 12) { toast('Enter a valid 10-digit US phone number'); return; }
   const btn = document.getElementById('pvSendBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
