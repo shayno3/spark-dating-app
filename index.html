@@ -4708,17 +4708,25 @@ function _pvDone() {
 
 async function pvSendCode() {
   if (!auth?.currentUser) { toast('Not signed in'); return; }
-  const phone = document.getElementById('pvPhone').value.trim();
+  let phone = document.getElementById('pvPhone').value.trim();
   if (!phone) { toast('Enter your phone number first'); return; }
+  // Auto-format to E.164: strip non-digits, prepend +1 for US numbers
+  const digits = phone.replace(/\D/g, '');
+  if (!phone.startsWith('+')) {
+    phone = '+1' + digits;
+  }
+  if (digits.length < 10) { toast('Enter a valid 10-digit phone number'); return; }
   const btn = document.getElementById('pvSendBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    if (!_pvRecaptcha) {
-      _pvRecaptcha = new firebase.auth.RecaptchaVerifier('pv-recaptcha', {
-        size: 'invisible',
-        'expired-callback': () => { _pvRecaptcha = null; }
-      });
-    }
+    // Always clear and recreate to avoid "already rendered" error on retry
+    if (_pvRecaptcha) { try { _pvRecaptcha.clear(); } catch(_){} _pvRecaptcha = null; }
+    const container = document.getElementById('pv-recaptcha');
+    if (container) container.innerHTML = '';
+    _pvRecaptcha = new firebase.auth.RecaptchaVerifier('pv-recaptcha', {
+      size: 'invisible',
+      'expired-callback': () => { _pvRecaptcha = null; }
+    });
     _pvConfirmResult = await auth.currentUser.linkWithPhoneNumber(phone, _pvRecaptcha);
     document.getElementById('pvPhasePhone').style.display = 'none';
     document.getElementById('pvPhaseOTP').style.display = '';
