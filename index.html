@@ -6238,6 +6238,7 @@ async function openAdminUser(uid) {
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
         <button class="admin-action-btn delete" onclick="adminDeleteAccount('${uid}')"><span class="aab-icon">🗑</span>Soft Delete</button>
         <button class="admin-action-btn delete" style="background:rgba(185,28,28,0.2);border-color:rgba(185,28,28,0.5);color:#fca5a5" onclick="adminHardDeleteAccount('${uid}')"><span class="aab-icon">💀</span>Hard Delete</button>
+        ${!(u.photos||[]).length ? `<button class="admin-action-btn reset-pw" onclick="adminRequestPhotoReupload('${uid}')"><span class="aab-icon">📸</span>Request Photo Re-upload</button>` : ''}
       </div>
     </div>
     <!-- compose is now handled by the global adminComposeModal -->
@@ -6504,6 +6505,17 @@ async function adminResetPin(uid) {
   }
 }
 
+async function adminRequestPhotoReupload(uid) {
+  if (!confirm('Flag this user to re-upload their photos? They will see a prompt next time they open Spark.')) return;
+  if (!db) return;
+  try {
+    await db.collection('users').doc(uid).update({ needsPhotoReupload: true });
+    toast('📸 User flagged — they\'ll be prompted to re-upload photos on next login');
+  } catch (e) {
+    toast('⚠️ Flag failed: ' + e.message);
+  }
+}
+
 async function enterMainApp() {
   showView('main');
   initViewToggleIcons(); // sync toggle button icons with saved view preferences
@@ -6513,6 +6525,16 @@ async function enterMainApp() {
   loadProfiles();
   subscribeToMatches();
   subscribeToLikesReceived(); // real-time listener — fires immediately & on every new like
+
+  // Check if admin has flagged this user to re-upload photos
+  if (S.user?.needsPhotoReupload) {
+    setTimeout(() => {
+      toast('📸 Please add your photos in Edit Profile so others can see you!');
+      // Clear the flag so prompt only shows once
+      db.collection('users').doc(S.user.id).update({ needsPhotoReupload: firebase.firestore.FieldValue.delete() })
+        .catch(e => console.warn('Spark: needsPhotoReupload clear failed', e));
+    }, 2000);
+  }
   updateBadges();
   startOnlineHeartbeat();
   toast(`Welcome to Spark, ${S.user?.name}! 🎉`);
