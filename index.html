@@ -5542,10 +5542,18 @@ async function finishSetup() {
   const bio = document.getElementById('sBio').value.trim();
   toast('Creating your profile…');
 
-  // Save profile immediately WITHOUT waiting for photo uploads.
-  // Photos upload to Firebase Storage in the background so the user is
-  // never blocked by a slow connection or upload failure.
-  const pendingPhotos = [...(S.setup.photos || [])]; // snapshot for background upload
+  // Upload photos FIRST (synchronously) so profile is saved with real CDN URLs.
+  // This prevents the admin panel from showing "No photos uploaded" for new signups.
+  const pendingPhotos = [...(S.setup.photos || [])];
+  let photoUrls = [];
+  if (pendingPhotos.length > 0) {
+    if (btn) btn.textContent = 'Uploading photos…';
+    try {
+      photoUrls = await resolvePhotos(pendingPhotos, uid);
+    } catch(photoErr) {
+      console.warn('Spark: photo upload error during setup', photoErr);
+    }
+  }
 
   const profile = {
     name:      S.user.name || auth?.currentUser?.displayName || 'User',
@@ -5567,7 +5575,7 @@ async function finishSetup() {
     state:     S.user.state  || '',
     bio:       bio           || '',
     interests: [...(S.setup.interests || [])],
-    photos:    [],   // start with no photos; filled in below after upload
+    photos:    photoUrls,   // real CDN URLs (or [] if upload failed)
     online:    true,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -5579,23 +5587,15 @@ async function finishSetup() {
   }
 
   try {
+    if (btn) btn.textContent = 'Saving profile…';
     await db.collection('users').doc(uid).set(profile);
     S.user = { id: uid, ...profile };
-    logEv('profile_complete', { photo_count: pendingPhotos.length, has_bio: bio.length > 0 });
+    logEv('profile_complete', { photo_count: photoUrls.length, has_bio: bio.length > 0 });
+    if (pendingPhotos.length > 0 && photoUrls.length === 0) {
+      toast('Profile created! Photos couldn\'t upload — add them via Edit Profile 📸');
+    }
     enterMainApp();
     setTimeout(() => offerPinSetup(uid), 1500);
-
-    // Background: upload photos and patch Firestore once done
-    if (pendingPhotos.length > 0) {
-      resolvePhotos(pendingPhotos, uid).then(photoUrls => {
-        if (!photoUrls.length) return;
-        return db.collection('users').doc(uid).update({ photos: photoUrls }).then(() => {
-          S.user.photos = photoUrls;
-          // Refresh profile tab photo display if it's currently open
-          if (S._activeTab === 'profile') renderMyProfile();
-        });
-      }).catch(e => console.warn('Background photo upload failed — user can add via Edit Profile:', e));
-    }
   } catch(e) {
     console.error('finishSetup error:', e);
     toast('Could not create profile — please check your connection and try again.');
@@ -11039,23 +11039,29 @@ async function saveProfile() {
   const pendingEditPhotos = [...(S.edit.photos || [])];
   const hasNewPhotos = pendingEditPhotos.some(p => p && p.blob);
 
-  // For Firestore: only write existing Storage URLs — never base64 previews.
-  // Base64 images can be hundreds of KB each and push the doc over Firestore's
-  // 1 MB limit, causing the update() call to hang indefinitely ("Saving…" forever).
-  // New photos are uploaded to Storage in the background by resolvePhotos() below
-  // and the doc is patched with real HTTPS URLs once the uploads complete.
-  const photoUrls = pendingEditPhotos
-    .map(p => (p && typeof p === 'string') ? p : null)
-    .filter(Boolean);
-
-  // For local display only: show previews immediately so the UI feels instant.
-  const localPhotoUrls = hasNewPhotos
-    ? pendingEditPhotos.map(p => {
-        if (!p) return null;
-        if (typeof p === 'string') return p;
-        return p.preview || null;
-      }).filter(Boolean)
-    : photoUrls;  // use reordered URLs — NOT S.user.photos which is still the old order at this point
+  // Upload new photos FIRST (synchronously) so Firestore is saved with real CDN URLs.
+  // The old background-upload pattern left photos: [] in Firestore if upload failed,
+  // causing admin panel to show "No photos uploaded" even after user added photos.
+  let photoUrls;
+  if (hasNewPhotos) {
+    if (saveBtn) saveBtn.textContent = 'Uploading photos…';
+    try {
+      photoUrls = await resolvePhotos(pendingEditPhotos, uid);
+    } catch(photoErr) {
+      console.warn('Spark: photo upload error during profile edit', photoErr);
+      // Fall back to existing Storage URLs only (drop unuploaded blobs)
+      photoUrls = pendingEditPhotos
+        .map(p => (p && typeof p === 'string') ? p : null)
+        .filter(Boolean);
+      toast('Some photos couldn\'t upload — try again from Edit Profile 📸');
+    }
+    if (saveBtn) saveBtn.textContent = 'Saving…';
+  } else {
+    // No new photos — just preserve existing Storage URLs in their current order
+    photoUrls = pendingEditPhotos
+      .map(p => (p && typeof p === 'string') ? p : null)
+      .filter(Boolean);
+  }
 
   const updates = {
     name, age,
@@ -11068,7 +11074,7 @@ async function saveProfile() {
     state:           document.getElementById('editStateDropdown').value,
     bio,
     interests:       [...S.edit.interests],
-    photos:          photoUrls,      // Storage URLs only — no base64 in Firestore
+    photos:          photoUrls,      // real CDN URLs — no base64 in Firestore
     invisible:       S.user.invisible       ?? false,
     browsePrivately: S.user.browsePrivately ?? false,
     online:          !(S.user.browsePrivately ?? false),
@@ -11094,24 +11100,13 @@ async function saveProfile() {
       db.collection('users').doc(uid).update(updates),
       new Promise((_,rej) => setTimeout(() => rej(new Error('Save timed out — check your connection')), 15000))
     ]);
-    logEv('profile_edit', { photo_count: localPhotoUrls.length });
+    logEv('profile_edit', { photo_count: photoUrls.length });
     Object.assign(S.user, updates);
-    S.user.photos = localPhotoUrls;  // show previews locally while real uploads run in background
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }  // reset before close so re-opening shows correct state
+    S.user.photos = photoUrls;
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
     closeEditProfile();
     renderMyProfile();
     toast('Profile saved! ✨');
-
-    // Background: replace preview base64 with real Storage URLs
-    if (hasNewPhotos) {
-      resolvePhotos(pendingEditPhotos, uid).then(realUrls => {
-        if (!realUrls.length) return;
-        return db.collection('users').doc(uid).update({ photos: realUrls }).then(() => {
-          S.user.photos = realUrls;
-          if (S._activeTab === 'profile') renderMyProfile();
-        });
-      }).catch(e => console.warn('Background photo upload failed:', e));
-    }
   } catch(e) {
     console.error('saveProfile error:', e);
     toast('Could not save — please check your connection and try again.');
