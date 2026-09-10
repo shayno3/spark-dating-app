@@ -8516,15 +8516,15 @@ async function renderNearby() {
           const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
           if (u.gender !== wantGender) return false;
         }
-        // Primary filter: same city + state
+        // Primary filter: GPS radius (respects the radius slider)
+        if (hasGPS && u.lat) {
+          return haversine(S.location.lat, S.location.lng, u.lat, u.lng) <= S.radius;
+        }
+        // Fallback: same city + state when GPS unavailable
         const uc = (u.city  || '').toLowerCase().trim();
         const us = (u.state || '').toLowerCase().trim();
         if (myLower && uc === myLower) {
           return !stLower || us === stLower;
-        }
-        // Fallback: GPS radius when user has no city set
-        if (!myLower && hasGPS && u.lat) {
-          return haversine(S.location.lat, S.location.lng, u.lat, u.lng) <= S.radius;
         }
         return false;
       })
