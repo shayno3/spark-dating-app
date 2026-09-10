@@ -3811,7 +3811,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
               const exp30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
               S.founderAccessExpiry = exp30;
               S.isPremium = true;
-              db.collection('users').doc(firebaseUser.uid).update({ founderAccessExpiry: exp30 }).catch(() => {});
+              db.collection('users').doc(firebaseUser.uid).update({ founderAccessExpiry: exp30 }).catch(e => { console.warn('Spark: founderAccessExpiry write failed', e); });
             }
           })();
           const fd = snap.data();
@@ -4884,9 +4884,17 @@ const _turnstileActive   = true; // real key is set — bot protection is live
 
 let _tsLoginToken      = null; // token set by Turnstile after a successful challenge
 let _tsRegisterToken   = null;
+let _tsLoginPending    = false; // user clicked Sign In before Turnstile was ready
 let _tsRegisterPending = false; // user clicked Create Account before Turnstile was ready
 
-function onTurnstileLogin(token)    { _tsLoginToken = token; }
+function onTurnstileLogin(token) {
+  _tsLoginToken = token;
+  // Auto-retry if user already clicked Sign In and was waiting for the check
+  if (_tsLoginPending) {
+    _tsLoginPending = false;
+    login();
+  }
+}
 function onTurnstileRegister(token) {
   _tsRegisterToken = token;
   // Auto-retry if user already clicked Create Account and was waiting for the check
@@ -4924,30 +4932,40 @@ async function login() {
   const pw    = document.getElementById('loginPw').value;
   if (!email || !pw) { toast('Please fill in email and password'); return; }
 
-  // Turnstile gate — require completed challenge
+  // Turnstile gate — if not yet complete, set a pending flag and wait for it to auto-finish
   if (_turnstileActive && typeof turnstile !== 'undefined' && !_tsLoginToken) {
-    toast('Please complete the security check'); return;
+    _tsLoginPending = true;
+    toast('Almost ready — completing security check…');
+    return;
   }
 
-  // Server-side token verification
-  if (_turnstileActive && _tsLoginToken) {
-    const ok = await _tsVerify(_tsLoginToken);
-    if (!ok) {
-      toast('Security check failed — please try again');
-      _tsLoginToken = null;
-      _tsReset('turnstile-login');
-      return;
-    }
-  }
+  // Show loading state on the button
+  const btn = document.querySelector('#loginForm .btn-primary');
+  const origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
 
   try {
+    // Server-side token verification
+    if (_turnstileActive && _tsLoginToken) {
+      const ok = await _tsVerify(_tsLoginToken);
+      if (!ok) {
+        toast('Security check failed — please try again');
+        _tsLoginToken = null;
+        _tsReset('turnstile-login');
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
+        return;
+      }
+    }
+
     await auth.signInWithEmailAndPassword(email, pw);
     logEv('login', { method: 'email' });
     S._pw = pw; S._authEmail = email; // held in memory only, for glasses-PIN setup
-    _tsLoginToken = null; // consume token — one-use only
+    _tsLoginToken  = null; // consume token — one-use only
+    _tsLoginPending = false;
   } catch(e) {
     _tsReset('turnstile-login'); // let user retry the challenge
     toast(fbErrMsg(e));
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
   }
 }
 
@@ -5193,7 +5211,7 @@ async function uploadPhoto(blob, uid, index) {
           reason: mod.reason,
           imageUrl: url,
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(() => {});
+        }).catch(e => { console.warn('Spark: moderation_events write failed', e); });
       }
       throw new Error('Photo rejected by moderation: ' + mod.reason);
     }
@@ -5242,6 +5260,9 @@ function showView(v) {
 }
 
 function switchAuthTab(tab) {
+  // Cancel any pending Turnstile auto-retry from the other tab so it doesn't ghost-submit
+  _tsLoginPending    = false;
+  _tsRegisterPending = false;
   const forms = { glass: 'glassForm', login: 'loginForm', register: 'registerForm', sms: 'smsForm' };
   Object.entries(forms).forEach(([k, id]) => {
     const el = document.getElementById(id);
@@ -5287,6 +5308,8 @@ async function sendSMSCode() {
   if (!auth) { toast('Firebase not ready'); return; }
   const phone = document.getElementById('smsPhone').value.trim();
   if (!phone) { toast('Enter your phone number first'); return; }
+  const btn = document.querySelector('#smsPhasePhone .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   _ensureRecaptcha();
   try {
     _smsConfirmResult = await auth.signInWithPhoneNumber(phone, _recaptchaVerifier);
@@ -5297,6 +5320,7 @@ async function sendSMSCode() {
     // reset reCAPTCHA on error so user can retry
     if (_recaptchaVerifier) { try { _recaptchaVerifier.clear(); } catch(_){} _recaptchaVerifier = null; }
     toast(fbErrMsg(e) || 'Could not send code — check number & try again');
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Code 📱'; }
   }
 }
 
@@ -7047,8 +7071,10 @@ function getProspects() {
     return true;
   }).sort((a, b) => {
     // Boosted profiles first, then online users, then everyone else
-    const aEnd = (a.boostActiveUntil > now) ? a.boostActiveUntil : 0;
-    const bEnd = (b.boostActiveUntil > now) ? b.boostActiveUntil : 0;
+    // boostActiveUntil may be a Firestore Timestamp or plain ms number — normalise both
+    const _bms = v => v ? (typeof v.toMillis === 'function' ? v.toMillis() : Number(v)) : 0;
+    const aEnd = (_bms(a.boostActiveUntil) > now) ? _bms(a.boostActiveUntil) : 0;
+    const bEnd = (_bms(b.boostActiveUntil) > now) ? _bms(b.boostActiveUntil) : 0;
     if (bEnd !== aEnd) return bEnd - aEnd;
     if (a.online !== b.online) return a.online ? -1 : 1; // online users bubble up
     return 0;
@@ -7138,7 +7164,8 @@ function buildDiscCard(user) {
   const rawPhoto = user.photos?.[0];
   const photo    = rawPhoto ? (photoSrc(rawPhoto) || rawPhoto) : avatar(user.name);
   const now      = Date.now();
-  const isBoosted = user.boostActiveUntil > now;
+  const _boostMs  = v => v ? (typeof v.toMillis === 'function' ? v.toMillis() : Number(v)) : 0;
+  const isBoosted = _boostMs(user.boostActiveUntil) > now;
 
   const _dkm   = distanceTo(user);
   const _dStr  = _dkm !== null ? approxDist(_dkm) : '';
@@ -7262,12 +7289,13 @@ function buildCard(user, pos) {
     ? user.photos.map((_,i) => `<div class="photo-dot${i===0?' on':''}"></div>`).join('')
     : '';
 
-  const safeName  = user.name.replace(/'/g, "\'");
+  // Escape name for safe use inside HTML attribute single-quote strings AND double-quote strings
+  const safeName  = (user.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const distKm    = distanceTo(user);
   const locLine   = distKm !== null
     ? '📍 ' + (user.locationCity || user.city || '') + ' · ' + approxDist(distKm)
     : '📍 ' + (user.city || '') + (user.state ? ', ' + user.state : '');
-  const isBoosted = user.boostActiveUntil > Date.now();
+  const isBoosted = (typeof user.boostActiveUntil?.toMillis === 'function' ? user.boostActiveUntil.toMillis() : Number(user.boostActiveUntil || 0)) > Date.now();
   card.innerHTML = `
     ${dots ? `<div class="photo-dots">${dots}</div>` : ''}
     <img class="card-photo" src="${photo}" alt="${user.name}" onerror="this.src='${avatar(user.name)}'">
@@ -9047,7 +9075,7 @@ async function deleteConversation(uid, name) {
   if (db) {
     db.collection('users').doc(myUid)
       .update({ deletedConvs: firebase.firestore.FieldValue.arrayUnion(matchId) })
-      .catch(() => {});
+      .catch(e => { console.warn('Spark: deletedConvs persist failed', e); });
   }
 }
 
@@ -9057,7 +9085,7 @@ async function unmatchUser(uid, name) {
   const matchId = [myUid, uid].sort().join('_');
   try {
     // Delete the match document (removes the match for both users)
-    await db.collection('matches').doc(matchId).delete().catch(() => {});
+    await db.collection('matches').doc(matchId).delete();
     // Clean up local state (mirrors blockUser pattern)
     S.seen.add(uid);
     S.matches    = S.matches.filter(m => m.uid !== uid);
@@ -9194,7 +9222,7 @@ async function sendInlineMsg() {
       lastMsg: text,
       lastMsgFrom: S.user.id,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(() => {});
+    }).catch(e => { console.warn('Spark: lastMsg update failed', e); });
     // Show one-time safety banner on first message ever sent
     showFirstMsgSafetyBanner();
   } catch(e) {
@@ -9315,7 +9343,7 @@ async function retryMsg(idx) {
     });
     db.collection('matches').doc(pm.matchId).update({
       lastMsg: pm.text, lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(() => {});
+    }).catch(e => { console.warn('Spark: lastMsg retry update failed', e); });
   } catch(e) {
     pm.attempts = (pm.attempts || 1) + 1;
     S.pendingMsgs.push(pm);
@@ -9336,7 +9364,7 @@ function drainPendingMsgs() {
     }).then(() => {
       db.collection('matches').doc(pm.matchId).update({
         lastMsg: pm.text, lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(() => {});
+      }).catch(e => { console.warn('Spark: lastMsg drain update failed', e); });
     }).catch(e => {
       pm.attempts = (pm.attempts || 1) + 1;
       pm.nextRetry = Date.now() + Math.min(30000, 1000 * Math.pow(2, pm.attempts));
@@ -10332,7 +10360,7 @@ async function voiceSendPreview() {
       lastMsg: '🎙 Voice note',
       lastMsgFrom: S.user.id,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(() => {});
+    }).catch(e => { console.warn('Spark: voice note lastMsg update failed', e); });
   } catch(e) {
     console.error('Voice note send error:', e);
     toast('Failed to send voice note');
@@ -10365,7 +10393,7 @@ async function sendMsg() {
       lastMsg: text,
       lastMsgFrom: S.user.id,
       lastMsgTime: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(() => {});
+    }).catch(e => { console.warn('Spark: lastMsg update failed', e); });
   } catch(e) {
     // H1: queue for retry instead of just restoring to input
     S.pendingMsgs.push({ matchId, text, attempts: 1, nextRetry: Date.now() + 3000 });
@@ -12357,7 +12385,7 @@ async function confirmDeleteAccount() {
       deleted:   true,
       invisible: true,
       online:    false,
-    }).catch(() => {});
+    });
 
     // Remove from local prospect cache so they vanish from the UI instantly on any client
     S.profiles = (S.profiles || []).filter(p => p.id !== uid);
