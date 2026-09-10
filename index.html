@@ -3793,11 +3793,8 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         // PIN quick-unlock gate (only shows if the user has set a PIN)
         const unlocked = await pinGate(firebaseUser.uid);
         if (!unlocked) return; // user chose full login → signed out
-        // Email verification gate — Google users are pre-verified; email/pw users must verify
-        if (!firebaseUser.emailVerified) {
-          _showVerifyEmailOverlay(firebaseUser);
-          return;
-        }
+        // Phone verify in progress — onAuthStateChanged re-fires when phone is linked; ignore it
+        if (_inPhoneVerify) return;
         const snap = await db.collection('users').doc(firebaseUser.uid).get();
         if (snap.exists) {
           S.user = { id: firebaseUser.uid, ...snap.data() };
@@ -3834,18 +3831,26 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           fetchFirestoreConfig(); // fetch Firestore admin Remote Config (editable in-app)
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
-          // Brand-new user — show setup wizard
+          // Brand-new user — show phone verification first (email/pw), then setup wizard
           S.user = { id: firebaseUser.uid, name: firebaseUser.displayName || '' };
-          showView('setup');
-          updateProgress(1);
-          // L1: cap DOB picker at 18 years ago so under-18s can't proceed
-          (function() {
-            var el = document.getElementById('sDob');
-            if (!el) return;
-            var cutoff = new Date();
-            cutoff.setFullYear(cutoff.getFullYear() - 18);
-            el.max = cutoff.toISOString().split('T')[0];
-          })();
+          const isEmailPw = firebaseUser.providerData.some(p => p.providerId === 'password');
+          const goToSetup = () => {
+            showView('setup');
+            updateProgress(1);
+            // L1: cap DOB picker at 18 years ago so under-18s can't proceed
+            (function() {
+              var el = document.getElementById('sDob');
+              if (!el) return;
+              var cutoff = new Date();
+              cutoff.setFullYear(cutoff.getFullYear() - 18);
+              el.max = cutoff.toISOString().split('T')[0];
+            })();
+          };
+          if (isEmailPw) {
+            _showPhoneVerifyOverlay(goToSetup);
+          } else {
+            goToSetup();
+          }
         }
       } else {
         // Unsubscribe all listeners
@@ -4673,54 +4678,87 @@ document.addEventListener('keydown', e => {
 /* ================================================================
    AUTH FUNCTIONS
 ================================================================ */
-/* ---- Email verification gate ---- */
-let _verificationEmailSent = false;
-async function _showVerifyEmailOverlay(firebaseUser) {
-  const overlay = document.getElementById('verifyEmailOverlay');
-  if (!overlay) return;
-  const addrEl = document.getElementById('verifyEmailAddr');
-  if (addrEl) addrEl.textContent = firebaseUser.email || '';
+/* ---- Phone verification gate (replaces email verification) ---- */
+let _inPhoneVerify = false;
+let _pvRecaptcha = null;
+let _pvConfirmResult = null;
+
+function _showPhoneVerifyOverlay(onSuccess) {
+  const overlay = document.getElementById('phoneVerifyOverlay');
+  if (!overlay) { onSuccess(); return; } // fail-safe: if overlay missing just proceed
+  _inPhoneVerify = true;
+  overlay._onSuccess = onSuccess;
+  // Reset UI
+  document.getElementById('pvPhone').value = '';
+  document.getElementById('pvOTP').value = '';
+  document.getElementById('pvPhasePhone').style.display = '';
+  document.getElementById('pvPhaseOTP').style.display = 'none';
   overlay.style.display = 'flex';
-  // Auto-send once per session so the user doesn't have to click Resend first
-  if (!_verificationEmailSent) {
-    _verificationEmailSent = true;
-    try {
-      await firebaseUser.sendEmailVerification({ url: 'https://spark-dating-d16.pages.dev/' });
-    } catch(e) { /* silent — user can tap Resend if needed */ }
-  }
 }
-function _hideVerifyEmailOverlay() {
-  const overlay = document.getElementById('verifyEmailOverlay');
-  if (overlay) overlay.style.display = 'none';
+
+function _pvDone() {
+  _inPhoneVerify = false;
+  const overlay = document.getElementById('phoneVerifyOverlay');
+  if (!overlay) return;
+  overlay.style.display = 'none';
+  const cb = overlay._onSuccess;
+  overlay._onSuccess = null;
+  if (typeof cb === 'function') cb();
 }
-async function resendVerificationEmail() {
-  if (!auth?.currentUser) return;
-  const btn = document.getElementById('resendVerifyBtn');
+
+async function pvSendCode() {
+  if (!auth?.currentUser) { toast('Not signed in'); return; }
+  const phone = document.getElementById('pvPhone').value.trim();
+  if (!phone) { toast('Enter your phone number first'); return; }
+  const btn = document.getElementById('pvSendBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    await auth.currentUser.sendEmailVerification({ url: 'https://spark-dating-d16.pages.dev/' });
-    toast('Verification email sent — check your inbox ✉️');
-  } catch(e) { toast(fbErrMsg(e)); }
-  finally { if (btn) { btn.disabled = false; btn.textContent = 'Resend email'; } }
-}
-async function checkEmailVerified() {
-  if (!auth?.currentUser) return;
-  const btn = document.getElementById('checkVerifiedBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
-  try {
-    await auth.currentUser.reload();
-    if (auth.currentUser.emailVerified) {
-      _hideVerifyEmailOverlay();
-      toast("Email verified! Welcome to Spark ✨");
-      window.location.reload();
-    } else {
-      toast("Not verified yet — click the link in your inbox first");
-      if (btn) { btn.disabled = false; btn.textContent = "I've verified ✓"; }
+    if (!_pvRecaptcha) {
+      _pvRecaptcha = new firebase.auth.RecaptchaVerifier('pv-recaptcha', {
+        size: 'normal',
+        'expired-callback': () => { _pvRecaptcha = null; }
+      });
+      await _pvRecaptcha.render();
     }
+    _pvConfirmResult = await auth.currentUser.linkWithPhoneNumber(phone, _pvRecaptcha);
+    document.getElementById('pvPhasePhone').style.display = 'none';
+    document.getElementById('pvPhaseOTP').style.display = '';
+    toast('Code sent! Check your texts 📲');
   } catch(e) {
-    toast(fbErrMsg(e));
-    if (btn) { btn.disabled = false; btn.textContent = "I've verified ✓"; }
+    if (_pvRecaptcha) { try { _pvRecaptcha.clear(); } catch(_){} _pvRecaptcha = null; }
+    // If phone already linked to another account, show helpful error
+    const msg = e.code === 'auth/provider-already-in-use'
+      ? 'That number is already linked to another account. Try a different number.'
+      : (fbErrMsg(e) || 'Could not send code — check number & try again');
+    toast(msg);
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Code 📲'; }
   }
+}
+
+async function pvVerifyCode() {
+  if (!_pvConfirmResult) { toast('Send the code first'); return; }
+  const code = document.getElementById('pvOTP').value.trim();
+  if (!code || code.length < 6) { toast('Enter the 6-digit code'); return; }
+  const btn = document.getElementById('pvVerifyBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  try {
+    await _pvConfirmResult.confirm(code);
+    toast('Phone verified! Welcome to Spark ✨');
+    _pvConfirmResult = null;
+    _pvDone();
+  } catch(e) {
+    toast(fbErrMsg(e) || 'Invalid code — try again');
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify & Continue ✅'; }
+  }
+}
+
+function pvResetPhone() {
+  _pvConfirmResult = null;
+  if (_pvRecaptcha) { try { _pvRecaptcha.clear(); } catch(_){} _pvRecaptcha = null; }
+  document.getElementById('pvPhone').value = '';
+  document.getElementById('pvOTP').value = '';
+  document.getElementById('pvPhasePhone').style.display = '';
+  document.getElementById('pvPhaseOTP').style.display = 'none';
 }
 
 async function forgotPassword() {
@@ -12799,28 +12837,38 @@ async function loadFilterPrefs(uid) {
 
 <!-- ====== VIRTUAL KEYBOARD POPUP BACKGROUND ====== -->
 
-<!-- ====== EMAIL VERIFICATION OVERLAY ====== -->
-<div id="verifyEmailOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
-  <div style="background:var(--card-bg,#1e1e2e);border-radius:1.25rem;padding:2rem 1.5rem;width:min(380px,92vw);display:flex;flex-direction:column;gap:1rem;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+<!-- ====== PHONE VERIFICATION OVERLAY ====== -->
+<div id="phoneVerifyOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:var(--card-bg,#1e1e2e);border-radius:1.25rem;padding:2rem 1.5rem;width:min(380px,92vw);display:flex;flex-direction:column;gap:0.75rem;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
     <div style="text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:0.25rem">✉️</div>
-      <h2 style="margin:0;font-size:1.25rem;color:var(--text,#fff)">Verify your email</h2>
-      <p style="margin:0.5rem 0 0;font-size:0.85rem;color:var(--text-muted,#888)">
-        We sent a verification link to<br>
-        <strong id="verifyEmailAddr" style="color:var(--text,#fff)"></strong>
-      </p>
-      <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--text-muted,#888)">Click the link in the email, then tap the button below.</p>
+      <div style="font-size:2.5rem;margin-bottom:0.25rem">📱</div>
+      <h2 style="margin:0;font-size:1.25rem;color:var(--text,#fff)">Verify your phone</h2>
+      <p style="margin:0.5rem 0 0;font-size:0.85rem;color:var(--text-muted,#888)">One quick step to keep Spark safe.<br>We'll text you a 6-digit code — no spam ever.</p>
     </div>
-    <button id="checkVerifiedBtn" onclick="checkEmailVerified()"
-      style="background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;border:none;border-radius:0.75rem;padding:0.9rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;">
-      I've verified ✓
-    </button>
-    <button id="resendVerifyBtn" onclick="resendVerificationEmail()"
-      style="background:var(--input-bg,#2a2a3e);color:var(--text,#fff);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.75rem;font-size:0.9rem;cursor:pointer;width:100%;">
-      Resend email
-    </button>
+    <div id="pvPhasePhone">
+      <input type="tel" id="pvPhone" placeholder="+1 (555) 000-0000" autocomplete="tel"
+        style="background:var(--input-bg,#2a2a3e);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.8rem 1rem;color:var(--text,#fff);font-size:1rem;outline:none;width:100%;box-sizing:border-box;margin-bottom:0.6rem">
+      <button id="pvSendBtn" onclick="pvSendCode()"
+        style="background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;border:none;border-radius:0.75rem;padding:0.9rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;">
+        Send Code 📲
+      </button>
+      <div id="pv-recaptcha" style="margin-top:0.6rem;display:flex;justify-content:center"></div>
+    </div>
+    <div id="pvPhaseOTP" style="display:none">
+      <div style="text-align:center;background:var(--input-bg,#2a2a3e);border-radius:0.75rem;padding:0.75rem;margin-bottom:0.6rem">
+        <div style="font-size:1.5rem">📲</div>
+        <p style="margin:0.25rem 0 0;font-size:0.85rem;color:var(--text-muted,#888)"><strong style="color:var(--text,#fff)">Code sent!</strong> Enter the 6 digits we texted you.</p>
+      </div>
+      <input type="text" inputmode="numeric" id="pvOTP" placeholder="• • • • • •" maxlength="6" autocomplete="one-time-code"
+        style="background:var(--input-bg,#2a2a3e);border:1.5px solid var(--border,#333);border-radius:0.75rem;padding:0.8rem 1rem;color:var(--text,#fff);font-size:1.5rem;text-align:center;letter-spacing:0.4rem;outline:none;width:100%;box-sizing:border-box;margin-bottom:0.6rem">
+      <button id="pvVerifyBtn" onclick="pvVerifyCode()"
+        style="background:linear-gradient(135deg,#e91e8c,#9c27b0);color:#fff;border:none;border-radius:0.75rem;padding:0.9rem;font-size:1rem;font-weight:700;cursor:pointer;width:100%;">
+        Verify &amp; Continue ✅
+      </button>
+      <button onclick="pvResetPhone()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:0.82rem;margin-top:0.4rem;width:100%;padding:0.3rem">← Change number</button>
+    </div>
     <p style="text-align:center;margin:0;font-size:0.78rem;color:var(--text-muted,#888)">
-      Wrong account? <button onclick="auth.signOut();_hideVerifyEmailOverlay()" style="background:none;border:none;color:var(--accent,#e91e8c);cursor:pointer;font-size:0.78rem;padding:0;text-decoration:underline">Sign out</button>
+      Wrong account? <button onclick="auth.signOut();document.getElementById('phoneVerifyOverlay').style.display='none';_inPhoneVerify=false" style="background:none;border:none;color:var(--accent,#e91e8c);cursor:pointer;font-size:0.78rem;padding:0;text-decoration:underline">Sign out</button>
     </p>
   </div>
 </div>
