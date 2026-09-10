@@ -4743,9 +4743,11 @@ async function pvSendCode() {
   } catch(e) {
     if (_pvRecaptcha) { try { _pvRecaptcha.clear(); } catch(_){} _pvRecaptcha = null; }
     // If phone already linked to another account, show helpful error
-    const msg = e.code === 'auth/provider-already-in-use'
-      ? 'That number is already linked to another account. Try a different number.'
-      : (fbErrMsg(e) || 'Could not send code — check number & try again');
+    const knownMsg = fbErrMsg(e);
+    // If fbErrMsg returned the raw e.message (unmapped code), use a safe fallback
+    const msg = (knownMsg && knownMsg !== e.message)
+      ? knownMsg
+      : 'Could not send code — please check your number and try again';
     toast(msg);
     if (btn) { btn.disabled = false; btn.textContent = 'Send Code 📲'; }
   }
@@ -5055,15 +5057,30 @@ function resetGlassCode() {
 
 function fbErrMsg(e) {
   const map = {
+    // Email / password errors
     'auth/email-already-in-use': 'Email already in use — try signing in',
     'auth/invalid-email':        'Invalid email address',
     'auth/weak-password':        'Password too weak (6+ chars)',
     'auth/user-not-found':       'Incorrect email or password',
     'auth/wrong-password':       'Incorrect email or password',
-    'auth/too-many-requests':    'Too many attempts — try again later',
     'auth/invalid-credential':   'Incorrect email or password',
     'auth/account-exists-with-different-credential': 'An account already exists with this email — try a different sign-in method',
-    'auth/popup-blocked':        'Pop-up was blocked — please allow pop-ups for this site'
+    // Rate limiting
+    'auth/too-many-requests':    'Too many attempts — please wait a few minutes and try again',
+    // Popup / OAuth
+    'auth/popup-blocked':        'Pop-up was blocked — please allow pop-ups for this site',
+    // Phone / reCAPTCHA errors
+    'auth/captcha-check-failed':       'Verification check failed — please try again',
+    'auth/invalid-phone-number':       'Invalid phone number — please check and try again',
+    'auth/missing-phone-number':       'Please enter your phone number',
+    'auth/quota-exceeded':             'SMS quota reached — please try again later',
+    'auth/credential-already-in-use':  'That number is already linked to another account',
+    'auth/provider-already-in-use':    'That number is already linked to another account — try a different number',
+    'auth/operation-not-allowed':      'Phone verification is temporarily unavailable — please try again later',
+    'auth/invalid-verification-code':  'Incorrect code — please check the text and try again',
+    'auth/code-expired':               'Code expired — tap "Send Code" to get a new one',
+    'auth/session-expired':            'Session expired — tap "Send Code" to start over',
+    'auth/missing-verification-code':  'Please enter the 6-digit code from your text',
   };
   return map[e.code] || e.message;
 }
