@@ -7439,6 +7439,7 @@ async function rewind() {
 // during the 400ms fly-away animation (rapid taps, keyboard, glasses commands).
 const DAILY_LIKE_LIMIT = 15; // free users get 15 regular likes per day
 let _swipeInProgress = false;
+let _discLiked = new Set(); // track who we've liked from the Discover detail panel this session
 
 async function swipe(action) {
   if (_swipeInProgress) return; // H6: already animating
@@ -7476,6 +7477,7 @@ async function swipe(action) {
   }
 
   if (action === 'like' || action === 'super') {
+    _discLiked.add(uid); // prevent re-liking same person from detail panel
     document.getElementById(action==='super' ? `ss_${uid}` : `sl_${uid}`)?.classList.add('show');
     card.classList.add(action==='super' ? 'fly-up' : 'fly-right');
     toast(action==='super' ? '⭐ Super Like sent!' : '❤️ Liked!');
@@ -8041,6 +8043,16 @@ function openDetail(uid) {
   // visible above the panel on the glasses.
   document.querySelector('.content-area')?.scrollTo({ top: 0, behavior: 'instant' });
   document.getElementById('detailPanel').classList.add('open');
+
+  // Show already-liked state so users can't double-like from the detail panel
+  const likeBtn = document.querySelector('.detail-like');
+  if (likeBtn) {
+    const alreadyLiked = _discLiked.has(uid);
+    likeBtn.textContent  = alreadyLiked ? '✓ Liked' : '♥ Like';
+    likeBtn.disabled     = alreadyLiked;
+    likeBtn.style.opacity = alreadyLiked ? '0.55' : '';
+  }
+
   _navRefresh();
 }
 function closeDetail() {
