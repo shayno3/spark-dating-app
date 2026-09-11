@@ -7450,12 +7450,13 @@ const DAILY_LIKE_LIMIT = 15; // free users get 15 regular likes per day
 let _swipeInProgress = false;
 let _discLiked = new Set(); // track who we've liked from the Discover detail panel this session
 
-async function swipe(action) {
+async function swipe(action, uidOverride) {
   if (_swipeInProgress) return; // H6: already animating
-  const uid  = currentCardId();
+  const uid  = uidOverride || currentCardId();
   if (!uid) return;
+  // In grid mode there is no .profile-card.current — skip card animation but still record the like
   const card = document.querySelector('.profile-card.current');
-  if (!card) return;
+  if (!uidOverride && !card) return; // bail only in swipe-card mode with no card
 
   _swipeInProgress = true;
   logEv('swipe', { direction: action }); // 'like' | 'super' | 'pass'
@@ -7486,12 +7487,14 @@ async function swipe(action) {
   }
 
   if (action === 'like' || action === 'super') {
-    _discLiked.add(uid); // prevent re-liking same person from detail panel
-    document.getElementById(action==='super' ? `ss_${uid}` : `sl_${uid}`)?.classList.add('show');
-    card.classList.add(action==='super' ? 'fly-up' : 'fly-right');
+    _discLiked.add(uid); // prevent re-liking same person from detail panel or grid
+    if (card) {
+      document.getElementById(action==='super' ? `ss_${uid}` : `sl_${uid}`)?.classList.add('show');
+      card.classList.add(action==='super' ? 'fly-up' : 'fly-right');
+    }
     toast(action==='super' ? '⭐ Super Like sent!' : '❤️ Liked!');
     recordLike(uid, action); // fire and forget — match overlay comes from Firestore listener
-  } else {
+  } else if (card) {
     document.getElementById(`sn_${uid}`)?.classList.add('show');
     card.classList.add('fly-left');
   }
@@ -8080,8 +8083,8 @@ function closePhotoFull() {
   const ov = document.getElementById('photoFullOverlay');
   if (ov) ov.classList.remove('show');
 }
-function passFromDetail() { closeDetail(); swipe('pass'); }
-function likeFromDetail() { closeDetail(); swipe('like'); }
+function passFromDetail() { const uid = S.activeDetailId; closeDetail(); swipe('pass', uid); }
+function likeFromDetail() { const uid = S.activeDetailId; closeDetail(); swipe('like', uid); }
 
 /* ================================================================
    MATCHES TAB
