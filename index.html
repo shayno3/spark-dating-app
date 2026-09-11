@@ -6634,9 +6634,8 @@ function showExploreSubTab(sub) {
       renderNearby();
     } else if (sub === 'fire-ice') {
       renderFireOrIce();
-    } else if (!panel.dataset.loaded) {
-      panel.dataset.loaded = '1';
-      if (sub === 'spark-score') renderSparkScore();
+    } else if (sub === 'spark-score') {
+      renderSparkScore();
     }
   }
   S._exploreSubTab = sub;
@@ -6674,8 +6673,8 @@ function renderFireOrIce() {
     </div>`;
     return;
   }
-  const me = S.currentUser?.uid;
-  _fireIceQueue = (S.users || []).filter(u => u.uid !== me && !_fireIceRated.has(u.uid));
+  const me = S.user?.id;
+  _fireIceQueue = (S.profiles || []).filter(u => u.id !== me && !_fireIceRated.has(u.id));
   _fireIceIdx = 0;
   _showFireIceCard();
 }
@@ -6705,11 +6704,11 @@ function _showFireIceCard() {
       </div>
     </div>
     <div class="fire-ice-vote-btns">
-      <button class="ice-btn" onclick="fireIceVote('${profile.uid}','ice')" style="touch-action:manipulation">
+      <button class="ice-btn" onclick="fireIceVote('${profile.id}','ice')" style="touch-action:manipulation">
         <span style="font-size:1.6rem">❄️</span>
         <span class="fire-ice-btn-label">Ice</span>
       </button>
-      <button class="fire-btn" onclick="fireIceVote('${profile.uid}','fire')" style="touch-action:manipulation">
+      <button class="fire-btn" onclick="fireIceVote('${profile.id}','fire')" style="touch-action:manipulation">
         <span style="font-size:1.6rem">🔥</span>
         <span class="fire-ice-btn-label">Fire</span>
       </button>
@@ -6719,11 +6718,11 @@ function _showFireIceCard() {
 }
 
 async function fireIceVote(targetUid, vote) {
-  if (!S.currentUser?.uid) return;
+  if (!S.user?.id) return;
   _fireIceRated.add(targetUid);
   try {
     await db.collection('fireIceRatings').add({
-      raterId:   S.currentUser.uid,
+      raterId:   S.user.id,
       targetId:  targetUid,
       vote:      vote,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -6755,7 +6754,7 @@ function renderSparkScore() {
     return;
   }
   panel.innerHTML = '<div class="spark-score-wrap"><div style="text-align:center;padding:2rem;color:var(--text-muted)">⚡ Loading score…</div></div>';
-  const me = S.currentUser?.uid;
+  const me = S.user?.id;
   if (!me) return;
   db.collection('fireIceRatings').where('targetId','==',me).get().then(snap => {
     const docs = snap.docs.map(d => d.data());
@@ -7003,6 +7002,8 @@ function loadProfiles() {
       });
     renderDiscover();
     updateFilterCounts();
+    // Re-render Fire or Ice if it's the active panel — profiles may have arrived after first render
+    if (S._activeTab === 'explore' && S._exploreSubTab === 'fire-ice') renderFireOrIce();
   }, e => console.warn('loadProfiles error:', e));
 }
 
