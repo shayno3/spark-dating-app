@@ -6104,7 +6104,8 @@ async function _loadAdminRC() {
           <div>${label}</div>
           <div class="admin-rc-help">${help}</div>
         </div>
-        <textarea class="admin-rc-txt" id="rc-${key}" rows="2" onchange="saveAdminRC('${key}', this.value)">${escHtml(rc[key] || '')}</textarea>
+        <textarea class="admin-rc-txt" id="rc-${key}" rows="2">${escHtml(rc[key] || '')}</textarea>
+        <button onclick="saveAdminRC('${key}', document.getElementById('rc-${key}').value)" style="margin-top:0.4rem;padding:0.3rem 1rem;border:none;border-radius:8px;background:var(--gradient-btn);color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;align-self:flex-end">Save</button>
       </div>`;
 
     body.innerHTML = `
