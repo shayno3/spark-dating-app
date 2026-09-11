@@ -6662,7 +6662,7 @@ let _fireIceQueue = [];
 let _fireIceIdx   = 0;
 let _fireIceRated = new Set();
 
-function renderFireOrIce() {
+async function renderFireOrIce() {
   const panel = document.getElementById('play-fire-ice');
   if (!panel) return;
   if (!S.isPremium) {
@@ -6675,6 +6675,12 @@ function renderFireOrIce() {
     return;
   }
   const me = S.user?.id;
+  if (!me) return;
+  panel.innerHTML = `<div class="fire-ice-wrap"><div class="fire-ice-empty"><div style="color:var(--text-muted);font-size:0.95rem">Loading...</div></div></div>`;
+  try {
+    const snap = await db.collection('fireIceRatings').where('raterId','==',me).get();
+    snap.forEach(doc => _fireIceRated.add(doc.data().targetId));
+  } catch(e) { console.warn('fireIce load rated', e); }
   _fireIceQueue = (S.profiles || []).filter(u => u.id !== me && !_fireIceRated.has(u.id));
   _fireIceIdx = 0;
   _showFireIceCard();
