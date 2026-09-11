@@ -6632,9 +6632,10 @@ function showExploreSubTab(sub) {
     panel.style.display = sub === 'nearby' ? 'flex' : '';
     if (sub === 'nearby') {
       renderNearby();
+    } else if (sub === 'fire-ice') {
+      renderFireOrIce();
     } else if (!panel.dataset.loaded) {
       panel.dataset.loaded = '1';
-      if (sub === 'fire-ice')    renderFireOrIce();
       if (sub === 'spark-score') renderSparkScore();
     }
   }
