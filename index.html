@@ -8273,7 +8273,7 @@ function renderWhoLikedYou() {
     const age     = u.age ? `${u.age} yrs` : '';
     const lockOverlay = isPremium ? '' : `<div class="wly-lock-overlay"><div class="wly-lock-icon">🔒</div></div>`;
     // Like Back is FREE for everyone — only identity reveal is premium-gated
-    const btn = `<button class="wly-like-btn" id="wlybtn-${u.uid}" onclick="wlyLikeBack('${u.uid}',this)">Like Back ♥</button>`;
+    const btn = `<button class="wly-like-btn" id="wlybtn-${u.uid}" onclick="event.stopPropagation();wlyLikeBack('${u.uid}',this)">Like Back ♥</button>`;
 
     return `
       <div class="wly-card" onclick="${isPremium ? `openDetail('${u.uid}')` : 'upgradeToPremium()'}">
