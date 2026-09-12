@@ -6523,6 +6523,7 @@ async function enterMainApp() {
   showTab('discover');
   // Load profiles in background — app shows immediately rather than waiting for
   // Firestore to return all user docs (glasses are especially sensitive to this delay)
+  loadExistingLikes(); // pre-populate _discLiked from Firestore so liked profiles stay hidden after refresh
   loadProfiles();
   subscribeToMatches();
   subscribeToLikesReceived(); // real-time listener — fires immediately & on every new like
@@ -7449,6 +7450,18 @@ async function rewind() {
 const DAILY_LIKE_LIMIT = 15; // free users get 15 regular likes per day
 let _swipeInProgress = false;
 let _discLiked = new Set(); // track who we've liked from the Discover detail panel this session
+
+// Pre-populate _discLiked from Firestore on app load so liked profiles stay hidden after a refresh
+async function loadExistingLikes() {
+  const myUid = S.user?.id;
+  if (!myUid || !db) return;
+  try {
+    const snap = await db.collection('likes').doc(myUid).collection('sent').get();
+    snap.forEach(doc => _discLiked.add(doc.id));
+  } catch(e) {
+    console.warn('loadExistingLikes: could not fetch sent likes:', e);
+  }
+}
 
 async function swipe(action, uidOverride) {
   if (_swipeInProgress) return; // H6: already animating
