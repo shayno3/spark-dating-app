@@ -6653,54 +6653,23 @@ function showPlaySubTab(sub) { showExploreSubTab(sub); }
 function renderChatRoomsPanel() {
   const panel = document.getElementById('explore-chat-rooms');
   if (!panel) return;
-  const isPrem = S.isPremium;
-  const rooms = [
-    {icon:'🌙', name:'Friday Night Vibes', count:'23'},
-    {icon:'🎵', name:'Music & Moods',       count:'16'},
-    {icon:'✈️', name:'Wanderlust',           count:'11'},
-    {icon:'🍽️', name:'Foodies Only',         count:'8'},
-    {icon:'💼', name:'Ambitious Minds',      count:'19'},
-  ];
-  if (isPrem) {
-    panel.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;padding:2rem 1.25rem;gap:1.25rem;text-align:center">
-        <div style="font-size:2.8rem">💬</div>
-        <div>
-          <div style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:0.4rem">Spark Rooms</div>
-          <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.55">Premium members only — join curated rooms and meet people who share your vibe.</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:0.6rem;width:100%;max-width:340px">
-          ${rooms.slice(0,3).map(r=>`
-            <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border)">
-              <span style="font-size:1.35rem">${r.icon}</span>
-              <div style="text-align:left">
-                <div style="font-weight:700;font-size:0.88rem">${r.name}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted)">🟢 ${r.count} members active</div>
-              </div>
-            </div>`).join('')}
-        </div>
-        <button onclick="window.open('https://rooms.smartsparks.app','_blank')" style="width:100%;max-width:340px;padding:0.95rem;background:var(--gradient);border:none;border-radius:50px;color:white;font-weight:800;font-size:1rem;cursor:pointer;touch-action:manipulation">✦ Enter Spark Rooms</button>
-      </div>`;
-  } else {
-    panel.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;padding:2rem 1.25rem;gap:1.25rem;text-align:center">
-        <div style="font-size:2.8rem">👑</div>
-        <div>
-          <div style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:0.4rem">Spark Rooms</div>
-          <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.55">Join curated chat rooms and connect with people who share your vibe — Premium members only.</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:0.55rem;width:100%;max-width:340px">
-          ${rooms.map(r=>`
-            <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.45;filter:blur(0.5px)">
-              <span style="font-size:1.35rem">${r.icon}</span>
-              <div style="font-weight:700;font-size:0.88rem;text-align:left">${r.name}</div>
-              <span style="margin-left:auto;font-size:0.8rem">🔒</span>
-            </div>`).join('')}
-        </div>
-        <button onclick="upgradeToPremium()" style="width:100%;max-width:340px;padding:0.95rem;background:var(--gradient);border:none;border-radius:50px;color:white;font-weight:800;font-size:1rem;cursor:pointer;touch-action:manipulation">👑 Upgrade to Premium</button>
-        <div style="font-size:0.78rem;color:var(--text-muted)">Unlock all 5 rooms · Cancel anytime</div>
-      </div>`;
-  }
+  panel.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.25rem 2rem;gap:1.25rem;text-align:center">
+      <div style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:0.72rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase">Coming Soon</div>
+      <div style="font-size:2.6rem">💬</div>
+      <div>
+        <div style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:0.45rem">Spark Rooms</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;max-width:280px;margin:0 auto">Curated chat rooms for Premium members — meet people who share your vibe, beyond the swipe.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.55rem;width:100%;max-width:320px">
+        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">🌙</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Friday Night Vibes</div></div>
+        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">🎵</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Music &amp; Moods</div></div>
+        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">✈️</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Wanderlust</div></div>
+        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">🍽️</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Foodies Only</div></div>
+        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">💼</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Ambitious Minds</div></div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem">Stay tuned — dropping soon ✦</div>
+    </div>`;
 }
 
 
