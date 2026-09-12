@@ -6523,7 +6523,7 @@ async function enterMainApp() {
   showTab('discover');
   // Load profiles in background — app shows immediately rather than waiting for
   // Firestore to return all user docs (glasses are especially sensitive to this delay)
-  loadExistingLikes(); // pre-populate _discLiked from Firestore so liked profiles stay hidden after refresh
+  loadExistingLikes(); // pre-populate _discLiked from Firestore so detail panel shows "✓ Liked" after refresh
   loadProfiles();
   subscribeToMatches();
   subscribeToLikesReceived(); // real-time listener — fires immediately & on every new like
@@ -7052,7 +7052,8 @@ function getProspects() {
     // NOTE: matched users ARE shown in Discover — excluding them caused the grid to be
     // empty when all test accounts are matched. updateFilterCounts() never filtered by
     // matchIds, so this was the mismatch causing chips to show counts but grid to be blank.
-    if (_discLiked.has(u.id))          return false; // already liked this session — hide from grid
+    // Note: _discLiked is NOT filtered from the grid — liked profiles still appear,
+    // but the detail panel shows "✓ Liked" state when opened for an already-liked profile.
     if (u.deleted || u.banned)         return false; // account removed or banned
     if (u.invisible)                   return false; // user hid their profile
     if (u.age < S.minAge)              return false; // age range filter
