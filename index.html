@@ -828,7 +828,7 @@ body:has(#inlineChatPanel.open) .bottom-nav { display: none; }
 .empty-desc { color: var(--text-muted); font-size: 0.87rem; line-height: 1.5; }
 
 /* ---- TOAST ---- */
-.toast { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: 0.7rem 1.4rem; border-radius: 20px; font-size: 0.875rem; font-weight: 700; z-index: 9999; transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); white-space: normal; max-width: min(90vw, 340px); text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+.toast { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: 0.7rem 1.4rem; border-radius: 20px; font-size: 0.875rem; font-weight: 700; z-index: 10001; transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); white-space: normal; max-width: min(90vw, 340px); text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
 /* ---- RANGE SLIDER ---- */
@@ -13080,6 +13080,9 @@ async function loadFilterPrefs(uid) {
     </div>
     <p style="text-align:center;margin:0;font-size:0.78rem;color:var(--text-muted,#888)">
       Wrong account? <button onclick="auth.signOut();document.getElementById('phoneVerifyOverlay').style.display='none';_inPhoneVerify=false" style="background:none;border:none;color:var(--accent,#e91e8c);cursor:pointer;font-size:0.78rem;padding:0;text-decoration:underline">Sign out</button>
+    </p>
+    <p style="text-align:center;margin:0.25rem 0 0;font-size:0.72rem;color:var(--text-muted,#888)">
+      Can't receive SMS? <button onclick="_pvDone()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:0.72rem;padding:0;text-decoration:underline">Skip for now</button>
     </p>
   </div>
 </div>
