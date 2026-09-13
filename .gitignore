@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Backup files
+*.backup-*.html
+index-backup-*.html
+_headers-backup-*
+firestore-backup-*
+storage-backup-*
+firebase-messaging-sw-backup-*
+index.backup-aug21.html
+index.backup-aug26.html
+index-1.html
+
+# Scripts and test files
+apply_*.py
+fix_*.py
+spark_test*.png
+stripe_products.png
+test_write.txt
+
+# Output folders
+Claude outputs/
