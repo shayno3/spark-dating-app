@@ -3387,10 +3387,20 @@ let auth, db, messaging, analytics, storage, functions, remoteConfig;
 
 if (FB_READY) {
   firebase.initializeApp(FIREBASE_CONFIG);
-  // App Check removed — reCAPTCHA v3 was failing (appCheck/recaptcha-error) and
-  // blocking ALL callable function calls (including Stripe checkout) because
-  // firebase-functions-compat v9.22.2 propagates the token error into the call chain.
-  // App Check is not enforced server-side so removing it has no security impact.
+  // ── App Check ──────────────────────────────────────────────────────────────
+  // Removed in v9.22.2 due to a compat SDK bug where reCAPTCHA token failures
+  // propagated into ALL callable function calls, blocking Stripe checkout.
+  //
+  // TO RE-ENABLE (3 steps):
+  //   1. Get a reCAPTCHA v3 site key: console.cloud.google.com/security/recaptcha
+  //   2. Register it: Firebase Console → App Check → Apps → Register your web app
+  //   3. Enable enforcement: Firebase Console → App Check → Firestore + Storage → Enforce
+  //   Then uncomment the 4 lines below and paste your key.
+  //
+  // const APPCHECK_RECAPTCHA_KEY = 'YOUR_RECAPTCHA_V3_SITE_KEY_HERE';
+  // try {
+  //   firebase.appCheck().activate(APPCHECK_RECAPTCHA_KEY, true);
+  // } catch(e) { console.warn('Spark: App Check init failed (non-blocking):', e); }
   auth         = firebase.auth();
   db           = firebase.firestore();
   messaging    = firebase.messaging();
@@ -3829,6 +3839,7 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           S.superLikeUsedDate = snap.data()?.superLikeUsedDate || null;
           _updateRewindBtn();
           enterMainApp();
+          checkPendingDeletion(firebaseUser.uid, snap.data()); // 7-day grace period check
           loadFilterPrefs(firebaseUser.uid);
           fetchRemoteConfig();     // fetch Firebase Remote Config on every login
           fetchFirestoreConfig(); // fetch Firestore admin Remote Config (editable in-app)
@@ -9595,15 +9606,20 @@ function renderChatMessages(containerId = 'chatMessages') {
       else dateLabel = msgDate.toLocaleDateString(undefined, {month:'short', day:'numeric', year: msgDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined});
       if (dateLabel !== lastDateStr) { dateSep = `<div class="msg-date-sep">${dateLabel}</div>`; lastDateStr = dateLabel; }
     }
-    // Translation button — only on received text messages
+    // Translation button — Premium only on received text messages
     const isTextMsg = msg.type !== 'voiceNote';
     if (!isSent && isTextMsg) {
       window._msgTranslations = window._msgTranslations || {};
       if (msg.translations) window._msgTranslations[msg.id] = msg.translations;
     }
-    const translateBtn = (!isSent && isTextMsg)
-      ? `<button class="msg-translate-btn" onclick="toggleMsgTranslation('${msg.id}',this)" data-state="original" data-original="${escHtml(msg.text||'')}">🌐 Translate</button>`
-      : '';
+    let translateBtn = '';
+    if (!isSent && isTextMsg) {
+      if (S.isPremium) {
+        translateBtn = `<button class="msg-translate-btn" onclick="toggleMsgTranslation('${msg.id}',this)" data-state="original" data-original="${escHtml(msg.text||'')}">🌐 Translate</button>`;
+      } else {
+        translateBtn = `<button class="msg-translate-btn msg-translate-locked" onclick="upgradeToPremium()" title="Upgrade to Premium to translate messages">🔒 Translate</button>`;
+      }
+    }
 
     // Voice note translate button — received voice notes only (Premium feature)
     const isVoiceNote = msg.type === 'voiceNote' && !!msg.audioUrl;
@@ -12505,6 +12521,11 @@ processVoiceCommand = function(raw) {
    ACCOUNT DELETION
 ================================================================ */
 function openDeleteModal() {
+  // If deletion is already pending, tell the user to cancel via the banner instead
+  if (S.user?.pendingDeletion) {
+    toast('⚠️ Deletion already scheduled — use the banner above to cancel.');
+    return;
+  }
   document.getElementById('deleteAccountModal').classList.add('show');
 }
 
@@ -12633,6 +12654,102 @@ async function confirmDeleteAccount() {
     if (btn) { btn.textContent = '🗑️ Yes, Delete My Account'; btn.disabled = false; }
   }
 }
+
+/* ================================================================
+   ACCOUNT DELETION — 7-DAY GRACE PERIOD FLOW
+   scheduleAccountDeletion()   → sets pendingDeletion flag + shows banner
+   cancelAccountDeletion()     → clears flag + hides banner
+   checkPendingDeletion()      → called on login; auto-executes if > 7 days
+   showDeletionPendingBanner() → persistent red banner at top of app
+================================================================ */
+
+async function scheduleAccountDeletion() {
+  const uid = S.user?.id;
+  if (!uid) { toast('Not signed in'); closeDeleteModal(); return; }
+
+  const btn = document.querySelector('.btn-delete-confirm');
+  if (btn) { btn.textContent = '⏳ Scheduling…'; btn.disabled = true; }
+
+  try {
+    // Immediately hide from Discover, mark deletion pending
+    await db.collection('users').doc(uid).update({
+      pendingDeletion:       true,
+      deletionScheduledAt:   firebase.firestore.FieldValue.serverTimestamp(),
+      invisible:             true,
+    });
+    S.user.pendingDeletion = true;
+    closeDeleteModal();
+    showDeletionPendingBanner(new Date());
+    toast('Deletion scheduled — you have 7 days to cancel.');
+  } catch(err) {
+    console.error('scheduleAccountDeletion error:', err);
+    toast('Error scheduling: ' + (err.message || 'please try again.'));
+    if (btn) { btn.textContent = '🗑️ Schedule Deletion'; btn.disabled = false; }
+  }
+}
+
+async function cancelAccountDeletion() {
+  const uid = S.user?.id;
+  if (!uid) return;
+  try {
+    await db.collection('users').doc(uid).update({
+      pendingDeletion:     firebase.firestore.FieldValue.delete(),
+      deletionScheduledAt: firebase.firestore.FieldValue.delete(),
+      invisible:           false,
+    });
+    S.user.pendingDeletion = false;
+    hideDeletionBanner();
+    toast('✅ Account deletion cancelled — your account is safe.');
+  } catch(err) {
+    toast('Error cancelling: ' + (err.message || 'please try again.'));
+  }
+}
+
+function showDeletionPendingBanner(scheduledAt) {
+  if (document.getElementById('deletionBanner')) return; // already shown
+  const deleteDate = new Date(scheduledAt);
+  deleteDate.setDate(deleteDate.getDate() + 7);
+  const dateStr = deleteDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const banner = document.createElement('div');
+  banner.id = 'deletionBanner';
+  banner.style.cssText = [
+    'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:10000',
+    'background:#c0392b', 'color:#fff', 'text-align:center',
+    'padding:11px 16px', 'font-size:0.82rem', 'line-height:1.3',
+    'display:flex', 'align-items:center', 'justify-content:center', 'gap:12px',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.3)'
+  ].join(';');
+  banner.innerHTML = `
+    <span>⚠️ Account deletion scheduled for <strong>${dateStr}</strong></span>
+    <button onclick="cancelAccountDeletion()" style="
+      background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);
+      color:#fff;padding:4px 14px;border-radius:20px;cursor:pointer;
+      font-size:0.78rem;font-weight:600;white-space:nowrap;
+    ">Cancel Deletion</button>
+  `;
+  document.body.prepend(banner);
+}
+
+function hideDeletionBanner() {
+  document.getElementById('deletionBanner')?.remove();
+}
+
+async function checkPendingDeletion(uid, userData) {
+  if (!userData?.pendingDeletion || !userData?.deletionScheduledAt) return;
+  const scheduledAt = userData.deletionScheduledAt?.toDate
+    ? userData.deletionScheduledAt.toDate()
+    : new Date(userData.deletionScheduledAt);
+  const daysSince = (Date.now() - scheduledAt.getTime()) / (1000 * 60 * 60 * 24);
+  if (daysSince >= 7) {
+    // Grace period over — execute the permanent deletion
+    toast('Completing your scheduled account deletion…');
+    await confirmDeleteAccount();
+  } else {
+    // Still in grace period — show the cancellation banner
+    showDeletionPendingBanner(scheduledAt);
+  }
+}
+
 
 
 /* ================================================================
@@ -13276,11 +13393,12 @@ async function loadFilterPrefs(uid) {
     <div class="delete-modal-icon">⚠️</div>
     <div class="delete-modal-title">Delete Account?</div>
     <div class="delete-modal-body">
-      This will <strong>permanently delete</strong> your profile, photos, matches, and all messages. This action <strong>cannot be undone</strong>.
+      Your profile, photos, matches, and all messages will be <strong>permanently deleted</strong>.<br><br>
+      You'll have <strong>7 days</strong> to change your mind — open the app and tap <em>Cancel Deletion</em> anytime before then.
     </div>
     <div class="delete-modal-actions">
-      <button class="btn-delete-confirm" onclick="confirmDeleteAccount()">🗑️ Yes, Delete My Account</button>
-      <button class="btn-delete-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-delete-confirm" onclick="scheduleAccountDeletion()">🗑️ Schedule Deletion</button>
+      <button class="btn-delete-cancel" onclick="closeDeleteModal()">Keep My Account</button>
     </div>
   </div>
 </div>
