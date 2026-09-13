@@ -31,11 +31,10 @@
 <!-- Cloudflare Turnstile — bot protection for login & register. async defer so it never blocks page load -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <!-- Cloudflare Web Analytics — real-user metrics (Core Web Vitals, page views, performance)
-     TOKEN: Replace YOUR_CF_ANALYTICS_TOKEN with the token from Cloudflare Pages dashboard
-     → Pages dashboard → your site → Analytics & Logs → Web Analytics → token shown there
+     Mode: JS Snippet installation (manual, no auto-inject to avoid double-counting)
+     Token: 1466667f6a8d4187aa6fd883a12c9904 (site ID: 8d5a8b8a86ac4a5ba896eb15da3c59cb)
      Free, no cookies, GDPR-friendly. -->
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js"
-        data-cf-beacon='{"token": "YOUR_CF_ANALYTICS_TOKEN"}'></script>
+<!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "1466667f6a8d4187aa6fd883a12c9904"}'></script><!-- End Cloudflare Web Analytics -->
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
