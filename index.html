@@ -6653,25 +6653,62 @@ function showPlaySubTab(sub) { showExploreSubTab(sub); }
 function renderChatRoomsPanel() {
   const panel = document.getElementById('explore-chat-rooms');
   if (!panel) return;
+
+  const rooms = [
+    { icon: '\u{1F319}', name: 'Friday Night Vibes' },
+    { icon: '\u{1F3B5}', name: 'Music & Moods' },
+    { icon: '\u2708\uFE0F', name: 'Wanderlust' },
+    { icon: '\u{1F37D}\uFE0F', name: 'Foodies Only' },
+    { icon: '\u{1F4BC}', name: 'Ambitious Minds' },
+  ];
+
+  const roomListHTML = rooms.map(r =>
+    `<div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border)"><span style="font-size:1.3rem">${r.icon}</span><div style="font-weight:700;font-size:0.88rem;text-align:left">${r.name}</div></div>`
+  ).join('');
+
+  if (!S.isPremium) {
+    panel.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.25rem 2rem;gap:1.25rem;text-align:center">
+        <div style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:0.72rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase">Premium Feature</div>
+        <div style="font-size:2.6rem">\u{1F4AC}</div>
+        <div>
+          <div style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:0.45rem">Spark Rooms</div>
+          <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;max-width:280px;margin:0 auto">Curated chat rooms for Premium members — meet people who share your vibe, beyond the swipe.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.55rem;width:100%;max-width:320px;opacity:0.45;pointer-events:none">${roomListHTML}</div>
+        <button onclick="upgradeToPremium()" style="background:var(--gradient);color:#fff;border:none;border-radius:24px;padding:0.85rem 2rem;font-size:0.95rem;font-weight:800;cursor:pointer;letter-spacing:0.03em;box-shadow:0 4px 18px rgba(232,64,154,0.35)">\u2736 Upgrade to Premium</button>
+      </div>`;
+    return;
+  }
+
   panel.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.25rem 2rem;gap:1.25rem;text-align:center">
-      <div style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:0.72rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase">Coming Soon</div>
-      <div style="font-size:2.6rem">💬</div>
+      <div style="background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:0.72rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase">\u2736 Premium</div>
+      <div style="font-size:2.6rem">\u{1F4AC}</div>
       <div>
         <div style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:0.45rem">Spark Rooms</div>
-        <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;max-width:280px;margin:0 auto">Curated chat rooms for Premium members — meet people who share your vibe, beyond the swipe.</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;max-width:280px;margin:0 auto">Your exclusive chat rooms are live. Jump in and connect.</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:0.55rem;width:100%;max-width:320px">
-        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">🌙</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Friday Night Vibes</div></div>
-        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">🎵</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Music &amp; Moods</div></div>
-        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">✈️</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Wanderlust</div></div>
-        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">🍽️</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Foodies Only</div></div>
-        <div style="background:var(--bg-card);border-radius:14px;padding:0.85rem 1rem;display:flex;align-items:center;gap:0.75rem;border:1px solid var(--border);opacity:0.5"><span style="font-size:1.3rem">💼</span><div style="font-weight:700;font-size:0.88rem;text-align:left">Ambitious Minds</div></div>
-      </div>
-      <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem">Stay tuned — dropping soon ✦</div>
+      <div style="display:flex;flex-direction:column;gap:0.55rem;width:100%;max-width:320px">${roomListHTML}</div>
+      <button id="enterRoomsBtn" onclick="enterSparkRooms()" style="background:var(--gradient);color:#fff;border:none;border-radius:24px;padding:0.85rem 2rem;font-size:0.95rem;font-weight:800;cursor:pointer;letter-spacing:0.03em;box-shadow:0 4px 18px rgba(232,64,154,0.35)">\u2736 Enter Spark Rooms</button>
     </div>`;
 }
 
+async function enterSparkRooms() {
+  const btn = document.getElementById('enterRoomsBtn');
+  if (btn) { btn.textContent = 'Opening\u2026'; btn.disabled = true; }
+  try {
+    const mintToken = functions.httpsCallable('mintRoomsToken');
+    const result = await mintToken();
+    const token = result.data && result.data.token;
+    if (!token) throw new Error('No token returned');
+    window.location.href = 'https://rooms.smartsparks.app/#token=' + encodeURIComponent(token);
+  } catch (err) {
+    console.error('enterSparkRooms error:', err);
+    if (btn) { btn.textContent = '\u2736 Enter Spark Rooms'; btn.disabled = false; }
+    showToast('Could not open Spark Rooms — please try again.');
+  }
+}
 
 let _exploreTabInited = false;
 function renderExploreTab() {
