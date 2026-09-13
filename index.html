@@ -7890,76 +7890,86 @@ function subscribeToMatches() {
   S.listeners.matches = db.collection('matches')
     .where('uids', 'array-contains', myUid)
     .onSnapshot(async snap => {
-      const prevIds = new Set(S.matches.map(m => m.uid));
-      const newMatches = [];
+      try {
+        const prevIds = new Set(S.matches.map(m => m.uid));
+        const newMatches = [];
 
-      // Load each match partner's profile
-      const profilePromises = snap.docs.map(async doc => {
-        const data     = doc.data();
-        const otherUid = data.uids.find(u => u !== myUid);
-        if (!otherUid) return null;
-        let profileData = S.profiles.find(p => p.id === otherUid);
-        if (!profileData) {
-          try {
-            const pSnap = await db.collection('users').doc(otherUid).get();
-            if (pSnap.exists) {
-              const d = pSnap.data();
-              const lastSeen = d.lastSeen?.toDate?.();
-              const online   = !!(lastSeen && Date.now() - lastSeen.getTime() < 5 * 60 * 1000);
-              profileData = { id: otherUid, ...d, online };
-            }
-          } catch(e) {}
-        }
-        if (!profileData || profileData.deleted || profileData.banned) return null;
-        // Carry sparkSystem flag so renderConversations can show "✨ Spark Team" branding
-        const sparkSystem = !!data.sparkSystem;
-        const sparkDisplayName = data.sparkDisplayName || null;
-        return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, ...profileData };
-      });
-
-      const results = (await Promise.all(profilePromises)).filter(Boolean);
-      S.matches   = results;
-      S.matchIds  = new Set(results.map(m => m.uid));
-
-      // Detect unread messages: if lastMsgFrom is someone else & it's newer than our readAt
-      snap.docs.forEach(doc => {
-        const data      = doc.data();
-        const otherUid  = data.uids?.find(u => u !== myUid);
-        if (!otherUid) return;
-        const lastFrom  = data.lastMsgFrom;
-        const lastTime  = data.lastMsgTime?.toDate?.() || null;
-        const readAt    = data['readAt_' + myUid]?.toDate?.() || null;
-        if (lastFrom && lastFrom !== myUid && lastTime) {
-          if (!readAt || lastTime > readAt) {
-            S.unread[otherUid] = true;
+        // Load each match partner's profile
+        const profilePromises = snap.docs.map(async doc => {
+          const data     = doc.data();
+          const otherUid = data.uids.find(u => u !== myUid);
+          if (!otherUid) return null;
+          let profileData = S.profiles.find(p => p.id === otherUid);
+          if (!profileData) {
+            try {
+              const pSnap = await db.collection('users').doc(otherUid).get();
+              if (pSnap.exists) {
+                const d = pSnap.data();
+                const lastSeen = d.lastSeen?.toDate?.();
+                const online   = !!(lastSeen && Date.now() - lastSeen.getTime() < 5 * 60 * 1000);
+                profileData = { id: otherUid, ...d, online };
+              }
+            } catch(e) {}
           }
-        }
-      });
-
-      // Detect brand-new matches — skip overlay on the very first snapshot (initial load)
-      if (S._matchesInitialized) {
-        results.forEach(m => {
-          if (!prevIds.has(m.uid)) newMatches.push(m);
+          if (!profileData || profileData.deleted || profileData.banned) return null;
+          // Carry sparkSystem flag so renderConversations can show "✨ Spark Team" branding
+          const sparkSystem = !!data.sparkSystem;
+          const sparkDisplayName = data.sparkDisplayName || null;
+          return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, ...profileData };
         });
-      }
-      S._matchesInitialized = true;
 
-      if (newMatches.length) {
-        const first = newMatches[0];
-        S.newMatches.add(first.uid);
-        S.pendingMatchId = first.uid;
-        showMatchOverlay(first.uid);
-        glassChime('match'); // 3-note ascending chime on new match
-        // Track for Messages badge — cleared when user opens Messages tab
-        newMatches.forEach(m => S.newMatchMsgs.add(m.uid));
-      }
+        const results = (await Promise.all(profilePromises)).filter(Boolean);
+        // Fix: guard against wiping S.matches if all profile fetches fail but match docs exist
+        // This prevents a race condition where a concurrent snapshot wipes the matches list
+        if (results.length === 0 && snap.docs.length > 0) {
+          console.warn('Spark: subscribeToMatches - all profile fetches returned null; preserving existing S.matches to avoid empty state');
+        } else {
+          S.matches  = results;
+          S.matchIds = new Set(results.map(m => m.uid));
+        }
 
-      updateBadges();
-      const activeTab = document.querySelector('.tab-content.active')?.id;
-      if (activeTab === 'tab-matches')  renderMatches();
-      if (activeTab === 'tab-messages') renderConversations();
-      // Remove newly matched users from the "New ✨" WLY panel immediately
-      if (S.filter === 'new' && newMatches.length) renderWhoLikedYou();
+        // Detect unread messages: if lastMsgFrom is someone else & it's newer than our readAt
+        snap.docs.forEach(doc => {
+          const data      = doc.data();
+          const otherUid  = data.uids?.find(u => u !== myUid);
+          if (!otherUid) return;
+          const lastFrom  = data.lastMsgFrom;
+          const lastTime  = data.lastMsgTime?.toDate?.() || null;
+          const readAt    = data['readAt_' + myUid]?.toDate?.() || null;
+          if (lastFrom && lastFrom !== myUid && lastTime) {
+            if (!readAt || lastTime > readAt) {
+              S.unread[otherUid] = true;
+            }
+          }
+        });
+
+        // Detect brand-new matches — skip overlay on the very first snapshot (initial load)
+        if (S._matchesInitialized) {
+          results.forEach(m => {
+            if (!prevIds.has(m.uid)) newMatches.push(m);
+          });
+        }
+        S._matchesInitialized = true;
+
+        if (newMatches.length) {
+          const first = newMatches[0];
+          S.newMatches.add(first.uid);
+          S.pendingMatchId = first.uid;
+          showMatchOverlay(first.uid);
+          glassChime('match'); // 3-note ascending chime on new match
+          // Track for Messages badge — cleared when user opens Messages tab
+          newMatches.forEach(m => S.newMatchMsgs.add(m.uid));
+        }
+
+        updateBadges();
+        const activeTab = document.querySelector('.tab-content.active')?.id;
+        if (activeTab === 'tab-matches')  renderMatches();
+        if (activeTab === 'tab-messages') renderConversations();
+        // Remove newly matched users from the "New ✨" WLY panel immediately
+        if (S.filter === 'new' && newMatches.length) renderWhoLikedYou();
+      } catch(e) {
+        console.warn('Spark: subscribeToMatches callback error:', e);
+      }
     }, e => console.warn('matches listener error:', e));
 }
 
@@ -9398,7 +9408,9 @@ function subscribeToMessages(matchId, uid) {
         const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
         renderChatMessages(cid);
         scrollChatToBottom(cid);
-        markChatRead(matchId); // mark their new messages as read while chat is open
+        // Fix: only mark read when messages actually exist — avoids double-triggering
+        // subscribeToMatches when opening a brand-new match with 0 messages (race condition)
+        if (snap.docs.length > 0) markChatRead(matchId);
       } else {
         S.unread[uid] = true;
         updateBadges();
