@@ -5767,6 +5767,20 @@ async function renderAdminPanel() {
     const newWeek  = active.filter(u => u.createdAt && (now - (u.createdAt?.toMillis?.() || u.createdAt)) < WEEK).length;
     const newYest  = active.filter(u => { const ms = u.createdAt?.toMillis?.() || u.createdAt; return ms && (now - ms) >= DAY && (now - ms) < 2*DAY; }).length;
 
+    // New stat tiles — computed from already-loaded users snap
+    const verified = active.filter(u => u.verified).length;
+    const men      = active.filter(u => u.gender === 'Man').length;
+    const women    = active.filter(u => u.gender === 'Woman').length;
+    const otherG   = total - men - women;
+    const menPct   = total ? Math.round(men   / total * 100) : 0;
+    const wmnPct   = total ? Math.round(women / total * 100) : 0;
+    const otrPct   = 100 - menPct - wmnPct;
+    // Matches — single collection count, fills in after render
+    db.collection('matches').get().then(s => {
+      const el = document.getElementById('aStatMatchesVal');
+      if (el) el.textContent = s.size;
+    }).catch(() => {});
+
     panel.innerHTML = `
       <div class="admin-sticky-head">
         <div class="admin-banner">
@@ -5807,6 +5821,29 @@ async function renderAdminPanel() {
           <div class="admin-stat-val red" id="aStatRejectedVal">…</div>
           <div class="admin-stat-label">Photos Rejected by Moderation</div>
           <div class="admin-stat-delta" id="aStatRejectedSub">Loading…</div>
+        </div>
+        <div class="admin-stat-card" id="aStatMatches">
+          <div class="admin-stat-val" id="aStatMatchesVal" style="color:#a78bfa">…</div>
+          <div class="admin-stat-label">Total Matches</div>
+          <div class="admin-stat-delta" style="color:var(--text-muted)">all time</div>
+        </div>
+        <div class="admin-stat-card" id="aStatVerified" onclick="adminSetFilter('verified')">
+          <div class="admin-stat-val" style="color:#38bdf8">${verified}</div>
+          <div class="admin-stat-label">Verified ✓</div>
+          <div class="admin-stat-delta">${verified > 0 ? Math.round(verified/total*100)+'% of users' : '—'}</div>
+        </div>
+        <div class="admin-stat-card" style="grid-column:span 2">
+          <div style="display:flex;gap:1.2rem;align-items:baseline;margin-bottom:0.55rem">
+            <div><div class="admin-stat-val" style="color:#60a5fa;font-size:1.5rem">${men}</div><div class="admin-stat-label">Men ${menPct}%</div></div>
+            <div><div class="admin-stat-val" style="color:#f472b6;font-size:1.5rem">${women}</div><div class="admin-stat-label">Women ${wmnPct}%</div></div>
+            ${otherG > 0 ? `<div><div class="admin-stat-val" style="color:var(--text-muted);font-size:1.5rem">${otherG}</div><div class="admin-stat-label">Other ${otrPct}%</div></div>` : ''}
+          </div>
+          <div style="height:6px;border-radius:3px;overflow:hidden;background:var(--border);display:flex">
+            <div style="width:${menPct}%;background:#60a5fa"></div>
+            <div style="width:${wmnPct}%;background:#f472b6"></div>
+            <div style="width:${otrPct}%;background:rgba(255,255,255,0.2)"></div>
+          </div>
+          <div class="admin-stat-label" style="margin-top:0.35rem">Gender Split</div>
         </div>
       </div>
       <div class="admin-feature-flags" id="adminFeatureFlags">
@@ -6032,7 +6069,7 @@ async function renderAdminPanel() {
 function adminSetFilter(f) {
   _adminState.filter = f;
   ['aStatAll','aStatOnline','aStatPremium','aStatNew'].forEach(id => document.getElementById(id)?.classList.remove('filter-active'));
-  const map = {all:'aStatAll',online:'aStatOnline',premium:'aStatPremium',new:'aStatNew'};
+  const map = {all:'aStatAll',online:'aStatOnline',premium:'aStatPremium',new:'aStatNew',verified:'aStatVerified'};
   document.getElementById(map[f])?.classList.add('filter-active');
   adminRenderList();
 }
@@ -6092,6 +6129,8 @@ function adminRenderList() {
     users = users.filter(u => u.premium);
   else if (_adminState.filter === 'new')
     users = users.filter(u => u.createdAt && (now-(u.createdAt?.toMillis?.() || u.createdAt)) < DAY);
+  else if (_adminState.filter === 'verified')
+    users = users.filter(u => u.verified);
 
   // Search
   if (_adminState.search) {
