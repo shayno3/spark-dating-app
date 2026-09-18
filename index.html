@@ -8745,7 +8745,7 @@ async function renderNearby() {
           countLine.textContent = '';
           grid.innerHTML = `<div class="nearby-empty"><div class="nearby-empty-icon">📍</div><div class="nearby-empty-title">Location not available</div><div style="font-size:0.85rem">Allow location in your browser, or add your city in Profile → Edit Profile.</div></div>`;
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 }
       );
     } else {
       cityLine.textContent = '📍 No location set';
@@ -8766,32 +8766,28 @@ async function renderNearby() {
   try {
     // GPS: load all; city: query by city
     let snap;
-    try {
-      snap = hasGPS
-        ? await db.collection('users').get()
-        : await db.collection('users').where('city', '==', myCity).get();
-    } catch(e) {
-      // Fallback: load all (works even without index)
-      snap = await db.collection('users').get();
-    }
+    // Use the already-loaded S.profiles cache (kept live by onSnapshot in loadProfiles).
+    // Falls back to a fresh Firestore get() only on a cold load before profiles arrive.
+    const allUsers = (S.profiles && S.profiles.length > 0)
+      ? S.profiles
+      : (await db.collection('users').get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
     const myUid    = S.user?.id;
     const myLower  = myCity.toLowerCase().trim();
     const stLower  = myState.toLowerCase().trim();
 
-    const nearby = snap.docs
-      .filter(d => {
-        if (d.id === myUid) return false;
-        const u = d.data();
-        if (u.deleted || u.banned) return false; // account removed or banned
+    const nearby = allUsers
+      .filter(u => {
+        if (u.id === myUid) return false;
+        if (u.deleted || u.banned) return false;
         if (u.invisible) return false;
-        if ((S.user.blockedUsers||[]).includes(u.id)) return false; // blocked
+        if ((S.user.blockedUsers||[]).includes(u.id)) return false;
         // Gender preference filter — seeking is pluralised ('Men'/'Women'); gender is singular ('Man'/'Woman')
         if (S.user.seeking && S.user.seeking !== 'Everyone') {
           const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
           if (u.gender !== wantGender) return false;
         }
-        // Primary filter: GPS radius (respects the radius slider)
+        // Primary filter: GPS radius
         if (hasGPS && u.lat) {
           return haversine(S.location.lat, S.location.lng, u.lat, u.lng) <= S.radius;
         }
@@ -8803,11 +8799,7 @@ async function renderNearby() {
         }
         return false;
       })
-      .map(d => {
-        const u = { id: d.id, ...d.data() };
-        u._distance = (hasGPS && u.lat) ? haversine(S.location.lat, S.location.lng, u.lat, u.lng) : null;
-        return u;
-      })
+      .map(u => ({ ...u, _distance: (hasGPS && u.lat) ? haversine(S.location.lat, S.location.lng, u.lat, u.lng) : null }))
       .sort((a, b) => {
         if (hasGPS && a._distance !== null && b._distance !== null) return a._distance - b._distance;
         return (b.online ? 1 : 0) - (a.online ? 1 : 0);
@@ -8820,11 +8812,7 @@ async function renderNearby() {
     grid.innerHTML = '';
 
     if (nearby.length === 0) {
-      // Fallback: show all users on Spark so the tab is never empty
-      let allSnap = snap; // if hasGPS, snap already has everyone
-      if (!hasGPS) {
-        try { allSnap = await db.collection('users').get(); } catch(e) { allSnap = snap; }
-      }
+      // Fallback: show all users on Spark so the tab is never empty (uses S.profiles cache)
       const seekFilter = u => {
         if (S.user.seeking && S.user.seeking !== 'Everyone') {
           const wantGender = S.user.seeking === 'Men' ? 'Man' : S.user.seeking === 'Women' ? 'Woman' : S.user.seeking;
@@ -8832,13 +8820,9 @@ async function renderNearby() {
         }
         return true;
       };
-      const fallback = allSnap.docs
-        .filter(d => {
-          if (d.id === myUid) return false;
-          const u = d.data();
-          return !u.deleted && !u.banned && !u.invisible && seekFilter(u);
-        })
-        .map(d => ({ id: d.id, ...d.data(), _distance: null }))
+      const fallback = allUsers
+        .filter(u => u.id !== myUid && !u.deleted && !u.banned && !u.invisible && seekFilter(u))
+        .map(u => ({ ...u, _distance: null }))
         .sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
 
       if (fallback.length === 0) {
