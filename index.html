@@ -5775,6 +5775,17 @@ async function renderAdminPanel() {
     const menPct   = total ? Math.round(men   / total * 100) : 0;
     const wmnPct   = total ? Math.round(women / total * 100) : 0;
     const otrPct   = 100 - menPct - wmnPct;
+    // Top 5 Cities — computed from already-loaded users
+    const cityMap = {};
+    active.forEach(u => {
+      const c = (u.city || '').trim();
+      if (c) cityMap[c] = (cityMap[c] || 0) + 1;
+    });
+    const topCities = Object.entries(cityMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    const maxCityCount = topCities[0]?.[1] || 1;
+
     // Matches — single collection count, fills in after render
     db.collection('matches').get().then(s => {
       const el = document.getElementById('aStatMatchesVal');
@@ -5846,6 +5857,26 @@ async function renderAdminPanel() {
           <div class="admin-stat-label" style="margin-top:0.35rem">Gender Split</div>
         </div>
       </div>
+      ${topCities.length > 0 ? `
+      <div style="margin:0.75rem 1rem 0;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:0.9rem 1rem">
+        <div class="admin-section-label" style="margin-bottom:0.65rem">📍 Top Cities</div>
+        ${topCities.map(([city, count], i) => {
+          const barPct = Math.round(count / maxCityCount * 100);
+          const rank = ['🥇','🥈','🥉','4️⃣','5️⃣'][i];
+          return `<div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.5rem">
+            <span style="font-size:0.9rem;width:1.4rem;text-align:center">${rank}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.2rem">
+                <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${city}</span>
+                <span style="font-size:0.75rem;font-weight:700;color:var(--primary);margin-left:0.4rem;flex-shrink:0">${count}</span>
+              </div>
+              <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden">
+                <div style="width:${barPct}%;height:100%;background:linear-gradient(90deg,var(--primary),#a78bfa);border-radius:2px"></div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
       <div class="admin-feature-flags" id="adminFeatureFlags">
         <div class="admin-flags-header">⚙️ Feature Flags — Premium Gates</div>
         <div class="admin-flag-row">
