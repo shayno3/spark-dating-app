@@ -27,6 +27,7 @@ const { initializeApp }          = require('firebase-admin/app');
 const { getFirestore }           = require('firebase-admin/firestore');
 const { getMessaging }           = require('firebase-admin/messaging');
 const { getAuth }                = require('firebase-admin/auth');
+const { getStorage }             = require('firebase-admin/storage');
 
 initializeApp();
 const db        = getFirestore();
@@ -494,9 +495,9 @@ exports.onNewMessage = onDocumentCreated('messages/{matchId}/msgs/{msgId}', asyn
 
 /* ----------------------------------------------------------------
    ADMIN — hardDeleteUser
-   Callable by the admin only. Deletes the Firebase Auth account
-   for a given uid using the Admin SDK (cannot be done client-side).
-   The client handles Firestore + Storage cleanup before calling this.
+   Callable by admin only. Fully purges a user — ALL Firestore data
+   (matches, messages, likes, user doc) + Storage + Auth account.
+   Admin SDK bypasses Firestore security rules entirely.
 ---------------------------------------------------------------- */
 const ADMIN_UID = 'qwDw0vp4suOugIr39GqJ0K70cIq2'; // Spark admin uid
 exports.hardDeleteUser = onCall(async (request) => {
@@ -515,16 +516,91 @@ exports.hardDeleteUser = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Cannot delete the admin account.');
   }
 
+  const log = (...a) => console.log('[hardDeleteUser]', ...a);
+
+  // Firestore batch helper (max 500 ops/batch)
+  const batches    = [db.batch()];
+  let   opCount    = 0;
+  const batchDel   = (ref) => {
+    if (opCount >= 490) { batches.push(db.batch()); opCount = 0; }
+    batches[batches.length - 1].delete(ref);
+    opCount++;
+  };
+
   try {
-    await getAuth().deleteUser(targetUid);
-    console.log(`[hardDeleteUser] Auth account deleted for uid: ${targetUid} by admin: ${request.auth.uid}`);
-    return { success: true };
-  } catch (err) {
-    if (err.code === 'auth/user-not-found') {
-      // Already gone — treat as success
-      return { success: true, note: 'Auth account was already deleted.' };
+    // 1. Matches + messages sub-collections
+    const matchSnap = await db.collection('matches')
+      .where('uids', 'array-contains', targetUid).get();
+    for (const mDoc of matchSnap.docs) {
+      const msgSnap = await db.collection('messages')
+        .doc(mDoc.id).collection('msgs').get();
+      msgSnap.docs.forEach(m => batchDel(m.ref));
+      batchDel(mDoc.ref);
     }
-    console.error('[hardDeleteUser] Error:', err);
-    throw new HttpsError('internal', 'Failed to delete Auth account: ' + err.message);
+    log(`Queued ${matchSnap.size} matches for deletion.`);
+
+    // 2. Likes sent by this user (and mirror received docs on other users)
+    const sentSnap = await db.collection('likes')
+      .doc(targetUid).collection('sent').get();
+    for (const sd of sentSnap.docs) {
+      batchDel(db.collection('likes').doc(sd.id).collection('received').doc(targetUid));
+      batchDel(sd.ref);
+    }
+    if (sentSnap.size > 0) batchDel(db.collection('likes').doc(targetUid));
+    log(`Queued ${sentSnap.size} sent likes.`);
+
+    // 3. Likes received by this user (and mirror sent docs on other users)
+    const recvSnap = await db.collection('likes')
+      .doc(targetUid).collection('received').get();
+    for (const rd of recvSnap.docs) {
+      batchDel(db.collection('likes').doc(rd.id).collection('sent').doc(targetUid));
+      batchDel(rd.ref);
+    }
+    log(`Queued ${recvSnap.size} received likes.`);
+
+    // 4. User document
+    batchDel(db.collection('users').doc(targetUid));
+
+    // Commit all Firestore batches
+    await Promise.all(batches.map(b => b.commit()));
+    log('Firestore cleanup complete.');
+
+    // 5. Storage — delete all folders for this user
+    const bucket = getStorage().bucket();
+    const delFolder = async (prefix) => {
+      try {
+        const [files] = await bucket.getFiles({ prefix });
+        await Promise.all(files.map(f => f.delete().catch(() => {})));
+        log(`Deleted ${files.length} files under storage:${prefix}`);
+      } catch (e) {
+        log(`Storage folder ${prefix} error (ignored):`, e.message);
+      }
+    };
+    await Promise.all([
+      delFolder(`photos/${targetUid}/`),
+      delFolder(`voice/${targetUid}/`),
+      delFolder(`verifications/${targetUid}/`),
+    ]);
+    log('Storage cleanup complete.');
+
+    // 6. Firebase Auth account — must be last
+    try {
+      await getAuth().deleteUser(targetUid);
+      log(`Auth account deleted for ${targetUid}`);
+    } catch (authErr) {
+      if (authErr.code === 'auth/user-not-found') {
+        log('Auth account was already deleted — continuing.');
+      } else {
+        // Auth deletion failed, but Firestore + Storage are already gone — log and continue
+        console.error('[hardDeleteUser] Auth deletion failed:', authErr.message);
+      }
+    }
+
+    log(`Full purge complete for uid: ${targetUid}, requested by: ${request.auth.uid}`);
+    return { success: true };
+
+  } catch (err) {
+    console.error('[hardDeleteUser] Fatal error:', err);
+    throw new HttpsError('internal', 'Hard delete failed: ' + err.message);
   }
 });
