@@ -4082,7 +4082,11 @@ async function _pinComplete() {
         let code = null;
         if (S._pw && S._authEmail) {
           code = _genCode();
-          try { await _storeGlassPair(code, S._authEmail, pin, S._pw); } catch(e) { code = null; }
+          try {
+            await _storeGlassPair(code, S._authEmail, pin, S._pw);
+            // Mark on user doc so admin stats can count glasses users
+            if (S.user?.id && db) db.collection('users').doc(S.user.id).update({ glassesEnabled: true }).catch(()=>{});
+          } catch(e) { code = null; }
         }
         if (code) { _showCode(code); }        // show the code full-screen
         else { _pinHide(); toast('Quick-unlock PIN set ✔'); }
@@ -5775,6 +5779,8 @@ async function renderAdminPanel() {
     const menPct   = total ? Math.round(men   / total * 100) : 0;
     const wmnPct   = total ? Math.round(women / total * 100) : 0;
     const otrPct   = 100 - menPct - wmnPct;
+    const glassesUsers = active.filter(u => u.glassesEnabled).length;
+
     // Top 5 Cities — computed from already-loaded users
     const cityMap = {};
     active.forEach(u => {
@@ -5790,6 +5796,21 @@ async function renderAdminPanel() {
     db.collection('matches').get().then(s => {
       const el = document.getElementById('aStatMatchesVal');
       if (el) el.textContent = s.size;
+    }).catch(() => {});
+
+    // Reports — load and render async after panel is in DOM
+    db.collection('reports').orderBy('timestamp','desc').get().then(snap => {
+      // Group by reportedId
+      const grouped = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (!grouped[data.reportedId]) grouped[data.reportedId] = { ids: [], reasons: [] };
+        grouped[data.reportedId].ids.push(d.id);
+        if (data.reason && !grouped[data.reportedId].reasons.includes(data.reason))
+          grouped[data.reportedId].reasons.push(data.reason);
+      });
+      window._adminReportGroups = grouped;
+      _renderAdminReports();
     }).catch(() => {});
 
     panel.innerHTML = `
@@ -5843,6 +5864,11 @@ async function renderAdminPanel() {
           <div class="admin-stat-label">Verified ✓</div>
           <div class="admin-stat-delta">${verified > 0 ? Math.round(verified/total*100)+'% of users' : '—'}</div>
         </div>
+        <div class="admin-stat-card" id="aStatGlasses">
+          <div class="admin-stat-val" style="color:#818cf8">${glassesUsers}</div>
+          <div class="admin-stat-label">🕶 Glasses Users</div>
+          <div class="admin-stat-delta">${glassesUsers > 0 ? Math.round(glassesUsers/total*100)+'% of users' : 'None yet'}</div>
+        </div>
         <div class="admin-stat-card" style="grid-column:span 2">
           <div style="display:flex;gap:1.2rem;align-items:baseline;margin-bottom:0.55rem">
             <div><div class="admin-stat-val" style="color:#60a5fa;font-size:1.5rem">${men}</div><div class="admin-stat-label">Men ${menPct}%</div></div>
@@ -5877,6 +5903,9 @@ async function renderAdminPanel() {
           </div>`;
         }).join('')}
       </div>` : ''}
+      <div id="adminReportsSection" style="margin:0.75rem 1rem 0">
+        <div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:0.5rem 0">🚩 Loading reports…</div>
+      </div>
       <div class="admin-feature-flags" id="adminFeatureFlags">
         <div class="admin-flags-header">⚙️ Feature Flags — Premium Gates</div>
         <div class="admin-flag-row">
@@ -6582,7 +6611,10 @@ async function adminResetPin(uid) {
   if (!confirm('Clear the glasses PIN for this user? They will need to set a new one.')) return;
   if (!db) return;
   try {
-    await db.collection('users').doc(uid).update({ glassesPin: firebase.firestore.FieldValue.delete() });
+    await db.collection('users').doc(uid).update({
+      glassesPin: firebase.firestore.FieldValue.delete(),
+      glassesEnabled: firebase.firestore.FieldValue.delete()
+    });
     toast('🕶 Glasses PIN cleared');
   } catch (e) {
     toast('⚠️ Reset failed: ' + e.message);
@@ -6597,6 +6629,83 @@ async function adminRequestPhotoReupload(uid) {
     toast('📸 User flagged — they\'ll be prompted to re-upload photos on next login');
   } catch (e) {
     toast('⚠️ Flag failed: ' + e.message);
+  }
+}
+
+/* ─── Reports moderation queue ──────────────────────────────── */
+function _renderAdminReports() {
+  const sec = document.getElementById('adminReportsSection');
+  if (!sec) return;
+  const groups = window._adminReportGroups || {};
+  const entries = Object.entries(groups); // [[reportedId, {ids, reasons}], ...]
+  if (entries.length === 0) {
+    sec.innerHTML = '<div style="margin-bottom:0.5rem;padding:0.75rem 1rem;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;gap:0.6rem"><span style="color:#4ade80;font-size:1.1rem">✅</span><span style="font-size:0.85rem;color:var(--text-muted)">No reports — community looks clean</span></div>';
+    return;
+  }
+  // Sort: most reports first
+  entries.sort((a,b) => b[1].ids.length - a[1].ids.length);
+  const rows = entries.map(([reportedId, {ids, reasons}]) => {
+    const u = (window._adminUsers || []).find(x => x.id === reportedId);
+    const name   = u ? escHtml(u.name || 'Unknown') : 'Unknown user';
+    const age    = u?.age ? `, ${u.age}` : '';
+    const banned = u?.banned;
+    const photo  = u?.photos?.[0] ? `<img src="${escHtml(u.photos[0])}" style="width:40px;height:40px;border-radius:10px;object-fit:cover;flex-shrink:0">` : `<div style="width:40px;height:40px;border-radius:10px;background:var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem">👤</div>`;
+    const reasonTags = reasons.map(r => `<span style="font-size:0.7rem;background:rgba(239,68,68,0.12);color:#fca5a5;padding:0.1rem 0.4rem;border-radius:4px">${escHtml(r)}</span>`).join(' ');
+    const banBtn = banned
+      ? `<button onclick="adminDismissReports(${JSON.stringify(ids)},'${reportedId}')" style="font-size:0.7rem;padding:0.25rem 0.55rem;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);color:#4ade80;border-radius:6px;cursor:pointer">Dismiss</button>`
+      : `<button onclick="adminBanFromReport('${reportedId}',${JSON.stringify(ids)})" style="font-size:0.7rem;padding:0.25rem 0.55rem;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);color:#f87171;border-radius:6px;cursor:pointer">Ban</button>
+         <button onclick="adminDismissReports(${JSON.stringify(ids)},'${reportedId}')" style="font-size:0.7rem;padding:0.25rem 0.55rem;background:rgba(148,163,184,0.1);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer">Dismiss</button>`;
+    return `<div style="display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0;border-bottom:1px solid var(--border)" data-report-uid="${reportedId}">
+      <div onclick="openAdminUser('${reportedId}')" style="cursor:pointer">${photo}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:0.2rem">
+          <span onclick="openAdminUser('${reportedId}')" style="font-size:0.85rem;font-weight:700;cursor:pointer">${name}${age}</span>
+          <span style="font-size:0.72rem;font-weight:700;color:#f87171;background:rgba(239,68,68,0.12);padding:0.05rem 0.35rem;border-radius:10px">${ids.length} report${ids.length > 1 ? 's' : ''}</span>
+          ${banned ? '<span style="font-size:0.7rem;color:#f87171;opacity:0.7">banned</span>' : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-bottom:0.3rem">${reasonTags || '<span style="font-size:0.7rem;color:var(--text-muted)">No reason given</span>'}</div>
+        <div style="display:flex;gap:0.4rem">${banBtn}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  sec.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:0.75rem 1rem;margin-bottom:0.5rem">
+    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem">
+      <span style="font-size:0.9rem">🚩</span>
+      <span style="font-size:0.85rem;font-weight:700">Reports</span>
+      <span style="font-size:0.7rem;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;padding:0.1rem 0.45rem;border-radius:10px">${entries.length} user${entries.length > 1 ? 's' : ''} flagged</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+async function adminBanFromReport(uid, reportIds) {
+  const u = (window._adminUsers || []).find(x => x.id === uid);
+  const name = u?.name || 'this user';
+  if (!confirm(`Ban ${name} and dismiss their reports?`)) return;
+  if (!db) return;
+  try {
+    await db.collection('users').doc(uid).update({ banned: true });
+    if (u) u.banned = true;
+    toast(`🚫 ${name} banned`);
+    await adminDismissReports(reportIds, uid, true);
+  } catch(e) {
+    toast('⚠️ Ban failed: ' + e.message);
+  }
+}
+
+async function adminDismissReports(reportIds, uid, silent) {
+  if (!db) return;
+  try {
+    const batch = db.batch();
+    reportIds.forEach(id => batch.delete(db.collection('reports').doc(id)));
+    await batch.commit();
+    // Remove from local cache
+    if (window._adminReportGroups && uid) delete window._adminReportGroups[uid];
+    if (!silent) toast('✅ Reports dismissed');
+    _renderAdminReports();
+  } catch(e) {
+    toast('⚠️ Dismiss failed: ' + e.message);
   }
 }
 
