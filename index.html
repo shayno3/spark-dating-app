@@ -6605,6 +6605,15 @@ async function adminHardDeleteAccount(uid) {
       ]);
     }
 
+    // Delete the Firebase Auth account via Cloud Function (Admin SDK required)
+    try {
+      const hardDeleteFn = functions.httpsCallable('hardDeleteUser');
+      await hardDeleteFn({ uid });
+    } catch (authErr) {
+      // Auth deletion failed — log but don't block; Firestore + Storage are already gone
+      console.warn('[adminHardDelete] Auth account deletion failed:', authErr.message);
+    }
+
     toast('💀 ' + name + ' fully erased');
     document.getElementById('adminDetailPanel')?.classList.remove('open');
     // Remove from local cache

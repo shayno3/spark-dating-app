@@ -26,6 +26,7 @@ const { defineSecret }           = require('firebase-functions/params');
 const { initializeApp }          = require('firebase-admin/app');
 const { getFirestore }           = require('firebase-admin/firestore');
 const { getMessaging }           = require('firebase-admin/messaging');
+const { getAuth }                = require('firebase-admin/auth');
 
 initializeApp();
 const db        = getFirestore();
@@ -489,4 +490,41 @@ exports.onNewMessage = onDocumentCreated('messages/{matchId}/msgs/{msgId}', asyn
       fcmOptions: { link: '/' },
     },
   });
+});
+
+/* ----------------------------------------------------------------
+   ADMIN — hardDeleteUser
+   Callable by the admin only. Deletes the Firebase Auth account
+   for a given uid using the Admin SDK (cannot be done client-side).
+   The client handles Firestore + Storage cleanup before calling this.
+---------------------------------------------------------------- */
+const ADMIN_UID = 'qwDw0vp4suOugIr39GqJ0K70cIq2'; // Spark admin uid
+exports.hardDeleteUser = onCall(async (request) => {
+  const { HttpsError } = require('firebase-functions/v2/https');
+
+  // Only the admin account may call this
+  if (request.auth?.uid !== ADMIN_UID) {
+    throw new HttpsError('permission-denied', 'Admin access required.');
+  }
+
+  const targetUid = request.data?.uid;
+  if (!targetUid || typeof targetUid !== 'string') {
+    throw new HttpsError('invalid-argument', 'A valid uid is required.');
+  }
+  if (targetUid === ADMIN_UID) {
+    throw new HttpsError('invalid-argument', 'Cannot delete the admin account.');
+  }
+
+  try {
+    await getAuth().deleteUser(targetUid);
+    console.log(`[hardDeleteUser] Auth account deleted for uid: ${targetUid} by admin: ${request.auth.uid}`);
+    return { success: true };
+  } catch (err) {
+    if (err.code === 'auth/user-not-found') {
+      // Already gone — treat as success
+      return { success: true, note: 'Auth account was already deleted.' };
+    }
+    console.error('[hardDeleteUser] Error:', err);
+    throw new HttpsError('internal', 'Failed to delete Auth account: ' + err.message);
+  }
 });
