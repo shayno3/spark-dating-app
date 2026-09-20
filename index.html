@@ -11183,6 +11183,8 @@ function renderVerifCard(u) {
 function openVerificationFlow() {
   const existing = document.getElementById('verifPanel');
   if (existing) existing.remove();
+  // BUG-13: clear stale blob so a previous selfie can't be accidentally re-submitted
+  window._verifBlob = null;
 
   const panel = document.createElement('div');
   panel.id = 'verifPanel';
