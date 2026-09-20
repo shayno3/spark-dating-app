@@ -9509,11 +9509,10 @@ async function deleteConversation(uid, name) {
   const matchId = match?.matchId;
   if (!myUid || !matchId) { toast('Could not find conversation'); return; }
 
-  // If this conversation's listener is currently active, stop it so deleted messages don't repopulate
-  if (S.activeChatId === matchId) {
-    if (S.listeners.messages) { S.listeners.messages(); S.listeners.messages = null; }
-    if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
-    S.activeChatId = null;
+  // BUG-10 fix: S.activeChatId holds the uid (not matchId); also covers inline chat via S.activeMatchId.
+  // closeChat() handles listener teardown, RTDB unsub, panel close and navRefresh in one call.
+  if (S.activeChatId === uid || S.activeMatchId === matchId) {
+    closeChat();
   }
   // Clear local message state so the row disappears from the list
   delete S.messages[matchId];
