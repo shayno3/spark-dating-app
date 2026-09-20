@@ -5236,7 +5236,7 @@ function thumbSrc(p) {
 async function handlePhotos(event, mode) {
   const files  = Array.from(event.target.files);
   const photos = mode === 'setup' ? S.setup.photos : S.edit.photos;
-  const remaining = 5 - photos.length;
+  const remaining = (window._rcMaxPhotos || 6) - photos.length;
   if (files.length > remaining) toast(`Only ${remaining} photo${remaining === 1 ? '' : 's'} slot${remaining === 1 ? '' : 's'} remaining — first ${remaining} selected.`);
   for (const file of files.slice(0, remaining)) {
     const blob    = await compressImage(file);
