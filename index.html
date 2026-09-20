@@ -2575,7 +2575,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 
 
   <!-- Legal Panel (ToS + Privacy Policy) -->
-  <div id="legalPanelOverlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeLegalPanel()">
+  <div id="legalPanelOverlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)" data-nav-panel data-nav-panel-inner="#legalPanelSheet" onclick="if(event.target===this)closeLegalPanel()">
     <div id="legalPanelSheet" style="position:absolute;bottom:0;left:0;right:0;max-height:92vh;overflow-y:auto;background:var(--surface-raised,var(--surface));border-radius:20px 20px 0 0;padding:1.2rem 1.1rem 2.5rem;transform:translateY(100%);transition:transform 0.32s cubic-bezier(0.32,0,0,1)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
         <div id="legalPanelTitle" style="font-size:1.1rem;font-weight:800">📄 Terms &amp; Conditions</div>
@@ -2587,7 +2587,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
   </div>
 
   <!-- Safety Center Panel -->
-  <div id="safetyCenterOverlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)" onclick="if(event.target===this)closeSafetyCenter()">
+  <div id="safetyCenterOverlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)" data-nav-panel data-nav-panel-inner="#safetyCenterSheet" onclick="if(event.target===this)closeSafetyCenter()">
     <div id="safetyCenterSheet" style="position:absolute;bottom:0;left:0;right:0;max-height:90vh;overflow-y:auto;background:var(--surface-raised,var(--surface));border-radius:20px 20px 0 0;padding:1.2rem 1.1rem 2rem;transform:translateY(100%);transition:transform 0.32s cubic-bezier(0.32,0,0,1)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
         <div style="font-size:1.1rem;font-weight:800">🛡️ Safety Center</div>
@@ -3355,8 +3355,8 @@ function _updateFlagDescs() {
   if (fiDesc) fiDesc.textContent = f.fireIceGated ? 'Premium only — free users see lock screen' : 'Unlocked — everyone can rate';
   if (ssDesc) ssDesc.textContent = f.sparkScoreGated ? 'Premium only — chart & leaderboard locked' : 'Unlocked — everyone sees their score';
   if (pmDesc) pmDesc.textContent = f.promoMode ? 'On — everyone gets free premium access' : 'Off — normal gating applies';
-  // Apply promo mode: if on, treat as premium for all users
-  if (f.promoMode && !S.isPremium) S.isPremium = true;
+  // Apply promo mode: if on, treat as premium; if off, restore real value
+  S.isPremium = f.promoMode || !!S.user?.isPremium;
 }
 
 async function adminToggleFlag(key, value) {
@@ -9133,7 +9133,7 @@ function renderConversations() {
   const matchesRow  = document.getElementById('msgMatchesRow');
   const matchesBar  = document.getElementById('msgMatchesBar');
   const likedMeCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
-  const _blocked    = new Set(S.user.blockedUsers || []);  // M5: block filter
+  const _blocked    = new Set(S.user?.blockedUsers || []);  // M5: block filter (null-safe: S.user can be null briefly after logout)
   const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0) && !_blocked.has(m.uid));
   if (matchesRow) {
     let rowHtml = '';
@@ -9476,6 +9476,12 @@ async function deleteConversation(uid, name) {
   const matchId = match?.matchId;
   if (!myUid || !matchId) { toast('Could not find conversation'); return; }
 
+  // If this conversation's listener is currently active, stop it so deleted messages don't repopulate
+  if (S.activeChatId === matchId) {
+    if (S.listeners.messages) { S.listeners.messages(); S.listeners.messages = null; }
+    if (S.listeners.matchDoc)  { S.listeners.matchDoc();  S.listeners.matchDoc  = null; }
+    S.activeChatId = null;
+  }
   // Clear local message state so the row disappears from the list
   delete S.messages[matchId];
   delete S.unread[uid];
@@ -11688,9 +11694,7 @@ function voiceBio(textareaId, btnId) {
     if (final) baseText += (baseText && !baseText.endsWith(' ') ? ' ' : '') + final;
     ta.value = baseText + (interim ? ' ' + interim : '');
     ta.value = ta.value.slice(0, 500); // honour maxlength
-    // Update char counter if present
-    const counter = document.getElementById('bioCharCount');
-    if (counter) counter.textContent = ta.value.length;
+    // Dispatch input event — each textarea's own oninput handler updates its counter (bioCharCount / editBioCount)
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
@@ -13663,7 +13667,7 @@ async function loadFilterPrefs(uid) {
 </div>
 
 <!-- ====== DELETE ACCOUNT MODAL ====== -->
-<div id="deleteAccountModal">
+<div id="deleteAccountModal" data-nav-panel data-nav-panel-inner=".delete-modal-box">
   <div class="delete-modal-box">
     <div class="delete-modal-icon">⚠️</div>
     <div class="delete-modal-title">Delete Account?</div>
