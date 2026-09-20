@@ -5252,9 +5252,18 @@ async function handlePhotos(event, mode) {
 // R2_UPLOAD_SECRET: the SPARK_SECRET env var you set on the Worker
 // Leave as-is to continue using Firebase Storage (zero change to existing behaviour).
 const R2_WORKER_URL     = 'https://spark-r2-upload.shayno3.workers.dev';
-const R2_UPLOAD_SECRET  = 'MM6RL3zO7pT8IhkkiFrI5WEyfbVXIPtZN8eLBrLtm7g';
+// R2_UPLOAD_SECRET removed — Worker now authenticates via Firebase ID tokens (BUG-01)
 const VISION_WORKER_URL = 'https://spark-vision-worker.shayno3.workers.dev'; // Cloud Vision proxy worker
 const _r2Active = R2_WORKER_URL !== 'REPLACE_WITH_R2_WORKER_URL';
+
+// Returns the Authorization header for R2 / Vision Worker requests.
+// Uses Firebase ID token (fresh per-request) — never a static shared secret.
+async function _r2AuthHeaders(extra) {
+  const user = firebase.auth().currentUser;
+  if (!user) throw new Error('Must be signed in to upload');
+  const token = await user.getIdToken();
+  return Object.assign({ 'Authorization': 'Bearer ' + token }, extra || {});
+}
 
 async function uploadPhoto(blob, uid, index) {
   // ── R2 path (used once Worker URL + secret are configured) ───────────────
@@ -5264,7 +5273,7 @@ async function uploadPhoto(blob, uid, index) {
     form.append('uid', uid);
     const res = await fetch(`${R2_WORKER_URL}/upload`, {
       method: 'POST',
-      headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET },
+      headers: await _r2AuthHeaders(),
       body: form,
     });
     if (!res.ok) throw new Error('R2 upload failed: ' + res.status);
@@ -5272,13 +5281,15 @@ async function uploadPhoto(blob, uid, index) {
 
     // Run Vision API moderation before returning URL
     const modRes = await fetch(`${VISION_WORKER_URL}/moderate`, {
-      method: 'POST', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
+      method: 'POST', headers: await _r2AuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ imageUrl: url })
     });
     if (!modRes.ok) throw new Error('Vision moderation failed: ' + modRes.status);
     const mod = await modRes.json();
     if (!mod.safe) {
-      fetch(`${R2_WORKER_URL}/delete`, { method: 'DELETE', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' }, body: JSON.stringify({ key: url.split('/').slice(-2).join('/') }) });
+      _r2AuthHeaders({ 'Content-Type': 'application/json' }).then(h =>
+        fetch(`${R2_WORKER_URL}/delete`, { method: 'DELETE', headers: h, body: JSON.stringify({ key: url.split('/').slice(-2).join('/') }) })
+      );
       if (typeof db !== 'undefined' && db) {
         db.collection('moderation_events').add({
           uid: uid,
@@ -7670,6 +7681,9 @@ function renderDiscover() {
     if (_preFocus && !_preFocus.classList.contains('disc-card') && _navList().includes(_preFocus)) return;
     _navFocus();
   }, 80);
+  // BUG-17: announce first card after every render so ALL callers get voice feedback,
+  // not just those going through the monkey-patched reference.
+  if (typeof VOICE !== 'undefined' && VOICE.active) announceCardOnReveal();
 }
 
 function buildCard(user, pos) {
@@ -12069,12 +12083,7 @@ function toggleGlassesMode(force) {
   }
 }
 
-// Patch renderDiscover to auto-announce
-const _baseRenderDiscover = renderDiscover;
-renderDiscover = function() {
-  _baseRenderDiscover();
-  if (VOICE.active) announceCardOnReveal();
-};
+// BUG-17: voice announcement is now wired directly inside renderDiscover() above.
 
 let manualRecog = null;
 function manualListen() {
