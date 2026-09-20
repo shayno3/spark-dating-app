@@ -13071,23 +13071,32 @@ const PUSH_SNOOZE_KEY = 'spark_push_snooze_until';
 const PUSH_DENIED_KEY = 'spark_push_denied';
 
 // Register the service worker and save the FCM token to Firestore.
+// Uses serviceWorker.ready so the SW is guaranteed active before getToken().
+let _fcmMessageHandlerRegistered = false;
 async function registerFCMToken() {
   if (!messaging || !('serviceWorker' in navigator) || !('Notification' in window)) return;
   if (Notification.permission === 'denied') { localStorage.setItem(PUSH_DENIED_KEY, '1'); return; }
   try {
-    const sw    = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    // Wait for an active SW — safer than passing the register() result directly,
+    // which may still be in 'installing' state on a first-ever install.
+    const sw    = await navigator.serviceWorker.ready;
     const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: sw });
     if (token && S.user?.id) {
       await db.collection('users').doc(S.user.id).update({
         fcmTokens: firebase.firestore.FieldValue.arrayUnion(token)
       });
+      console.log('[FCM] Token registered for', S.user.id);
     }
     // Handle messages when app is in the foreground — show as in-app toast.
-    messaging.onMessage((payload) => {
-      const n = payload.notification || {};
-      const body = [n.title, n.body].filter(Boolean).join(' — ');
-      if (body) toast('🔔 ' + body);
-    });
+    // Guard prevents duplicate handlers stacking up on repeated logins.
+    if (!_fcmMessageHandlerRegistered) {
+      _fcmMessageHandlerRegistered = true;
+      messaging.onMessage((payload) => {
+        const n = payload.notification || {};
+        const body = [n.title, n.body].filter(Boolean).join(' — ');
+        if (body) toast('🔔 ' + body);
+      });
+    }
   } catch (err) {
     console.warn('[FCM] init error:', err);
   }
@@ -13122,10 +13131,12 @@ function hidePushBanner() {
 // (permission already granted) or show the soft prompt banner.
 async function initPushNotifications() {
   if (!messaging || !('Notification' in window)) return;
-  if (localStorage.getItem(PUSH_DENIED_KEY)) return; // user previously denied at OS level
 
+  // Always check the live OS/browser permission state FIRST.
+  // If the user previously denied but has since re-enabled in OS Settings,
+  // we clear the stale localStorage flag and re-register their token.
   if (Notification.permission === 'granted') {
-    // Already allowed — silently register / refresh the token.
+    localStorage.removeItem(PUSH_DENIED_KEY); // clear stale denial flag if any
     await registerFCMToken();
     return;
   }
@@ -13135,7 +13146,9 @@ async function initPushNotifications() {
     return;
   }
 
-  // 'default' — check snooze.
+  // 'default' (not yet asked) — skip if user previously denied via our banner,
+  // or if they chose "Maybe later" and the snooze hasn't expired.
+  if (localStorage.getItem(PUSH_DENIED_KEY)) return;
   const snoozeUntil = parseInt(localStorage.getItem(PUSH_SNOOZE_KEY) || '0', 10);
   if (Date.now() < snoozeUntil) return; // still snoozed
 
