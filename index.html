@@ -2350,7 +2350,10 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <h2>Your location 📍</h2>
     <p>Help nearby people find you</p>
     <label class="form-label">City</label>
-    <input type="text" class="form-input" id="sCity" placeholder="e.g. Austin">
+    <div class="bio-voice-wrap">
+      <input type="text" class="form-input" id="sCity" placeholder="e.g. Austin" style="padding-right:3rem">
+      <button class="bio-voice-btn" onclick="openSparkVK(document.getElementById('sCity'))" title="Virtual keyboard" aria-label="Open virtual keyboard for City">⌨️</button>
+    </div>
     <label class="form-label">State</label>
     <select class="form-select" id="sState"><option value="">Select state…</option></select>
     <label class="form-label">Max distance</label>
@@ -2450,6 +2453,7 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <label class="form-label">Interests <span style="color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:0">(up to 10)</span></label>
     <div class="interest-input-row">
       <input type="text" class="form-input" id="sInterestIn" placeholder="e.g. Hiking, Coffee, Travel…" onkeydown="if(event.key==='Enter'){event.preventDefault();addInterest('setup')}">
+      <button class="bio-voice-btn" style="position:static;width:2.4rem;height:2.4rem;flex-shrink:0;border-radius:50%;margin:0" onclick="openSparkVK(document.getElementById('sInterestIn'))" title="Virtual keyboard" aria-label="Open virtual keyboard for Interests">⌨️</button>
       <button class="btn-add-interest" onclick="addInterest('setup')">+</button>
     </div>
     <div class="chips-display" id="setupChips"></div>
@@ -5233,6 +5237,7 @@ async function handlePhotos(event, mode) {
   const files  = Array.from(event.target.files);
   const photos = mode === 'setup' ? S.setup.photos : S.edit.photos;
   const remaining = 5 - photos.length;
+  if (files.length > remaining) toast(`Only ${remaining} photo${remaining === 1 ? '' : 's'} slot${remaining === 1 ? '' : 's'} remaining — first ${remaining} selected.`);
   for (const file of files.slice(0, remaining)) {
     const blob    = await compressImage(file);
     const preview = await blobToDataUrl(blob);
@@ -5270,6 +5275,7 @@ async function uploadPhoto(blob, uid, index) {
       method: 'POST', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageUrl: url })
     });
+    if (!modRes.ok) throw new Error('Vision moderation failed: ' + modRes.status);
     const mod = await modRes.json();
     if (!mod.safe) {
       fetch(`${R2_WORKER_URL}/delete`, { method: 'DELETE', headers: { 'X-Spark-Secret': R2_UPLOAD_SECRET, 'Content-Type': 'application/json' }, body: JSON.stringify({ key: url.split('/').slice(-2).join('/') }) });
@@ -5548,8 +5554,8 @@ function renderPhotoGrid(gridId, photos, max, inputId, mode) {
         <img src="${src}" alt="" draggable="false">
         ${i === 0 ? '<div class="photo-primary-badge">Main</div>' : ''}
         <button class="photo-remove${isEdit ? ' always-visible' : ''}" onclick="removePhoto(${i},'${mode}')">✕</button>
-        ${canMoveLeft  ? `<button class="photo-move-btn photo-move-left"  onclick="movePhoto(${i},-1,'${mode}')" title="Move left">←</button>` : ''}
-        ${canMoveRight ? `<button class="photo-move-btn photo-move-right" onclick="movePhoto(${i}, 1,'${mode}')" title="Move right">→</button>` : ''}`;
+        ${canMoveLeft  ? `<button class="photo-move-btn photo-move-left"  onclick="movePhoto(${i},-1,'${mode}')" title="Move left" aria-label="Move photo left">←</button>` : ''}
+        ${canMoveRight ? `<button class="photo-move-btn photo-move-right" onclick="movePhoto(${i}, 1,'${mode}')" title="Move right" aria-label="Move photo right">→</button>` : ''}`;
       // HTML5 drag-to-reorder (works on desktop)
       if (isEdit) {
         slot.draggable = true;
@@ -6225,7 +6231,11 @@ function adminRenderList() {
     return;
   }
   if (emptyEl) emptyEl.style.display = 'none';
-  listEl.innerHTML = users.slice(0, 100).map(_adminBuildRow).join('');
+  const ADMIN_PAGE = 100;
+  const shown = users.slice(0, ADMIN_PAGE);
+  const overflow = users.length - shown.length;
+  listEl.innerHTML = shown.map(_adminBuildRow).join('') +
+    (overflow > 0 ? `<div style="text-align:center;padding:0.75rem;color:var(--text-muted);font-size:0.8rem">+ ${overflow} more user${overflow !== 1 ? 's' : ''} — use search or filters to narrow results</div>` : '');
 }
 
 /* ================================================================
@@ -7562,7 +7572,11 @@ function buildDiscCard(user) {
       <div class="disc-card-sub">${_subLine}</div>
     </div>`;
 
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `${user.name}${user.age ? ', age ' + user.age : ''}${user.city ? ', ' + user.city : ''} — view profile`);
   card.onclick = () => openDetail(user.id);
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(user.id); } });
   return card;
 }
 
@@ -8031,6 +8045,7 @@ function showReportBlockMenu(uid, name) {
     if (e.target === modal) modal.remove();
   });
   document.body.appendChild(modal);
+  _navRefresh();
 }
 
 function confirmBlock(uid, name) {
@@ -8060,6 +8075,7 @@ function confirmBlock(uid, name) {
 
   modal.appendChild(sheet);
   document.body.appendChild(modal);
+  _navRefresh();
 }
 
 function showReportReasons(uid, name) {
@@ -8100,6 +8116,7 @@ function showReportReasons(uid, name) {
 
   modal.appendChild(sheet);
   document.body.appendChild(modal);
+  _navRefresh();
 }
 
 async function blockUser(uid, name) {
@@ -9460,12 +9477,14 @@ function hpMakeDraggable(colId, values, getVal, setVal) {
     setTimeout(() => { inner.style.transition = ''; snapToNearest(target); }, 360);
   }
 
+  function _hpWinMove(e) { if (dragging) onMove(e.clientY); }
+  function _hpWinUp()   { if (dragging) onEnd(); window.removeEventListener('mousemove', _hpWinMove); window.removeEventListener('mouseup', _hpWinUp); }
   col.addEventListener('touchstart', e => { onStart(e.touches[0].clientY); }, {passive:true});
   col.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientY); }, {passive:false});
   col.addEventListener('touchend',   () => onEnd());
   col.addEventListener('mousedown',  e => { onStart(e.clientY); e.preventDefault(); });
-  window.addEventListener('mousemove', e => { if (dragging) onMove(e.clientY); });
-  window.addEventListener('mouseup',   () => { if (dragging) onEnd(); });
+  window.addEventListener('mousemove', _hpWinMove);
+  window.addEventListener('mouseup',   _hpWinUp);
 }
 
 /* ================================================================ */
@@ -11231,8 +11250,8 @@ async function submitVerification() {
     const blob   = window._verifBlob;
     const path   = `verification/${myUid}/selfie.jpg`;
 
-    if (blob && firebase.storage) {
-      const ref = firebase.storage().ref(path);
+    if (blob && storage) {
+      const ref = storage.ref(path);
       await ref.put(blob, { contentType: blob.type || 'image/jpeg' });
       const url = await ref.getDownloadURL();
       // 2. Auto-verify immediately — no manual review needed
@@ -11757,8 +11776,8 @@ function speak(text, interrupt = false) {
   const preferred = voices.find(v => /Samantha|Zoe|Ava|Karen|Victoria/.test(v.name) || (v.lang === 'en-US' && v.localService))
     || voices.find(v => v.lang === 'en-US') || voices[0];
   if (preferred) utt.voice = preferred;
-  utt.onstart = () => { VOICE.speaking = true; updateVoiceUI(); document.getElementById('micTapBtn')?.classList.add('speaking'); };
-  utt.onend = utt.onerror = () => { VOICE.speaking = false; updateVoiceUI(); document.getElementById('micTapBtn')?.classList.remove('speaking'); };
+  utt.onstart = () => { VOICE.speaking = true; updateVoiceUI(); _updateMicBtn(); document.getElementById('micTapBtn')?.classList.add('speaking'); };
+  utt.onend = utt.onerror = () => { VOICE.speaking = false; updateVoiceUI(); _updateMicBtn(); document.getElementById('micTapBtn')?.classList.remove('speaking'); };
   VOICE.synth.speak(utt);
 }
 
@@ -12114,10 +12133,11 @@ function toggleVoiceHelp(show) {
   if (el) el.style.display = VOICE.helpVisible ? 'flex' : 'none';
 }
 
-setInterval(() => {
+// Update mic button icon reactively rather than via a polling interval
+function _updateMicBtn() {
   const btn = document.getElementById('micTapBtn');
   if (btn) btn.textContent = VOICE.speaking ? '🔊' : '🎙️';
-}, 300);
+}
 
 /* ================================================================
    CARD DRAG-TO-SWIPE PHYSICS
@@ -12191,12 +12211,14 @@ function addCardDrag(card, uid) {
       hideStamps(likeEl, nopeEl, superEl);
     }
   }
+  function _onWinMove(e) { if (dragging) onMove(e); }
+  function _onWinUp(e)   { if (dragging) { onEnd(e); } window.removeEventListener('mousemove', _onWinMove); window.removeEventListener('mouseup', _onWinUp); }
   card.addEventListener('touchstart', onStart, { passive: true });
   card.addEventListener('touchmove',  onMove,  { passive: false });
   card.addEventListener('touchend',   onEnd);
   card.addEventListener('mousedown',  onStart);
-  window.addEventListener('mousemove', e => { if (dragging) onMove(e); });
-  window.addEventListener('mouseup',   e => { if (dragging) onEnd(e); });
+  window.addEventListener('mousemove', _onWinMove);
+  window.addEventListener('mouseup',   _onWinUp);
 }
 
 function setStamps(show, h1, h2, opacity) {
@@ -13700,17 +13722,17 @@ async function loadFilterPrefs(uid) {
           <div class="dfs-stepper-row">
             <span class="dfs-stepper-label">Min age</span>
             <div class="dfs-stepper-ctrl">
-              <button class="dfs-step-btn" onclick="stepFilterAge('min',-1)">−</button>
+              <button class="dfs-step-btn" onclick="stepFilterAge('min',-1)" aria-label="Decrease minimum age">−</button>
               <div class="dfs-step-val" id="dfsAgeMinVal">18</div>
-              <button class="dfs-step-btn" onclick="stepFilterAge('min',1)">+</button>
+              <button class="dfs-step-btn" onclick="stepFilterAge('min',1)" aria-label="Increase minimum age">+</button>
             </div>
           </div>
           <div class="dfs-stepper-row">
             <span class="dfs-stepper-label">Max age</span>
             <div class="dfs-stepper-ctrl">
-              <button class="dfs-step-btn" onclick="stepFilterAge('max',-1)">−</button>
+              <button class="dfs-step-btn" onclick="stepFilterAge('max',-1)" aria-label="Decrease maximum age">−</button>
               <div class="dfs-step-val" id="dfsAgeMaxVal">80+</div>
-              <button class="dfs-step-btn" onclick="stepFilterAge('max',1)">+</button>
+              <button class="dfs-step-btn" onclick="stepFilterAge('max',1)" aria-label="Increase maximum age">+</button>
             </div>
           </div>
         </div>
@@ -13724,9 +13746,9 @@ async function loadFilterPrefs(uid) {
         <div class="dfs-stepper-row">
           <span class="dfs-stepper-label">Distance</span>
           <div class="dfs-stepper-ctrl">
-            <button class="dfs-step-btn" onclick="stepFilterDist(-5)">−</button>
+            <button class="dfs-step-btn" onclick="stepFilterDist(-5)" aria-label="Decrease max distance">−</button>
             <div class="dfs-step-val" id="dfsDistVal">5000</div>
-            <button class="dfs-step-btn" onclick="stepFilterDist(5)">+</button>
+            <button class="dfs-step-btn" onclick="stepFilterDist(5)" aria-label="Increase max distance">+</button>
           </div>
         </div>
       </div>
