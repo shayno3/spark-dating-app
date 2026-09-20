@@ -652,9 +652,15 @@ html, body {
    bottom nav bar (which lives outside .content-area and would otherwise bleed through) */
 .panel { display: none; flex-direction: column; position: fixed; inset: 0; background: var(--bg); z-index: 250; }
 .panel.open { display: flex; }
-/* Hide nav when full-screen chat panel is open — prevents nav from overlapping the input bar on mobile (iOS z-index bleed) */
+/* Hide nav + header when any full-screen panel is open — prevents sticky elements bleeding through on iOS (z-index quirk) */
 body:has(#chatPanel.open) .bottom-nav,
-body:has(#inlineChatPanel.open) .bottom-nav { display: none; }
+body:has(#inlineChatPanel.open) .bottom-nav,
+body:has(#detailPanel.open) .bottom-nav,
+body:has(#editPanel.open) .bottom-nav,
+body:has(#matchProfilePanel.open) .bottom-nav { display: none; }
+/* Hide app-header for panels with no header bar of their own (match profile, discover detail) */
+body:has(#detailPanel.open) .app-header,
+body:has(#matchProfilePanel.open) .app-header { display: none; }
 
 /* ---- INLINE CHAT SHEET (slides up from bottom on Matches tab) ---- */
 /* Full-screen so the background never bleeds through on glasses (or any screen).
@@ -1041,7 +1047,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
   -webkit-overflow-scrolling: touch;
 }
 .match-profile-body {
-  padding: 1.25rem 1.25rem 2rem;
+  padding: 1.25rem 1.25rem calc(2rem + var(--sab, 0px));
 }
 .match-profile-name { font-size: 1.65rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
 .match-profile-loc { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 0.7rem; }
@@ -2796,13 +2802,15 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
     <div class="admin-compose-modal" id="adminComposeModal" onclick="if(event.target===this)adminCloseCompose()">
       <div class="admin-compose-card" data-nav-panel>
         <div>
-          <div class="admin-compose-title">Send Message to</div>
+          <div class="admin-compose-title" id="adminComposeTitle">Send Message to</div>
           <div class="admin-compose-name" id="adminComposeName"></div>
         </div>
+        <!-- Email subject (hidden in message mode) -->
+        <input class="admin-compose-subject" id="adminComposeSubject" type="text" placeholder="Email subject…" style="display:none;width:100%;box-sizing:border-box;background:var(--input-bg,rgba(255,255,255,0.08));border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:0.65rem 0.85rem;color:var(--text);font-size:0.9rem;margin-bottom:0.6rem" autocomplete="off">
         <textarea class="admin-compose-ta" id="adminComposeTa" placeholder="Type your message…" rows="4"></textarea>
         <div class="admin-compose-btns">
           <button class="admin-compose-cancel" style="touch-action:manipulation" onclick="adminCloseCompose()">Cancel</button>
-          <button class="admin-compose-send" style="touch-action:manipulation" onclick="adminSendMessage()">Send ✉️</button>
+          <button class="admin-compose-send" id="adminComposeSendBtn" style="touch-action:manipulation" onclick="adminSendCompose()">Send ✉️</button>
         </div>
       </div>
     </div>
@@ -6418,6 +6426,7 @@ async function openAdminUser(uid) {
       <div class="admin-detail-section-label">Actions</div>
       <div class="admin-action-grid">
         <button class="admin-action-btn message" style="touch-action:manipulation" onclick="event.stopPropagation(); adminOpenMessage('${uid}')"><span class="aab-icon">💬</span>Send Message</button>
+        <button class="admin-action-btn message" style="touch-action:manipulation;background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#6ee7b7" onclick="event.stopPropagation(); adminOpenEmail('${uid}')"><span class="aab-icon">📧</span>Send Email</button>
         <button class="admin-action-btn reset-pw"  onclick="adminResetPassword('${uid}')"><span class="aab-icon">🔑</span>Reset Password</button>
         <button class="admin-action-btn reset-pin" onclick="adminResetPin('${uid}')"><span class="aab-icon">🕶</span>Reset Glasses PIN</button>
         <button class="admin-action-btn ${banClass}" id="adminBanBtn-${uid}" onclick="adminToggleBan('${uid}',${!!u.banned})"><span class="aab-icon">${banIcon}</span>${banLabel}</button>
@@ -6441,33 +6450,105 @@ function closeAdminDetail(e) {
 
 let _adminComposeUid = null;
 let _adminComposeName = '';
+let _adminComposeMode = 'message'; // 'message' | 'email'
 
 function adminOpenMessage(uid) {
+  _adminComposeMode = 'message';
   const cached = (window._adminUsers || []).find(x => x.id === uid);
   _adminComposeUid = uid;
   _adminComposeName = cached?.name || 'User';
-  const modal = document.getElementById('adminComposeModal');
-  const nameEl = document.getElementById('adminComposeName');
+  const modal    = document.getElementById('adminComposeModal');
+  const titleEl  = document.getElementById('adminComposeTitle');
+  const nameEl   = document.getElementById('adminComposeName');
+  const subjEl   = document.getElementById('adminComposeSubject');
+  const sendBtn  = document.getElementById('adminComposeSendBtn');
   const ta = document.getElementById('adminComposeTa');
   if (!modal || !ta) return;
-  if (nameEl) nameEl.textContent = _adminComposeName;
+  if (titleEl)  titleEl.textContent = 'Send In-App Message to';
+  if (nameEl)   nameEl.textContent  = _adminComposeName;
+  if (subjEl)   subjEl.style.display = 'none';
+  if (sendBtn)  sendBtn.textContent = 'Send ✉️';
   ta.value = '';
+  ta.placeholder = 'Type your message…';
   modal.classList.add('open');
   setTimeout(() => {
     ta.focus();
-    // Point glasses nav highlighter to Cancel so user can navigate the modal
+    var cancelBtn = modal.querySelector('.admin-compose-cancel');
+    if (typeof _navSet === 'function' && cancelBtn) _navSet(cancelBtn);
+  }, 120);
+}
+
+function adminOpenEmail(uid) {
+  _adminComposeMode = 'email';
+  const cached = (window._adminUsers || []).find(x => x.id === uid);
+  _adminComposeUid = uid;
+  _adminComposeName = cached?.name || 'User';
+  const modal    = document.getElementById('adminComposeModal');
+  const titleEl  = document.getElementById('adminComposeTitle');
+  const nameEl   = document.getElementById('adminComposeName');
+  const subjEl   = document.getElementById('adminComposeSubject');
+  const sendBtn  = document.getElementById('adminComposeSendBtn');
+  const ta = document.getElementById('adminComposeTa');
+  if (!modal || !ta) return;
+  if (titleEl)  titleEl.textContent = 'Send Email to';
+  if (nameEl)   nameEl.textContent  = _adminComposeName;
+  if (subjEl)   { subjEl.value = ''; subjEl.style.display = 'block'; }
+  if (sendBtn)  sendBtn.textContent = 'Send Email 📧';
+  ta.value = '';
+  ta.placeholder = 'Email body…';
+  modal.classList.add('open');
+  setTimeout(() => {
+    if (subjEl) subjEl.focus();
     var cancelBtn = modal.querySelector('.admin-compose-cancel');
     if (typeof _navSet === 'function' && cancelBtn) _navSet(cancelBtn);
   }, 120);
 }
 
 function adminCloseCompose() {
-  document.getElementById('adminComposeModal')?.classList.remove('open');
-  _adminComposeUid = null;
+  const modal  = document.getElementById('adminComposeModal');
+  const subjEl = document.getElementById('adminComposeSubject');
+  modal?.classList.remove('open');
+  if (subjEl) subjEl.style.display = 'none';
+  _adminComposeUid  = null;
+  _adminComposeMode = 'message';
   // Restore glasses nav to the admin panel after modal closes
   setTimeout(function() {
     if (typeof _navRefresh === 'function') _navRefresh();
   }, 80);
+}
+
+// Dispatcher: routes to in-app message or email based on current mode
+async function adminSendCompose() {
+  if (_adminComposeMode === 'email') {
+    await adminSendEmail();
+  } else {
+    await adminSendMessage();
+  }
+}
+
+async function adminSendEmail() {
+  const uid     = _adminComposeUid;
+  const name    = _adminComposeName;
+  const subjEl  = document.getElementById('adminComposeSubject');
+  const ta      = document.getElementById('adminComposeTa');
+  const subject = subjEl?.value?.trim();
+  const body    = ta?.value?.trim();
+  if (!subject) { toast('Please enter a subject'); subjEl?.focus(); return; }
+  if (!body)    { toast('Please type a message');  ta?.focus();    return; }
+
+  const sendBtn = document.getElementById('adminComposeSendBtn');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+
+  try {
+    const sendAdminEmail = firebase.functions().httpsCallable('sendAdminEmail');
+    await sendAdminEmail({ uid, subject, body });
+    toast(`📧 Email sent to ${name}`);
+    adminCloseCompose();
+  } catch (e) {
+    toast('⚠️ Email failed: ' + (e.message || 'Unknown error'));
+  } finally {
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Email 📧'; }
+  }
 }
 
 async function adminSendMessage() {

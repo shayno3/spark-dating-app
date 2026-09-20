@@ -37,6 +37,7 @@ const messaging = getMessaging();
 const stripeSecretKey     = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 const openAiKey           = defineSecret('OPENAI_API_KEY');
+const resendKey           = defineSecret('RESEND_API_KEY');
 
 // TEST Stripe Price ID — Spark Premium $9.99/month (test mode)
 const STRIPE_PRICE_ID = 'price_1TxarFDFkYr4mQ8S5pJ9B1rP';
@@ -604,3 +605,94 @@ exports.hardDeleteUser = onCall(async (request) => {
     throw new HttpsError('internal', 'Hard delete failed: ' + err.message);
   }
 });
+
+/* ----------------------------------------------------------------
+   ADMIN — sendAdminEmail
+   Callable by admin only. Sends a transactional email to a user
+   via Resend (resend.com — free tier: 3,000 emails/month, no CC).
+   Appears from "Spark Team <noreply@smartsparks.app>".
+
+   Setup (one-time):
+     1. Create a free account at resend.com
+     2. Add domain "smartsparks.app" → Domains → Add Domain
+        (Adds 3 DNS records in Cloudflare — ~2 min to verify)
+     3. Create an API key (API Keys → Create API Key)
+     4. Store it:  firebase functions:secrets:set RESEND_API_KEY
+     5. Deploy:    firebase deploy --only functions
+
+   Called from admin panel with: { uid, subject, body }
+---------------------------------------------------------------- */
+exports.sendAdminEmail = onCall(
+  { secrets: [resendKey] },
+  async (request) => {
+    const { HttpsError } = require('firebase-functions/v2/https');
+
+    // Only the admin account may call this
+    if (request.auth?.uid !== ADMIN_UID) {
+      throw new HttpsError('permission-denied', 'Admin access required.');
+    }
+
+    const { uid, subject, body } = request.data || {};
+    if (!uid || !subject || !body) {
+      throw new HttpsError('invalid-argument', 'uid, subject, and body are required.');
+    }
+
+    // Fetch the user's email from Firebase Auth (most reliable source)
+    let recipientEmail;
+    try {
+      const authUser = await getAuth().getUser(uid);
+      recipientEmail = authUser.email;
+    } catch (e) {
+      throw new HttpsError('not-found', 'User not found in Firebase Auth.');
+    }
+    if (!recipientEmail) {
+      throw new HttpsError('not-found', 'This user has no email address on file.');
+    }
+
+    const htmlBody = body
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+
+    // Send via Resend
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey.value()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Spark Team <noreply@smartsparks.app>',
+        to:   [recipientEmail],
+        subject,
+        text: body,
+        html: `
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#111827">
+            <div style="background:linear-gradient(135deg,#e11d48,#9333ea);padding:28px 32px;border-radius:12px 12px 0 0">
+              <h1 style="margin:0;color:#fff;font-size:1.5rem;letter-spacing:-0.02em">✨ Spark</h1>
+            </div>
+            <div style="background:#fff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e5e7eb;border-top:none">
+              <p style="margin:0 0 1.25rem;font-size:1rem;line-height:1.6;color:#374151">${htmlBody}</p>
+              <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
+              <p style="margin:0;font-size:0.8rem;color:#9ca3af">
+                You're receiving this message because you have an account on
+                <a href="https://smartsparks.app" style="color:#e11d48;text-decoration:none">Spark</a>.
+              </p>
+            </div>
+          </div>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('[sendAdminEmail] Resend error:', errBody);
+      throw new HttpsError('internal', 'Email send failed: ' + (errBody?.message || res.statusText));
+    }
+
+    const data = await res.json();
+    console.log(`[sendAdminEmail] Sent to ${recipientEmail} (uid: ${uid}), subject: "${subject}", id: ${data.id}`);
+    return { success: true, email: recipientEmail };
+  }
+);
