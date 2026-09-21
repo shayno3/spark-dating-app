@@ -3868,6 +3868,18 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
           fetchFirestoreConfig(); // fetch Firestore admin Remote Config (editable in-app)
           setTimeout(() => offerPinSetup(firebaseUser.uid), 1500);
         } else {
+          // Brand-new user — write placeholder so admin can see incomplete signups
+          try {
+            await db.collection('users').doc(firebaseUser.uid).set({
+              name:      firebaseUser.displayName || '',
+              email:     firebaseUser.email || '',
+              phone:     firebaseUser.phoneNumber || '',
+              status:    'incomplete',
+              photos:    [],
+              online:    false,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+          } catch(e) { console.warn('Spark: placeholder user write failed', e); }
           // Brand-new user — show phone verification first (email/pw), then setup wizard
           S.user = { id: firebaseUser.uid, name: firebaseUser.displayName || '' };
           const isEmailPw = firebaseUser.providerData.some(p => p.providerId === 'password');
@@ -5758,7 +5770,7 @@ function _adminBuildRow(u) {
   return `<div class="admin-user-row" id="adminrow-${u.id}" onclick="openAdminUser('${u.id}')">
     <div class="admin-user-av">${photo}${ring}</div>
     <div style="flex:1;min-width:0">
-      <div class="admin-user-name">${escHtml(u.name||'Unknown')}${u.age ? ', '+u.age : ''}</div>
+      <div class="admin-user-name">${escHtml(u.name||(u.email||u.phone||'Unknown'))}${u.age ? ', '+u.age : ''}</div>
       <div class="admin-user-meta">
         <span class="admin-user-state">${escHtml(u.state||'')}</span>
         ${u.state ? '<span>·</span>' : ''}
@@ -5766,10 +5778,11 @@ function _adminBuildRow(u) {
       </div>
     </div>
     <div class="admin-user-badges">
+      ${u.status===\'incomplete\' ? '<span class="admin-badge" style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.35)">⚠️ Setup</span>' : ''}
       ${u.banned  ? '<span class="admin-badge banned">🚫 Banned</span>' : ''}
       ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>'   : ''}
       ${isOnline  ? '<span class="admin-badge online">Online</span>'    : ''}
-      ${isNew && !u.banned ? '<span class="admin-badge new">New</span>' : ''}
+      ${isNew && !u.banned && u.status!==\'incomplete\' ? '<span class="admin-badge new">New</span>' : ''}
     </div>
     <span style="color:var(--text-muted);font-size:0.85rem;margin-left:0.25rem;flex-shrink:0">›</span>
   </div>`;
