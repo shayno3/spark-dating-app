@@ -5796,13 +5796,25 @@ function adminSendSetupReminder(uid, name, e) {
   _adminComposeUid  = uid;
   _adminComposeName = name || 'User';
   _adminComposeMode = 'email';
-  document.getElementById('adminComposeTitle').textContent = 'Send Setup Reminder to';
-  document.getElementById('adminComposeName').textContent  = name || uid;
-  document.getElementById('adminComposeSubject').style.display = '';
-  document.getElementById('adminComposeSubject').value = subject;
-  document.getElementById('adminComposeTa').value = body;
-  document.getElementById('adminComposeSendBtn').textContent = 'Send Email 📧';
-  document.getElementById('adminComposeModal').style.display = 'flex';
+  const modal   = document.getElementById('adminComposeModal');
+  const titleEl = document.getElementById('adminComposeTitle');
+  const nameEl  = document.getElementById('adminComposeName');
+  const subjEl  = document.getElementById('adminComposeSubject');
+  const sendBtn = document.getElementById('adminComposeSendBtn');
+  const ta      = document.getElementById('adminComposeTa');
+  if (!modal || !ta) return;
+  if (titleEl)  titleEl.textContent = 'Send Setup Reminder to';
+  if (nameEl)   nameEl.textContent  = name || uid;
+  if (subjEl)   { subjEl.value = subject; subjEl.style.display = 'block'; }
+  if (sendBtn)  sendBtn.textContent = 'Send Email 📧';
+  ta.value = body;
+  ta.placeholder = 'Email body…';
+  modal.classList.add('open');
+  setTimeout(() => {
+    if (subjEl) subjEl.focus();
+    var cancelBtn = modal.querySelector('.admin-compose-cancel');
+    if (typeof _navSet === 'function' && cancelBtn) _navSet(cancelBtn);
+  }, 120);
 }
 
 async function renderAdminPanel() {
