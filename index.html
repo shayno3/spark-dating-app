@@ -5778,11 +5778,11 @@ function _adminBuildRow(u) {
       </div>
     </div>
     <div class="admin-user-badges">
-      ${u.status===\'incomplete\' ? `<span class="admin-badge" style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.35);cursor:pointer" onclick="adminSendSetupReminder(\'${u.id}\',\'${escHtml(u.name||u.email||\'\')}\',event)">📧 Remind</span>` : ''}
+      ${u.status==='incomplete' ? `<span class="admin-badge" style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.35);cursor:pointer" onclick="adminSendSetupReminder(\'${u.id}\',\'${escHtml(u.name||u.email||'')}\',event)">📧 Remind</span>` : ''}
       ${u.banned  ? '<span class="admin-badge banned">🚫 Banned</span>' : ''}
       ${u.premium ? '<span class="admin-badge premium">⭐ Pro</span>'   : ''}
       ${isOnline  ? '<span class="admin-badge online">Online</span>'    : ''}
-      ${isNew && !u.banned && u.status!==\'incomplete\' ? '<span class="admin-badge new">New</span>' : ''}
+      ${isNew && !u.banned && u.status!=='incomplete' ? '<span class="admin-badge new">New</span>' : ''}
     </div>
     <span style="color:var(--text-muted);font-size:0.85rem;margin-left:0.25rem;flex-shrink:0">›</span>
   </div>`;
