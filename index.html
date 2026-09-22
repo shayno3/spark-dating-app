@@ -3833,7 +3833,8 @@ if (FB_READY || location.hash.startsWith('#fbcfg=')) {
         if (_inPhoneVerify) return;
         const snap = await db.collection('users').doc(firebaseUser.uid).get();
         if (snap.exists) {
-          S.user = { id: firebaseUser.uid, ...snap.data() };
+          const _rawUser = snap.data();
+          S.user = { id: firebaseUser.uid, ..._rawUser, gender: normalizeGender(_rawUser.gender) };
           S.isPremium = snap.data()?.isPremium === true;
           // ── Founder's Access: 30-day free premium for early users ──
           (function() {
@@ -5829,7 +5830,7 @@ async function renderAdminPanel() {
     const DAY  = 86400000;
     const WEEK = 7 * DAY;
 
-    window._adminUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    window._adminUsers = snap.docs.map(d => { const _d = d.data(); return { id: d.id, ..._d, gender: normalizeGender(_d.gender) }; });
     const users   = window._adminUsers;
     const active  = users.filter(u => !u.deleted); // exclude soft-deleted accounts
 
@@ -6137,7 +6138,7 @@ async function renderAdminPanel() {
     S.listeners.adminUsers = db.collection('users').onSnapshot(snap => {
       const prevIds  = new Set((window._adminUsers||[]).map(u => u.id));
       const now2     = Date.now();
-      const updated  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const updated  = snap.docs.map(d => { const _d = d.data(); return { id: d.id, ..._d, gender: normalizeGender(_d.gender) }; });
 
       // Detect new joins and deletions for activity feed
       const prevMap = new Map((window._adminUsers||[]).map(u => [u.id, u]));
@@ -7496,7 +7497,7 @@ function loadProfiles() {
         const data     = d.data();
         const lastSeen = data.lastSeen?.toDate?.();
         // online = true if their lastSeen is within the last 5 minutes
-        return { id: d.id, ...data, online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
+        return { id: d.id, ...data, gender: normalizeGender(data.gender), online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
       });
     renderDiscover();
     updateFilterCounts();
@@ -7520,7 +7521,7 @@ async function loadMoreProfiles() {
       .map(d => {
         const data     = d.data();
         const lastSeen = data.lastSeen?.toDate?.();
-        return { id: d.id, ...data, online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
+        return { id: d.id, ...data, gender: normalizeGender(data.gender), online: !!(lastSeen && now - lastSeen.getTime() < 5 * 60 * 1000) };
       });
     S.profiles.push(...fresh);
     S.profilesCursor = snap.docs.length === 50 ? snap.docs[snap.docs.length - 1] : null;
@@ -9057,7 +9058,7 @@ async function renderNearby() {
     // Falls back to a fresh Firestore get() only on a cold load before profiles arrive.
     const allUsers = (S.profiles && S.profiles.length > 0)
       ? S.profiles
-      : (await db.collection('users').get()).docs.map(d => ({ id: d.id, ...d.data() }));
+      : (await db.collection('users').get()).docs.map(d => { const _d = d.data(); return { id: d.id, ..._d, gender: normalizeGender(_d.gender) }; });
 
     const myUid    = S.user?.id;
     const myLower  = myCity.toLowerCase().trim();
@@ -11802,6 +11803,15 @@ function escHtml(s) {
 }
 function escAttr(s) {
   return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+/** Normalise legacy gender values ('female'->'Woman', 'male'->'Man') so all
+ *  comparisons work regardless of how a profile was created or imported. */
+function normalizeGender(g) {
+  if (!g) return g;
+  const l = g.toLowerCase();
+  if (l === 'female' || l === 'women' || l === 'woman') return 'Woman';
+  if (l === 'male'   || l === 'men'   || l === 'man')   return 'Man';
+  return g; // pass through any other value (e.g. 'Non-binary') unchanged
 }
 
 /* ================================================================
