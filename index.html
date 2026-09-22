@@ -1882,6 +1882,62 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
 .vk-key.vk-space { max-width: 180px; font-size: 0.75rem; letter-spacing: 0.04em; }
 .vk-key.vk-action { background: rgba(233,30,140,0.18); border-color: rgba(233,30,140,0.35); color: var(--primary); }
 
+/* ── Phone-only font size toggle ─────────────────────────────────────────── */
+/* Applied to body; scoped away from glasses-mode with :not(.glasses-mode) */
+body.app-font-large    #app:not(.glasses-mode) { font-size: 110%; }
+body.app-font-bold-large #app:not(.glasses-mode) { font-size: 115%; }
+body.app-font-bold-large #app:not(.glasses-mode) .vk-key,
+body.app-font-bold-large #app:not(.glasses-mode) button,
+body.app-font-bold-large #app:not(.glasses-mode) p,
+body.app-font-bold-large #app:not(.glasses-mode) span,
+body.app-font-bold-large #app:not(.glasses-mode) div { font-weight: 700; }
+
+/* VK key sizing for each font level (VK is outside #app so no :not guard needed
+   — VK is never shown in glasses mode anyway) */
+body.app-font-large .vk-key             { font-size: 1.0rem;  height: 46px; }
+body.app-font-large .vk-key.vk-wide     { font-size: 0.9rem; }
+body.app-font-large .vk-key.vk-space    { font-size: 0.88rem; }
+body.app-font-bold-large .vk-key        { font-size: 1.05rem; font-weight: 800; height: 48px; }
+body.app-font-bold-large .vk-key.vk-wide  { font-size: 0.92rem; font-weight: 800; }
+body.app-font-bold-large .vk-key.vk-space { font-size: 0.9rem;  font-weight: 800; }
+
+/* Font size button active state */
+.font-size-btn.fs-active {
+  background: rgba(233,30,140,0.18) !important;
+  border-color: rgba(233,30,140,0.6) !important;
+  color: var(--primary) !important;
+}
+
+/* Hide font size section on glasses (it's inside #app) */
+#app.glasses-mode .font-size-section { display: none !important; }
+
+/* ── VK Word Prediction bar ───────────────────────────────────────────────── */
+#vkPredictBar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 6px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+#vkPredictBar::-webkit-scrollbar { display: none; }
+.vk-predict-word {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: background 0.1s;
+}
+.vk-predict-word:active { background: var(--primary); color: #fff; }
+
+
 
 /* ── Spark VK (Option C – voice-first) ─────────────────────────── */
 .spark-vk {
@@ -2550,6 +2606,17 @@ body.vk-padded .chat-messages { padding-bottom: 55vh; }
           <input type="checkbox" id="gearBrowsePrivatelyToggle" onchange="savePrivacySetting('browsePrivately',this.checked)">
           <span class="toggle-slider"></span>
         </label>
+      </div>
+      <!-- Font size section - phone only (hidden on glasses via CSS) -->
+      <div class="font-size-section">
+        <div style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.1rem">
+          <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-muted);margin-bottom:0.45rem">🔤 Text Size</div>
+          <div style="display:flex;gap:0.4rem">
+            <button class="font-size-btn" data-size="normal" onclick="setPhoneFontSize('normal')" style="flex:1;padding:0.45rem 0;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;touch-action:manipulation">Normal</button>
+            <button class="font-size-btn" data-size="large" onclick="setPhoneFontSize('large')" style="flex:1;padding:0.45rem 0;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.88rem;font-weight:600;cursor:pointer;touch-action:manipulation">Large A</button>
+            <button class="font-size-btn" data-size="bold-large" onclick="setPhoneFontSize('bold-large')" style="flex:1;padding:0.45rem 0;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text);font-size:0.88rem;font-weight:800;cursor:pointer;touch-action:manipulation"><strong>Bold A</strong></button>
+          </div>
+        </div>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.1rem">
         <button onclick="closePrivacyPanel();openModeSelector();" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;color:var(--text);cursor:pointer;padding:0.35rem 0.1rem;border-radius:8px;touch-action:manipulation">
@@ -7327,6 +7394,13 @@ function openPrivacyPanel() {
   const gb = document.getElementById('gearBrowsePrivatelyToggle');
   if (gi) gi.checked = !!u.invisible;
   if (gb) gb.checked = !!u.browsePrivately;
+  // Highlight the active font-size button for phone users
+  try {
+    const saved = localStorage.getItem('spark_font_size') || 'normal';
+    document.querySelectorAll('.font-size-btn').forEach(b => {
+      b.classList.toggle('fs-active', b.dataset.size === saved);
+    });
+  } catch(e) {}
   document.getElementById('privacySheet').classList.add('open');
   _navRefresh();
 }
@@ -12740,6 +12814,8 @@ function closeVK() {
   document.body.classList.remove('vk-padded');
   _vkClearFocus();
   _vkStopPreview();
+  const predBar = document.getElementById('vkPredictBar');
+  if (predBar) predBar.style.display = 'none';
   // Restore readonly on auth inputs so the user must tap again to re-open VK
   // (prevents accidental VK auto-open when glasses nav moves focus)
   document.querySelectorAll('#authView input.vk-input').forEach(el => {
@@ -12830,6 +12906,7 @@ function vkType(char) {
   const ch = VK.shifted && !VK.nums ? char.toUpperCase() : char;
   _vkInsert(ch);
   if (VK.shifted) { VK.shifted = false; _vkUpdateShiftLabel(); }
+  _vkUpdatePredictions();
 }
 
 function vkShift() {
@@ -12848,6 +12925,7 @@ function vkBackspace() {
   el.value = el.value.slice(0, -1);
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
+  _vkUpdatePredictions();
 }
 
 function vkReturn() {
@@ -12891,6 +12969,93 @@ function _vkGetTarget() {
   if (VK.target && document.contains(VK.target)) return VK.target;
   const el = document.querySelector('input:not([type=file]):not([style*="display:none"]), textarea');
   return el || null;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PHONE-ONLY FONT SIZE TOGGLE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function setPhoneFontSize(mode) {
+  document.body.classList.remove('app-font-large', 'app-font-bold-large');
+  if (mode === 'large')      document.body.classList.add('app-font-large');
+  if (mode === 'bold-large') document.body.classList.add('app-font-bold-large');
+  try { localStorage.setItem('spark_font_size', mode || 'normal'); } catch(e) {}
+  // Update button highlight states
+  document.querySelectorAll('.font-size-btn').forEach(b => {
+    b.classList.toggle('fs-active', b.dataset.size === (mode || 'normal'));
+  });
+}
+
+// Apply saved font size preference on every page load
+(function _initPhoneFontSize() {
+  try {
+    const saved = localStorage.getItem('spark_font_size') || 'normal';
+    if (saved !== 'normal') {
+      if (saved === 'large')      document.body.classList.add('app-font-large');
+      if (saved === 'bold-large') document.body.classList.add('app-font-bold-large');
+    }
+    // Highlight the active button once the DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.font-size-btn').forEach(b => {
+        b.classList.toggle('fs-active', b.dataset.size === saved);
+      });
+    }, { once: true });
+  } catch(e) {}
+})();
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   VK WORD PREDICTION (phone-only — hidden on glasses via display:none on the bar)
+   Top 200 common English words used as a fast prefix-match dictionary.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const VK_WORDS = [
+  'the','be','to','of','and','a','in','that','have','it','for','not','on','with','he','as','you','do',
+  'at','this','but','his','by','from','they','we','say','her','she','or','an','will','my','one','all',
+  'would','there','their','what','so','up','out','if','about','who','get','which','go','me','when','make',
+  'can','like','time','no','just','him','know','take','people','into','year','your','good','some','could',
+  'them','see','other','than','then','now','look','only','come','its','over','think','also','back','after',
+  'use','two','how','our','work','first','well','way','even','new','want','because','any','these','give',
+  'day','most','us','great','between','need','large','often','hand','high','place','hold','right','same',
+  'tell','boy','follow','came','show','also','around','form','small','set','put','end','does','another',
+  'well','large','every','found','still','between','name','should','home','big','give','air','line','set',
+  'own','under','read','last','never','us','left','along','may','something','though','help','next','name',
+  'before','being','both','below','through','during','while','above','each','where','why','how','when',
+  'again','further','more','than','same','here','there','off','after','always','already','too','very',
+  'really','actually','just','only','maybe','probably','sorry','please','thank','thanks','hello','hey',
+  'okay','yes','yeah','sure','great','nice','love','happy','today','tomorrow','tonight','morning','night',
+  'message','looking','feeling','doing','going','seeing','meeting','talking','thinking','hoping','waiting',
+  'beautiful','amazing','wonderful','interesting','exciting','funny','sweet','kind','smart','awesome','cute',
+  'coffee','lunch','dinner','weekend','Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday',
+  'match','spark','profile','photo','picture','dating','relationship','friend','couple','together','date',
+];
+
+function _vkUpdatePredictions() {
+  const bar  = document.getElementById('vkPredictBar');
+  if (!bar) return;
+  const el = _vkGetTarget();
+  if (!el) { bar.style.display = 'none'; return; }
+  const val  = el.value || '';
+  // Get the last word fragment being typed (after last space)
+  const lastWord = val.split(/\s+/).pop().toLowerCase();
+  if (lastWord.length < 1) { bar.style.display = 'none'; return; }
+  // Prefix match — up to 3 suggestions that aren't identical to current input
+  const matches = VK_WORDS.filter(w => w.startsWith(lastWord) && w !== lastWord).slice(0, 3);
+  if (!matches.length) { bar.style.display = 'none'; return; }
+  bar.innerHTML = matches.map(w =>
+    `<button class="vk-predict-word" onclick="_vkPickPrediction('${w}')">${w}</button>`
+  ).join('');
+  bar.style.display = 'flex';
+}
+
+function _vkPickPrediction(word) {
+  const el = _vkGetTarget();
+  if (!el) return;
+  const val = el.value || '';
+  const parts = val.split(/\s+/);
+  parts[parts.length - 1] = word;
+  el.value = parts.join(' ') + ' ';
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+  _vkUpdatePredictions();
 }
 
 // Auto-open VK when a vk-input element is focused.
@@ -13767,7 +13932,9 @@ async function loadFilterPrefs(uid) {
       <button class="vk-email-key" onclick="vkTypeEmail('@icloud.com')">@icloud.com</button>
     </div>
     <!-- Letters layout -->
-    <div id="vkLetters">
+    <!-- Word prediction bar for phone users -->
+    <div id="vkPredictBar" style="display:none"></div>
+        <div id="vkLetters">
       <div class="vk-row">
         <button class="vk-key" onclick="vkType('q')">q</button><button class="vk-key" onclick="vkType('w')">w</button><button class="vk-key" onclick="vkType('e')">e</button><button class="vk-key" onclick="vkType('r')">r</button><button class="vk-key" onclick="vkType('t')">t</button><button class="vk-key" onclick="vkType('y')">y</button><button class="vk-key" onclick="vkType('u')">u</button><button class="vk-key" onclick="vkType('i')">i</button><button class="vk-key" onclick="vkType('o')">o</button><button class="vk-key" onclick="vkType('p')">p</button>
       </div>
