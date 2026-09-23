@@ -8420,7 +8420,7 @@ function subscribeToMatches() {
           // Carry sparkSystem flag so renderConversations can show "✨ Spark Team" branding
           const sparkSystem = !!data.sparkSystem;
           const sparkDisplayName = data.sparkDisplayName || null;
-          return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, ...profileData };
+          return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, lastMsg: data.lastMsg || null, ...profileData };
         });
 
         const results = (await Promise.all(profilePromises)).filter(Boolean);
@@ -9365,7 +9365,7 @@ function renderConversations() {
   const matchesBar  = document.getElementById('msgMatchesBar');
   const likedMeCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
   const _blocked    = new Set(S.user?.blockedUsers || []);  // M5: block filter (null-safe: S.user can be null briefly after logout)
-  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0) && !_blocked.has(m.uid));
+  const newMatches  = S.matches.filter(m => !m.lastMsg && !_blocked.has(m.uid)); // use lastMsg from match doc (sync) instead of S.messages (lazy-loaded)
   if (matchesRow) {
     let rowHtml = '';
     if (likedMeCount > 0) {
@@ -9393,7 +9393,7 @@ function renderConversations() {
   // ── Conversations with messages ──
   const isGridMode = S.viewMode.messages === 'grid';
   list.className = 'conv-list' + (isGridMode ? ' grid-mode' : '');
-  const withMsgs = S.matches.filter(m => S.messages[m.matchId]?.length > 0 && !_blocked.has(m.uid));  // M5
+  const withMsgs = S.matches.filter(m => !!m.lastMsg && !_blocked.has(m.uid)); // use lastMsg from match doc (sync) instead of S.messages (lazy-loaded)
   if (withMsgs.length === 0) {
     list.innerHTML = `<div class="empty-state" style="padding-top:1.5rem${isGridMode ? ';grid-column:1/-1' : ''}">
       <div class="empty-icon">💬</div>
