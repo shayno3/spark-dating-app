@@ -8451,7 +8451,7 @@ function subscribeToMatches() {
         // Detect brand-new matches — skip overlay on the very first snapshot (initial load)
         if (S._matchesInitialized) {
           results.forEach(m => {
-            if (!prevIds.has(m.uid)) newMatches.push(m);
+            if (!prevIds.has(m.uid) && !m.sparkSystem) newMatches.push(m); // skip admin/Spark Team matches
           });
         }
         S._matchesInitialized = true;
