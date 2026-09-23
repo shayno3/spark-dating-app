@@ -3,7 +3,7 @@
 
 // ─── Cache config ────────────────────────────────────────────────────────────
 // Bump CACHE_VERSION after a significant deploy to force clients to refresh.
-const CACHE_VERSION = 'v13-20260910';
+const CACHE_VERSION = 'v14-20260923';
 const CACHE_NAME    = 'spark-shell-' + CACHE_VERSION;
 
 const SHELL_ASSETS = [
@@ -63,18 +63,26 @@ self.addEventListener('fetch', (event) => {
   ];
   if (STANDALONE_PAGES.includes(url.pathname)) return;
 
-  // Navigation (main HTML doc): stale-while-revalidate
-  // → serve cached instantly, update cache in background so next load is fresh
+  // Navigation (main HTML doc): NETWORK-FIRST with cache fallback.
+  // Previously stale-while-revalidate, which served the PREVIOUS deploy on every
+  // load — devices ran code one (or more) deploys behind, so fixes appeared not
+  // to work (Sept 23: devices still ran pre-fix subscribeToMatches). Now: always
+  // try the network first; fall back to cache only if offline or slow (>4s).
   if (request.mode === 'navigate') {
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match('/');
-        const networkFetch = fetch(request).then((response) => {
+        const networkFetch = fetch(request, { cache: 'no-store' }).then((response) => {
           if (response && response.ok) cache.put('/', response.clone());
           return response;
-        }).catch(() => null);
-        // Return cache immediately if available; otherwise wait for network
-        return cached ? (networkFetch.catch(() => {}), cached) : networkFetch;
+        });
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 4000));
+        try {
+          const fresh = await Promise.race([networkFetch, timeout]);
+          if (fresh) return fresh;
+        } catch (e) { /* offline — fall through to cache */ }
+        const cached = await cache.match('/');
+        if (cached) return cached;
+        return networkFetch; // no cache yet — wait for network
       })
     );
     return;
