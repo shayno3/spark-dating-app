@@ -11851,11 +11851,17 @@ function fmtHeight(h) {
 }
 
 function avatar(name) {
-  const init    = (name||'?').charAt(0).toUpperCase();
+  // Unicode-safe (Sept 23): btoa() threw InvalidCharacterError on non-Latin1 initials
+  // (e.g. '✨ Spark Team', emoji, Cyrillic/CJK names), crashing renderConversations
+  // mid-list so matches/messages vanished. Now: first full code point, XML-escaped,
+  // and the SVG is URL-encoded (no btoa). encodeURIComponent never emits ' so the
+  // result stays safe inside onerror="this.src='...'" attributes.
+  const first   = Array.from((name || '?').trim() || '?')[0] || '?';
+  const init    = first.toUpperCase().replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
   const palette = ['#E91E8C','#9C27B0','#673AB7','#3F51B5','#0288D1','#00838F','#EF6C00'];
-  const col     = palette[(name||'').charCodeAt(0) % palette.length];
+  const col     = palette[((name||'').codePointAt(0) || 0) % palette.length];
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${col}"/><stop offset="100%" stop-color="#1A1A2E"/></linearGradient></defs><rect width="200" height="200" fill="url(#g)"/><text x="100" y="118" font-size="90" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-weight="bold">${init}</text></svg>`;
-  return 'data:image/svg+xml;base64,' + btoa(svg);
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
 function toast(msg, ms=2800) {
