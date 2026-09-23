@@ -9772,10 +9772,11 @@ function openChat(uid) {
   S.chatMode      = 'panel';
   S.unread[uid]   = false;
 
-  const photo = (match.photos?.[0]) || avatar(match.name || '?');
+  const sparkAv = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" rx="30" fill="#f59e0b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="28">✨</text></svg>')}`;
+  const photo = match.sparkSystem ? sparkAv : ((match.photos?.[0]) || avatar(match.name || '?'));
   document.getElementById('chatAv').src = photo;
-  document.getElementById('chatAv').onerror = function(){ this.src = avatar(match.name||'?'); };
-  document.getElementById('chatHeadName').textContent = match.name || '';
+  document.getElementById('chatAv').onerror = function(){ this.src = match.sparkSystem ? sparkAv : avatar(match.name||'?'); };
+  document.getElementById('chatHeadName').textContent = match.sparkSystem ? (match.sparkDisplayName || '✨ Spark Team') : (match.name || '');
 
 
   // Seed status from cached Firestore data while RTDB listener loads
@@ -9816,11 +9817,12 @@ function openInlineChat(uid) {
   S.chatMode      = 'inline';
   S.unread[uid]   = false;
 
-  const photo = (match.photos?.[0]) || avatar(match.name || '?');
+  const sparkAv2 = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" rx="30" fill="#f59e0b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="28">✨</text></svg>')}`;
+  const photo = match.sparkSystem ? sparkAv2 : ((match.photos?.[0]) || avatar(match.name || '?'));
   const avEl  = document.getElementById('inlineChatAv');
   avEl.src    = photo;
-  avEl.onerror = function(){ this.src = avatar(match.name||'?'); };
-  document.getElementById('inlineChatName').textContent = match.name || '';
+  avEl.onerror = function(){ this.src = match.sparkSystem ? sparkAv2 : avatar(match.name||'?'); };
+  document.getElementById('inlineChatName').textContent = match.sparkSystem ? (match.sparkDisplayName || '✨ Spark Team') : (match.name || '');
   const inlineStatusEl = document.getElementById('inlineChatHeadStatus');
   if (inlineStatusEl) {
     const isOnlineFb = match.online;
