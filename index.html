@@ -67,7 +67,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden; /* prevent iOS from scrolling body when keyboard opens — causes blank screen bug */
   overscroll-behavior-x: none;
   scroll-padding-bottom: 72px; /* leave room for sticky tab bar when glasses nav scrolls to an element */
   -webkit-text-size-adjust: 100%;
@@ -12658,6 +12658,7 @@ function _chatPanelKeyboardFix() {
     panel.style.height = vv.height + 'px';
     panel.style.top    = vv.offsetTop + 'px';
     panel.style.bottom = 'auto';
+    window.scrollTo(0, 0); /* keep body at top — iOS keyboard can shift it */
   } else {
     ['chatPanel','inlineChatSheet'].forEach(id => {
       const p = document.getElementById(id);
