@@ -8424,13 +8424,28 @@ function subscribeToMatches() {
         });
 
         const results = (await Promise.all(profilePromises)).filter(Boolean);
-        // Fix: guard against wiping S.matches if all profile fetches fail but match docs exist
-        // This prevents a race condition where a concurrent snapshot wipes the matches list
-        if (results.length === 0 && snap.docs.length > 0) {
-          console.warn('Spark: subscribeToMatches - all profile fetches returned null; preserving existing S.matches to avoid empty state');
+        // Merge results: for any match whose profile fetch failed (returned null),
+        // keep the existing entry from S.matches so profiles never vanish from the UI
+        // due to a transient Firestore/network error during re-fetch.
+        const existingByUid = new Map(S.matches.map(m => [m.uid, m]));
+        const mergedResults = [];
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          const otherUid = data.uids?.find(u => u !== myUid);
+          if (!otherUid) return;
+          const fetched = results.find(r => r.uid === otherUid);
+          if (fetched) {
+            mergedResults.push(fetched); // fresh data
+          } else if (existingByUid.has(otherUid)) {
+            mergedResults.push(existingByUid.get(otherUid)); // keep existing — fetch failed
+          }
+          // else: brand new match whose fetch also failed — skip (will appear on next snapshot)
+        });
+        if (mergedResults.length > 0 || snap.docs.length === 0) {
+          S.matches  = mergedResults;
+          S.matchIds = new Set(mergedResults.map(m => m.uid));
         } else {
-          S.matches  = results;
-          S.matchIds = new Set(results.map(m => m.uid));
+          console.warn('Spark: subscribeToMatches - all fetches failed; preserving S.matches');
         }
 
         // Detect unread messages: if lastMsgFrom is someone else & it's newer than our readAt
@@ -9365,7 +9380,7 @@ function renderConversations() {
   const matchesBar  = document.getElementById('msgMatchesBar');
   const likedMeCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
   const _blocked    = new Set(S.user?.blockedUsers || []);  // M5: block filter (null-safe: S.user can be null briefly after logout)
-  const newMatches  = S.matches.filter(m => !m.lastMsg && !_blocked.has(m.uid)); // use lastMsg from match doc (sync) instead of S.messages (lazy-loaded)
+  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0) && !_blocked.has(m.uid));
   if (matchesRow) {
     let rowHtml = '';
     if (likedMeCount > 0) {
@@ -9393,7 +9408,7 @@ function renderConversations() {
   // ── Conversations with messages ──
   const isGridMode = S.viewMode.messages === 'grid';
   list.className = 'conv-list' + (isGridMode ? ' grid-mode' : '');
-  const withMsgs = S.matches.filter(m => !!m.lastMsg && !_blocked.has(m.uid)); // use lastMsg from match doc (sync) instead of S.messages (lazy-loaded)
+  const withMsgs = S.matches.filter(m => S.messages[m.matchId]?.length > 0 && !_blocked.has(m.uid));  // M5
   if (withMsgs.length === 0) {
     list.innerHTML = `<div class="empty-state" style="padding-top:1.5rem${isGridMode ? ';grid-column:1/-1' : ''}">
       <div class="empty-icon">💬</div>
