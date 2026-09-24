@@ -1065,6 +1065,21 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22p
   margin-top: 0.75rem;
   touch-action: manipulation;
 }
+/* Secondary "More options" (Unmatch / Report) — deliberately quieter than Send a Message */
+.match-profile-more-btn {
+  width: 100%;
+  padding: 0.8rem;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 0.6rem;
+  touch-action: manipulation;
+}
+.match-profile-more-btn:active { background: var(--bg-card); }
 
 /* ---- CONV ⋮ MENU BUTTON ---- */
 .conv-menu-btn {
@@ -3068,6 +3083,8 @@ body.app-font-bold-large .vk-key.vk-space { font-size: 0.9rem;  font-weight: 800
           <div class="tags-wrap" id="matchProfileTags" style="margin-bottom:0.875rem"></div>
           <div class="match-profile-bio" id="matchProfileBio"></div>
           <button class="match-profile-msg-btn" id="matchProfileMsgBtn">💬 Send a Message</button>
+          <!-- Sept 24: Unmatch / Report from the Matches page — reuses the Messages ⋮ action sheet -->
+          <button class="match-profile-more-btn" id="matchProfileMoreBtn" onclick="matchProfileMore()">⋯ More options</button>
         </div>
       </div>
     </div>
@@ -8354,6 +8371,7 @@ async function blockUser(uid, name) {
     delete S.unread[uid];
     // 4. Close chat if the blocked user is currently open
     if (S.activeChatId === uid) closeChat();
+    if (_mpUid === uid) closeMatchProfile();   // blocked from the Matches profile panel
     // 5. Re-render affected views
     renderDiscover();
     renderMatches();
@@ -9373,6 +9391,16 @@ function closeMatchProfile() {
   _mpIndex = 0;
 }
 
+// Sept 24: "⋯ More options" on the match profile → same action sheet as Messages ⋮
+// (Delete Conversation / Unmatch / Report-Block). The sheet sits later in the DOM with a
+// higher z-index, so it layers above this panel and captures glasses nav focus.
+function matchProfileMore() {
+  const m = S.matches.find(x => x.uid === _mpUid);
+  if (!m) return;
+  const photo = (m.photos?.[0]) || avatar(m.name || '?');
+  openConvSheet(m.uid, m.name || '', photo);
+}
+
 /* ================================================================
    MESSAGES / CHAT
 ================================================================ */
@@ -9791,6 +9819,7 @@ async function unmatchUser(uid, name) {
     delete S.messages[matchId];
     delete S.unread[uid];
     if (S.activeChatId === uid) closeChat();
+    if (_mpUid === uid) closeMatchProfile();   // unmatched from the Matches profile panel
     renderMatches();
     renderConversations();
     toast(`Unmatched ${name || 'user'}`);
