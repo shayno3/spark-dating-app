@@ -8420,7 +8420,12 @@ function subscribeToMatches() {
           // Carry sparkSystem flag so renderConversations can show "✨ Spark Team" branding
           const sparkSystem = !!data.sparkSystem;
           const sparkDisplayName = data.sparkDisplayName || null;
-          return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, lastMsg: data.lastMsg || null, ...profileData };
+          // Delete Conversation (Sept 24): per-user "cleared at" marker on the match doc.
+          // 'estimate' so a just-written serverTimestamp isn't null (row would flash back).
+          const est         = doc.data({ serverTimestamps: 'estimate' });
+          const clearedAt   = est['clearedAt_' + myUid]?.toDate?.() || null;
+          const lastMsgTime = est.lastMsgTime?.toDate?.() || null;
+          return { matchId: doc.id, uid: otherUid, sparkSystem, sparkDisplayName, lastMsg: data.lastMsg || null, ...profileData, clearedAt, lastMsgTime };
         });
 
         const results = (await Promise.all(profilePromises)).filter(Boolean);
@@ -9380,7 +9385,9 @@ function renderConversations() {
   const matchesBar  = document.getElementById('msgMatchesBar');
   const likedMeCount = (S.likedMe || []).filter(u => !S.matchIds.has(u.uid)).length;
   const _blocked    = new Set(S.user?.blockedUsers || []);  // M5: block filter (null-safe: S.user can be null briefly after logout)
-  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0) && !_blocked.has(m.uid));
+  // Delete Conversation: a cleared thread stays hidden from the Messages page until a newer message arrives
+  const _cleared    = m => !!m.clearedAt && !(S.messages[m.matchId]?.length > 0) && !(m.lastMsgTime && m.lastMsgTime > m.clearedAt);
+  const newMatches  = S.matches.filter(m => !(S.messages[m.matchId]?.length > 0) && !_blocked.has(m.uid) && !_cleared(m));
   if (matchesRow) {
     let rowHtml = '';
     if (likedMeCount > 0) {
@@ -9492,9 +9499,11 @@ function closeConvSheet() {
 }
 
 function confirmConvAction(type) {
-  closeConvSheet();
+  // Sept 24 fix: read the target BEFORE closeConvSheet() — it clears _convSheetUid/_convSheetName
   const uid  = _convSheetUid  || '';
   const name = _convSheetName || 'this person';
+  closeConvSheet();
+  if (!uid) { toast('Could not find conversation'); return; }
 
   const configs = {
     delete: {
@@ -9528,6 +9537,13 @@ function closeConvConfirm() {
   document.getElementById('convConfirmOverlay')?.classList.remove('open');
   _convConfirmAction = null;
   _navRefresh();
+}
+
+// Sept 24 fix: Confirm used to call closeConvConfirm() first, which nulled the action → nothing ran
+function runConvConfirm() {
+  const action = _convConfirmAction;
+  closeConvConfirm();
+  if (typeof action === 'function') action();
 }
 
 /* ================================================================
@@ -9729,28 +9745,45 @@ async function deleteConversation(uid, name) {
   if (S.activeChatId === uid || S.activeMatchId === matchId) {
     closeChat();
   }
-  // Clear local message state so the row disappears from the list
+  // Sept 24: persist a per-user "cleared at" marker on the match doc. Messages sent before
+  // it are hidden for THIS user only (the other person keeps their copy); the thread leaves
+  // the Messages page until a newer message arrives. The old deletedConvs array was written
+  // but never read, so deleted threads came back on reload.
+  const prevCleared = match.clearedAt || null;
+  match.clearedAt = new Date();
   delete S.messages[matchId];
   delete S.unread[uid];
   renderConversations();
-  toast(`Conversation with ${name || 'user'} deleted`);
-
-  // Persist: record this matchId in the user's deletedConvs array so it
-  // stays hidden after a page refresh (messages still exist on Firestore).
-  if (db) {
-    db.collection('users').doc(myUid)
-      .update({ deletedConvs: firebase.firestore.FieldValue.arrayUnion(matchId) })
-      .catch(e => { console.warn('Spark: deletedConvs persist failed', e); });
+  if (!db) return;
+  try {
+    await db.collection('matches').doc(matchId)
+      .update({ ['clearedAt_' + myUid]: firebase.firestore.FieldValue.serverTimestamp() });
+    toast(`Conversation with ${name || 'user'} deleted`);
+  } catch (e) {
+    console.warn('Spark: delete conversation failed', e);
+    match.clearedAt = prevCleared;   // roll back so the thread isn't silently lost
+    renderConversations();
+    toast(fbErrMsg ? fbErrMsg(e) : 'Could not delete — please try again');
   }
 }
 
 async function unmatchUser(uid, name) {
   const myUid = S.user?.id;
   if (!myUid || !db) return;
-  const matchId = [myUid, uid].sort().join('_');
+  // Sept 24: use the real matchId from state (fallback: sorted uids, the convention used everywhere)
+  const matchId = S.matches.find(m => m.uid === uid)?.matchId || [myUid, uid].sort().join('_');
   try {
-    // Delete the match document (removes the match for both users)
-    await db.collection('matches').doc(matchId).delete();
+    // Delete all messages AND the match doc. The final chunk + match delete run in ONE atomic
+    // batch, so we never end up with messages gone but the match still there (or vice versa).
+    // Messages must go too: matchIds are deterministic, so a future re-match would resurrect them.
+    const msgRefs = (await db.collection('messages').doc(matchId).collection('msgs').get()).docs.map(d => d.ref);
+    while (msgRefs.length > 450) {
+      const b = db.batch(); msgRefs.splice(0, 450).forEach(r => b.delete(r)); await b.commit();
+    }
+    const batch = db.batch();
+    msgRefs.forEach(r => batch.delete(r));
+    batch.delete(db.collection('matches').doc(matchId));
+    await batch.commit();
     // Clean up local state (mirrors blockUser pattern)
     S.seen.add(uid);
     S.matches    = S.matches.filter(m => m.uid !== uid);
@@ -9946,6 +9979,9 @@ function subscribeToMessages(matchId, uid) {
         translations: d.data().translations || null,           // Firebase translate extension
         time:         d.data().ts?.toDate() || new Date()
       }));
+      // Delete Conversation: hide messages sent at/before this user's clearedAt marker
+      const _clr = S.matches.find(m => m.matchId === matchId)?.clearedAt;
+      if (_clr) S.messages[matchId] = S.messages[matchId].filter(m => m.time > _clr);
       if (S.activeChatId === uid) {
         const cid = S.chatMode === 'inline' ? 'inlineChatMessages' : 'chatMessages';
         renderChatMessages(cid);
@@ -14053,7 +14089,7 @@ async function loadFilterPrefs(uid) {
     <div class="conv-confirm-desc" id="convConfirmDesc"></div>
     <div class="conv-confirm-btns">
       <button class="conv-confirm-cancel" onclick="closeConvConfirm()">Cancel</button>
-      <button class="conv-confirm-ok" id="convConfirmOk" onclick="closeConvConfirm();_convConfirmAction&&_convConfirmAction()">Confirm</button>
+      <button class="conv-confirm-ok" id="convConfirmOk" onclick="runConvConfirm()">Confirm</button>
     </div>
   </div>
 </div>
