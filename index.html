@@ -2202,7 +2202,10 @@ body.app-font-bold-large .vk-key.vk-space { font-size: 0.9rem;  font-weight: 800
 .spark-stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
 .spark-chart-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; }
 .spark-bars { display: flex; align-items: flex-end; gap: 5px; height: 72px; }
-.spark-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+/* Sept 26 fix: columns need a definite height (and bottom alignment) or the bars' % heights
+   collapse to min-height and every day looks the same. Bar height = fraction of the space above
+   the day label (100% − 18px), set inline, so bars stay in true proportion. */
+.spark-bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; flex: 1; height: 100%; }
 .spark-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--primary); min-height: 4px; transition: height 0.4s; }
 .spark-bar.today { background: linear-gradient(to top,#ff6b35,#ff3366); }
 .spark-bar-day { font-size: 0.6rem; color: var(--text-muted); font-weight: 600; }
@@ -7348,11 +7351,16 @@ function renderSparkScore() {
     const now = new Date();
     const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const weekCounts = Array(7).fill(0);
+    // Sept 26 fix: bucket by LOCAL CALENDAR DAY (midnight boundaries) so each bar matches its
+    // day label. The old rolling-24h math put e.g. yesterday-evening ratings under "today".
+    // Math.round absorbs 23h/25h DST days; diff < 0 (clock skew) is ignored.
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
     docs.forEach(d => {
       if (!d.createdAt) return;
       const ts = d.createdAt.toDate ? d.createdAt.toDate() : new Date(d.createdAt);
-      const diff = Math.floor((now - ts) / 86400000);
-      if (diff < 7) weekCounts[6 - diff]++;
+      const dayStart = new Date(ts); dayStart.setHours(0, 0, 0, 0);
+      const diff = Math.round((todayStart - dayStart) / 86400000);
+      if (diff >= 0 && diff < 7) weekCounts[6 - diff]++;
     });
     const maxCount = Math.max(...weekCounts, 1);
     let streak = 0;
@@ -7364,7 +7372,7 @@ function renderSparkScore() {
     const barsHtml = weekCounts.map((c, i) => {
       const pct = Math.round(c / maxCount * 100);
       return `<div class="spark-bar-col">
-        <div class="spark-bar${i===6?' today':''}" style="height:${Math.max(pct,6)}%"></div>
+        <div class="spark-bar${i===6?' today':''}" style="height:calc((100% - 18px) * ${Math.max(pct,6) / 100})"></div>
         <div class="spark-bar-day">${dayLabels[i]}</div>
       </div>`;
     }).join('');
