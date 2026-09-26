@@ -3478,8 +3478,9 @@ function _updateFlagDescs() {
   if (fiDesc) fiDesc.textContent = f.fireIceGated ? 'Premium only — free users see lock screen' : 'Unlocked — everyone can rate';
   if (ssDesc) ssDesc.textContent = f.sparkScoreGated ? 'Premium only — chart & leaderboard locked' : 'Unlocked — everyone sees their score';
   if (pmDesc) pmDesc.textContent = f.promoMode ? 'On — everyone gets free premium access' : 'Off — normal gating applies';
-  // Apply promo mode: if on, treat as premium; if off, restore real value
-  S.isPremium = f.promoMode || !!S.user?.isPremium;
+  // Promo mode is applied by the S.isPremium getter (see the S object). The old line here
+  // (S.isPremium = promoMode || user.isPremium) wiped the admin's Founder's Access and only
+  // ever affected the admin's own session, so it's removed.
 }
 
 async function adminToggleFlag(key, value) {
@@ -3633,7 +3634,8 @@ async function fetchFirestoreConfig() {
       }
     }
     // Premium gate — false means grant premium to all users (e.g. during a promotion)
-    if (rc.premiumGateEnabled === false) S.isPremium = true;
+    // (Sept 26: applied live by the S.isPremium getter via window._firestoreRC — setting it here
+    //  made the promo Premium stick for the rest of the session even after the gate was re-enabled)
     // Photo limit and radius cap
     if (rc.maxProfilePhotos  > 0) window._rcMaxPhotos  = rc.maxProfilePhotos;
     if (rc.discoverRadiusMax > 0) window._rcRadiusMax  = rc.discoverRadiusMax;
@@ -3743,6 +3745,21 @@ const S = {
   filterKids:           null,    // string or null
   filterWantsKids:      null,    // string or null
 };
+
+// Sept 26 fix: Premium status is promo-aware in ONE place. Every existing `S.isPremium = x`
+// still sets the user's own status (paid / Founder's Access / referral); every read of
+// S.isPremium (≈27 features) also returns true while an admin promotion is on:
+//   • Admin → Promo Mode switch (adminConfig/featureFlags.promoMode, live via subscribeFeatureFlags)
+//   • App config premiumGateEnabled === false (app/config)
+// Turning a promotion off drops users back to their own status — nobody keeps promo Premium.
+(function () {
+  let _ownPremium = !!S.isPremium;
+  Object.defineProperty(S, 'isPremium', {
+    get() { return _ownPremium || !!window._adminFlags?.promoMode || window._firestoreRC?.premiumGateEnabled === false; },
+    set(v) { _ownPremium = !!v; },
+    enumerable: true, configurable: true
+  });
+})();
 
 /* ================================================================
    GEOLOCATION — silent GPS, reverse geocoding, distance math
@@ -5023,7 +5040,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Refresh isPremium from Firestore in case webhook just fired
         if (db && S.user.id) {
           db.collection('users').doc(S.user.id).get().then(snap => {
-            if (snap.exists) S.isPremium = snap.data()?.isPremium === true;
+            // Only ever upgrade here — the old `= isPremium === true` could wipe Founder's Access
+            if (snap.exists && snap.data()?.isPremium === true) S.isPremium = true;
           }).catch(() => {});
         }
       }
