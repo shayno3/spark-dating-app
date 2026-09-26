@@ -342,6 +342,30 @@ exports.stripeWebhook = onRequest(
 );
 
 /* ----------------------------------------------------------------
+   PREMIUM ACCESS (server-side mirror of the app's S.isPremium getter)
+   true if: paid (isPremium) OR Founder's Access not yet expired
+            OR adminConfig/featureFlags.promoMode OR app/config.premiumGateEnabled === false
+   (Plain helper — deliberately NOT exported, so the Firebase CLI doesn't treat it as a function.)
+---------------------------------------------------------------- */
+async function hasPremiumAccess(userData) {
+  if (userData?.isPremium === true) return true;
+  const fa  = userData?.founderAccessExpiry;
+  const exp = fa?.toDate ? fa.toDate() : (fa ? new Date(fa) : null);
+  if (exp && !isNaN(exp) && exp > new Date()) return true;
+  try {
+    const [flags, cfg] = await Promise.all([
+      db.collection('adminConfig').doc('featureFlags').get(),
+      db.collection('app').doc('config').get(),
+    ]);
+    if (flags.exists && flags.data().promoMode === true) return true;
+    if (cfg.exists && cfg.data().premiumGateEnabled === false) return true;
+  } catch (e) {
+    console.warn('hasPremiumAccess: promo/config lookup failed', e);
+  }
+  return false;
+}
+
+/* ----------------------------------------------------------------
    TRANSLATE VOICE NOTE  (Premium-only, on-demand)
    Called by the frontend with { matchId, msgId }.
    1. Verifies the caller is authenticated & isPremium.
@@ -360,9 +384,12 @@ exports.translateVoiceNote = onCall(
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.', 'You must be logged in.');
 
-    // 2. Premium check — enforce server-side so it cannot be bypassed
+    // 2. Premium check — enforce server-side so it cannot be bypassed.
+    //    Sept 26 fix: same rule as the app (S.isPremium) — paid OR active Founder's Access
+    //    OR admin Promo Mode OR app-config premium gate off. Previously only paid users passed,
+    //    so Founder's Access / Promo users saw "Premium feature" errors.
     const userSnap = await db.collection('users').doc(uid).get();
-    if (!userSnap.exists || !userSnap.data().isPremium) {
+    if (!userSnap.exists || !(await hasPremiumAccess(userSnap.data()))) {
       throw new HttpsError(
         'permission-denied',
         'Voice note translation is a Premium feature.',
