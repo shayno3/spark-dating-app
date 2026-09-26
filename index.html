@@ -7306,14 +7306,24 @@ function _showFireIceCard() {
 async function fireIceVote(targetUid, vote) {
   if (!S.user?.id) return;
   _fireIceRated.add(targetUid);
+  const _vote = {
+    raterId:   S.user.id,
+    targetId:  targetUid,
+    vote:      vote,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
   try {
-    await db.collection('fireIceRatings').add({
-      raterId:   S.user.id,
-      targetId:  targetUid,
-      vote:      vote,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch(e) { console.warn('fireIce write', e); }
+    // Sept 26 fix: one vote per rater per profile. A fixed doc ID (raterId_targetId) means a
+    // repeat vote (second device, or the "already rated" list failing to load) overwrites
+    // the first instead of adding another doc and inflating the person's Total Ratings.
+    await db.collection('fireIceRatings').doc(`${S.user.id}_${targetUid}`).set(_vote);
+  } catch(e) {
+    // Safety net until the Firestore rules are synced (Fix 4): if the live rules reject the
+    // fixed-ID write, fall back to the old add() so the vote is never silently lost.
+    console.warn('fireIce write (fixed id) failed, falling back to add()', e);
+    try { await db.collection('fireIceRatings').add(_vote); }
+    catch(e2) { console.warn('fireIce write', e2); }
+  }
   const card = document.getElementById('fireIceCard');
   if (card) {
     card.style.transition = 'transform 0.28s ease, opacity 0.28s';
@@ -7343,7 +7353,17 @@ function renderSparkScore() {
   const me = S.user?.id;
   if (!me) return;
   db.collection('fireIceRatings').where('targetId','==',me).get().then(snap => {
-    const docs = snap.docs.map(d => d.data());
+    // Sept 26 fix: count ONE vote per rater (their latest). Protects Total Ratings against any
+    // duplicate docs already stored from the old add()-based writes.
+    const _latest = new Map();
+    snap.docs.forEach(doc => {
+      const d  = doc.data();
+      const t  = d.createdAt?.toDate ? d.createdAt.toDate().getTime() : 0;
+      const k  = d.raterId || doc.id;           // legacy docs without raterId still count once each
+      const prev = _latest.get(k);
+      if (!prev || t >= prev._t) _latest.set(k, { ...d, _t: t });
+    });
+    const docs = [..._latest.values()];
     const total = docs.length;
     const fires = docs.filter(d => d.vote === 'fire').length;
     const ices  = total - fires;
