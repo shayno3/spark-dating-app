@@ -3430,6 +3430,28 @@ async function adminRevokePremium(uid) {
 const _defaultFlags = { fireIceGated: true, sparkScoreGated: true, promoMode: false };
 window._adminFlags  = { ..._defaultFlags };
 
+// Sept 26 fix: the flags used to load ONLY when the admin opened the Admin tab, so the switches
+// never reached real users. Every signed-in user now subscribes (live) after login; the Fire or
+// Ice and Spark Score pages re-render if they're on screen when a switch is flipped.
+function subscribeFeatureFlags() {
+  if (!db) return;
+  if (S.listeners.featureFlags) S.listeners.featureFlags();
+  S.listeners.featureFlags = db.collection('adminConfig').doc('featureFlags').onSnapshot(doc => {
+    window._adminFlags = { ..._defaultFlags, ...(doc.exists ? doc.data() : {}) };
+    if (document.getElementById('tab-explore')?.classList.contains('active')) {
+      if (S._exploreSubTab === 'spark-score') renderSparkScore();
+      else if (S._exploreSubTab === 'fire-ice') renderFireOrIce();
+    }
+  }, e => console.warn('featureFlags listener:', e));
+}
+
+// Gate for a flag-controlled page: open to everyone when the admin switch is OFF (not gated),
+// otherwise Premium users (incl. Founder's Access) — or everyone while Promo Mode is on.
+function _featureUnlocked(flagKey) {
+  const f = window._adminFlags || _defaultFlags;
+  return !f[flagKey] || !!S.isPremium || !!f.promoMode;
+}
+
 async function adminLoadFlags() {
   if (!db) return;
   try {
@@ -6953,6 +6975,7 @@ async function enterMainApp() {
   loadProfiles();
   subscribeToMatches();
   subscribeToLikesReceived(); // real-time listener — fires immediately & on every new like
+  subscribeFeatureFlags();    // admin switches (Fire or Ice / Spark Score / Promo) — live for every user
 
   // Check if admin has flagged this user to re-upload photos
   if (S.user?.needsPhotoReupload) {
@@ -7244,7 +7267,7 @@ let _fireIceRated = new Set();
 async function renderFireOrIce() {
   const panel = document.getElementById('play-fire-ice');
   if (!panel) return;
-  if (!S.isPremium) {
+  if (!_featureUnlocked('fireIceGated')) {   // Sept 26: respects the admin switch (was Premium-only)
     panel.innerHTML = `<div class="play-lock">
       <div class="play-lock-icon">🔥❄️</div>
       <div class="play-lock-title">Fire or Ice</div>
@@ -7340,7 +7363,7 @@ async function fireIceVote(targetUid, vote) {
 function renderSparkScore() {
   const panel = document.getElementById('play-spark-score');
   if (!panel) return;
-  if (!S.isPremium) {
+  if (!_featureUnlocked('sparkScoreGated')) {   // Sept 26: respects the admin switch (was Premium-only)
     panel.innerHTML = `<div class="play-lock">
       <div class="play-lock-icon">⚡</div>
       <div class="play-lock-title">Spark Score</div>
