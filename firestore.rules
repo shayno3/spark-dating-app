@@ -17,6 +17,22 @@ service cloud.firestore {
                         'premiumSince', 'premiumUntil', 'referralPremiumUntil']);
     }
 
+    // Sept 26: fields a user must never set on their OWN profile (admin / server only)
+    function premiumOrAdminKeys() {
+      return ['isPremium', 'premium', 'premiumExpiry', 'premiumGrantedAt', 'premiumGrantedBy',
+              'stripeCustomerId', 'stripeSubscriptionId',
+              'premiumSince', 'premiumUntil', 'referralPremiumUntil', 'banned'];
+    }
+
+    // Sept 26: Founder's Access (30 days) may be stamped ONCE, at most ~31 days out.
+    // Previously a user could set any expiry (e.g. 2099) = free Premium forever.
+    function founderAccessOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['founderAccessExpiry'])
+          || (!('founderAccessExpiry' in resource.data)
+              && request.resource.data.founderAccessExpiry is timestamp
+              && request.resource.data.founderAccessExpiry <= request.time + duration.value(31, 'd'));
+    }
+
     // ── Users ─────────────────────────────────────────────────────────────
     // Anyone signed in can read profiles (needed for Discover/Nearby).
     // Owner can create/delete their own profile freely.
@@ -26,12 +42,19 @@ service cloud.firestore {
     // Any authenticated user may increment profileViewsWeekly (profile view tracking).
     match /users/{uid} {
       allow read:   if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == uid;
+      // Sept 26: a new profile can't arrive with Premium/ban fields or a long Founder's Access
+      allow create: if request.auth != null && request.auth.uid == uid
+                    && !request.resource.data.keys().hasAny(premiumOrAdminKeys())
+                    && (!('founderAccessExpiry' in request.resource.data)
+                        || (request.resource.data.founderAccessExpiry is timestamp
+                            && request.resource.data.founderAccessExpiry <= request.time + duration.value(31, 'd')));
       allow delete: if request.auth != null && request.auth.uid == uid;
       // Owner update: allowed unless touching premium fields or exceeding photo cap
       allow update: if request.auth != null
                     && request.auth.uid == uid
                     && !touchesPremiumFields()
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['banned'])  // Sept 26: no self-unban
+                    && founderAccessOk()                                                             // Sept 26
                     && (!('photos' in request.resource.data) || request.resource.data.photos.size() <= 6);
       // Allow any signed-in user to increment profileViewsWeekly on another user's doc
       allow update: if request.auth != null
@@ -128,6 +151,52 @@ service cloud.firestore {
       allow read:   if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow create: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow update, delete: if isAdmin();
+    }
+
+    // ── Fire or Ice Ratings ───────────────────────────────────────────────
+    // Sept 26: synced from the console and tightened. Previously any signed-in user could read
+    // EVERY rating (who voted Ice on whom) and overwrite anyone's rating doc by putting their own
+    // raterId in it. Now: read only votes you gave or received (admin: all); one vote per rater
+    // per profile at doc ID {raterId}_{targetId} (matches the app, commit 1a8d7fb); valid fields
+    // only; no self-rating; only your own vote can be changed; only admin deletes.
+    function validRating() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['raterId', 'targetId', 'vote', 'createdAt'])
+          && d.raterId == request.auth.uid
+          && d.targetId is string
+          && d.targetId != request.auth.uid
+          && d.vote in ['fire', 'ice']
+          && d.createdAt == request.time;
+    }
+    match /fireIceRatings/{ratingId} {
+      allow read:   if request.auth != null
+                    && (resource.data.raterId == request.auth.uid
+                        || resource.data.targetId == request.auth.uid
+                        || isAdmin());
+      allow create: if request.auth != null && validRating()
+                    && ratingId == request.auth.uid + '_' + request.resource.data.targetId;
+      allow update: if request.auth != null && validRating()
+                    && resource.data.raterId == request.auth.uid
+                    && request.resource.data.targetId == resource.data.targetId;
+      allow delete: if isAdmin();
+    }
+
+    // ── Spark Premium Chat (Rooms) ──────────────────────────────  (synced from console, unchanged)
+    match /rooms/{roomId}/messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && (request.resource.data.uid == request.auth.uid
+                        || request.resource.data.type == 'system');
+      // Only the reactions map may be updated after creation (reaction toggles)
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+      allow delete: if isAdmin();
+    }
+
+    // ── Presence ──────────────────────────────────────────────────────  (synced from console, unchanged)
+    match /presence/{uid} {
+      allow read: if request.auth != null;
+      allow write, delete: if request.auth != null && request.auth.uid == uid;
     }
   }
 }

@@ -1,0 +1,4 @@
+node_modules/
+firestore.rules.copy
+firebase-debug.log
+firestore-debug.log
